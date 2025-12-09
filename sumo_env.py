@@ -14,36 +14,53 @@ else:
 
 class SUMOEnv:
     """
-    SUMO Environment adapted for 'BI.net.xml'.
+    SUMO Environment for Traffic Signal Control.
+    Loads settings dynamically from a configuration dictionary.
     """
 
-    def __init__(self, net_file, route_file, use_gui=False, log_file=None):
-        self.net_file = net_file
-        self.route_file = route_file
-        self.use_gui = use_gui
-        self.log_file = log_file
+    def __init__(self, config, scenario='low'):
+        """
+        Initializes the environment.
+        Args:
+            config (dict): The configuration dictionary loaded from yaml.
+            scenario (str): 'low' or 'high' traffic demand.
+        """
+        self.config = config
         
-        # --- CONFIG MATCHING YOUR BI.NET.XML ---
-        self.tl_id = "TL"         # From BI.net.xml
-        self.cycle_time = 90      # Total cycle duration
-        self.yellow_time = 4      # Yellow time
+        # 1. Setup Paths
+        self.net_file = config['paths']['net_file']
         
-        # Lane IDs (4 lanes per edge as seen in BI.net.xml)
-        # Incoming lanes for Queue detection
-        self.lanes_NS = [
-            "N2TL_0", "N2TL_1", "N2TL_2", "N2TL_3",
-            "S2TL_0", "S2TL_1", "S2TL_2", "S2TL_3"
-        ]
-        self.lanes_EW = [
-            "E2TL_0", "E2TL_1", "E2TL_2", "E2TL_3",
-            "W2TL_0", "W2TL_1", "W2TL_2", "W2TL_3"
-        ]
+        if scenario == 'low':
+            self.route_file = config['paths']['route_file_low']
+        else:
+            self.route_file = config['paths']['route_file_high']
+            
+        # 2. Setup Simulation Settings
+        self.use_gui = config['simulation']['gui']
+        self.log_file = config['simulation']['log_file']
+        
+        # 3. Setup Traffic Light Settings
+        tl_conf = config['traffic_light']
+        self.tl_id = tl_conf['tl_id']
+        self.cycle_time = tl_conf['cycle_time']
+        self.yellow_time = tl_conf['yellow_time']
+        self.phases = {
+            'ns_green': tl_conf['phase_ns_green'],
+            'ns_yellow': tl_conf['phase_ns_yellow'],
+            'ew_green': tl_conf['phase_ew_green'],
+            'ew_yellow': tl_conf['phase_ew_yellow']
+        }
+        
+        # Lane definitions (Specific to BI.net.xml structure)
+        self.lanes_NS = ["N2TL_0", "N2TL_1", "N2TL_2", "N2TL_3", "S2TL_0", "S2TL_1", "S2TL_2", "S2TL_3"]
+        self.lanes_EW = ["E2TL_0", "E2TL_1", "E2TL_2", "E2TL_3", "W2TL_0", "W2TL_1", "W2TL_2", "W2TL_3"]
         
         self.episode = 0
         self.step_counter = 0
-        self.metrics = [] 
+        self.metrics = []
 
     def reset(self):
+        """Restarts the simulation."""
         try:
             traci.close()
         except:
@@ -64,36 +81,31 @@ class SUMOEnv:
         self.step_counter = 0
         self.episode += 1
         
+        print(f"[INFO] Simulation reset. Episode: {self.episode}")
         return self._get_state()
 
     def step(self, action):
         """
-        Control Logic for BI.net.xml
-        We use Phase 0 for NS Green and Phase 4 for EW Green.
+        Executes one control cycle.
+        Action: Split ratio for NS Green (0.1 to 0.9).
         """
-        # 1. Calculate Phase Durations
+        # Calculate Phase Durations
         available_green_time = self.cycle_time - (2 * self.yellow_time)
         split_ns = np.clip(action, 0.1, 0.9)
         green_ns = int(available_green_time * split_ns)
         green_ew = available_green_time - green_ns
         
-        # 2. Execute Phases (Mapped to BI.net.xml phases)
-        
-        # Phase 0: NS Green (Defined in your net.xml)
-        self._set_phase(0, green_ns)        
-        
-        # Phase 1: NS Yellow
-        self._set_phase(1, self.yellow_time) 
-        
-        # Phase 4: EW Green (Note: Phase 4 is EW Green in your file)
-        self._set_phase(4, green_ew)        
-        
-        # Phase 5: EW Yellow
-        self._set_phase(5, self.yellow_time) 
+        # Execute Phases using indices from config
+        self._set_phase(self.phases['ns_green'], green_ns)        
+        self._set_phase(self.phases['ns_yellow'], self.yellow_time) 
+        self._set_phase(self.phases['ew_green'], green_ew)        
+        self._set_phase(self.phases['ew_yellow'], self.yellow_time) 
 
-        # 3. Observe & Reward
+        # Observe & Reward
         next_state = self._get_state()
         reward = self._compute_reward()
+        
+        # Check if simulation should end (no vehicles left)
         done = traci.simulation.getMinExpectedNumber() <= 0
         
         self._log_kpi(action, split_ns, reward)
@@ -108,8 +120,6 @@ class SUMOEnv:
             self.step_counter += 1
 
     def _get_state(self):
-        """Returns Queue Length for NS and EW."""
-        # Note: getLastStepHaltingNumber counts cars with speed < 0.1 m/s
         q_ns = sum([traci.lane.getLastStepHaltingNumber(lane) for lane in self.lanes_NS])
         q_ew = sum([traci.lane.getLastStepHaltingNumber(lane) for lane in self.lanes_EW])
         return np.array([q_ns, q_ew])
@@ -122,18 +132,20 @@ class SUMOEnv:
     def _log_kpi(self, action, actual_split, reward):
         if self.log_file:
             state = self._get_state()
+            
+            # --- BỔ SUNG: Tính toán thời gian chờ (Waiting Time) ---
             wait_ns = sum([traci.lane.getWaitingTime(lane) for lane in self.lanes_NS])
             wait_ew = sum([traci.lane.getWaitingTime(lane) for lane in self.lanes_EW])
-            
+            # -------------------------------------------------------
+
             self.metrics.append({
                 'Episode': self.episode,
                 'Step': self.step_counter,
-                'Action_Raw': action,
-                'Split_NS': actual_split,
+                'Action': action,
                 'Queue_NS': state[0],
                 'Queue_EW': state[1],
-                'Wait_NS': wait_ns,
-                'Wait_EW': wait_ew,
+                'Wait_NS': wait_ns,   # <--- Đã thêm lại cột này
+                'Wait_EW': wait_ew,   # <--- Đã thêm lại cột này
                 'Reward': reward
             })
 
@@ -143,7 +155,7 @@ class SUMOEnv:
             os.makedirs(os.path.dirname(self.log_file), exist_ok=True)
             df.to_csv(self.log_file, index=False)
             print(f"[INFO] KPIs saved to {self.log_file}")
-
+    
     def close(self):
         traci.close()
         print("[INFO] SUMO connection closed.")

@@ -1,69 +1,74 @@
+import yaml
 from sumo_env import SUMOEnv
-import analysis  # Assuming analysis.py exists from previous step
+import analysis
 import random
 import os
 
-def run_simulation_scenario(scenario_type='low', controller_type='random'):
-    """
-    Runs simulation using BI.net.xml and BI_*.rou.xml
-    """
-    
-    # --- PATHS UPDATED FOR YOUR FILES ---
-    net_file = "networks/BI.net.xml"
-    
-    if scenario_type == 'low':
-        # Using your provided Low Demand file
-        route_file = "networks/BI_50_test.rou.xml" 
-    else:
-        # Using your provided High Demand file
-        route_file = "networks/BI_150_test.rou.xml"
+def load_config(config_path="configs/config.yaml"):  
+    """Loads the YAML configuration file."""
+    if not os.path.exists(config_path):
+        raise FileNotFoundError(f"Config file not found: {config_path}")
         
-    log_file = f"outputs/log_{scenario_type}_{controller_type}.csv"
+    with open(config_path, "r") as f:
+        return yaml.safe_load(f)
 
-    # Initialize Environment
-    # Check if files exist
-    if not os.path.exists(net_file) or not os.path.exists(route_file):
-        print(f"[ERROR] Files not found. Please put BI.net.xml and .rou.xml inside 'networks/' folder.")
+def run_simulation():
+    # 1. Load Configuration
+    try:
+        # You can also pass a custom path here if needed
+        cfg = load_config("configs/config.yaml") 
+        print(f"[INFO] Configuration loaded from configs/config.yaml")
+    except Exception as e:
+        print(f"[ERROR] Failed to load config: {e}")
         return
 
-    env = SUMOEnv(net_file, route_file, use_gui=True, log_file=log_file)
-    
-    print(f"--- STARTING SIMULATION: Scenario={scenario_type.upper()} | Controller={controller_type.upper()} ---")
+    # 2. Initialize Environment
+    # scenario='high' will use the route file defined in yaml
+    env = SUMOEnv(cfg, scenario='high') 
     
     state = env.reset()
     done = False
+    
+    # Get run limit from config
+    max_steps = cfg['simulation']['max_steps']
     total_reward = 0
     
+    print(f"[INFO] Starting simulation for {max_steps} steps...")
+
     try:
-        while not done:
-            # --- CONTROLLER LOGIC ---
-            if controller_type == 'random':
-                # Random split for NS Green (0.2 to 0.8)
-                action = random.uniform(0.2, 0.8)
-            elif controller_type == 'fixed':
-                # Fixed 50-50 split
-                action = 0.5
+        # 3. Main Simulation Loop
+        while not done and env.step_counter < max_steps:
             
-            # Step
-            next_state, reward, done, info = env.step(action)
+            # --- AGENT LOGIC ---
+            # Random action between 0.1 and 0.9
+            action = random.uniform(0.1, 0.9)
+            # -------------------
+            
+            next_state, reward, done, _ = env.step(action)
             total_reward += reward
             
-            print(f"Step {env.step_counter:4d} | Action: {action:.2f} | Q_NS: {int(state[0]):3d} | Q_EW: {int(state[1]):3d} | Reward: {reward:.1f}")
+            # Print log every 100 steps
+            if env.step_counter % 100 == 0:
+                print(f"Step {env.step_counter}/{max_steps} | Action: {action:.2f} | Reward: {reward:.1f}")
+                
             state = next_state
             
+        print(f"[INFO] Simulation finished. Total Reward: {total_reward:.2f}")
+
     except KeyboardInterrupt:
-        print("\n[WARN] Simulation stopped by user.")
+        print("\n[WARN] Simulation interrupted by user.")
         
     finally:
+        # 4. Cleanup
         env.save_logs()
         env.close()
         
-        # Simple Analysis Trigger
-        print("\nGenerating Analysis...")
-        df = analysis.load_results(log_file)
-        analysis.compute_summary_kpi(df)
-        # analysis.plot_performance(df) # Uncomment if you want plots popup
+        # Trigger Analysis
+        log_path = cfg['simulation']['log_file']
+        if os.path.exists(log_path):
+            print("[INFO] Running analysis...")
+            df = analysis.load_results(log_path)
+            analysis.compute_summary_kpi(df)
 
 if __name__ == "__main__":
-    # Example: Run High Demand (BI_150) with Random Controller
-    run_simulation_scenario(scenario_type='high', controller_type='random')
+    run_simulation()
