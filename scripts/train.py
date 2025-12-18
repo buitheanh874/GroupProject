@@ -1,0 +1,159 @@
+from __future__ import annotations
+
+import argparse
+import csv
+import os
+import sys
+from pathlib import Path
+from typing import Any, Dict, Optional
+
+import numpy as np
+
+project_root = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(project_root))
+
+from rl.utils import ensure_dir, generate_run_id, linear_epsilon, load_yaml_config, save_yaml_config, set_global_seed
+from scripts.common import build_agent, build_env
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", type=str, required=True)
+    args = parser.parse_args()
+
+    config = load_yaml_config(args.config)
+
+    run_cfg = config.get("run", {})
+    seed = int(run_cfg.get("seed", 0))
+    set_global_seed(seed)
+
+    env = build_env(config)
+    agent, _ = build_agent(config, env)
+    agent.to_train_mode()
+
+    run_name = str(run_cfg.get("run_name", "train"))
+    run_id = generate_run_id(prefix=run_name)
+
+    logging_cfg = config.get("logging", {})
+    log_dir = ensure_dir(str(logging_cfg.get("log_dir", "logs")))
+    model_dir = ensure_dir(str(logging_cfg.get("model_dir", "models")))
+
+    config_copy_path = os.path.join(log_dir, f"{run_id}_config.yaml")
+    save_yaml_config(config, config_copy_path)
+
+    metrics_path = os.path.join(log_dir, f"{run_id}_train_metrics.csv")
+
+    train_cfg = config.get("train", {})
+    episodes = int(train_cfg.get("episodes", 200))
+    save_every_episodes = int(train_cfg.get("save_every_episodes", 50))
+    print_every_episodes = int(train_cfg.get("print_every_episodes", 10))
+
+    exploration_cfg = config.get("exploration", {})
+    eps_start = float(exploration_cfg.get("eps_start", 1.0))
+    eps_end = float(exploration_cfg.get("eps_end", 0.05))
+    eps_decay_steps = int(exploration_cfg.get("eps_decay_steps", 50000))
+
+    best_reward = -float("inf")
+    global_step = 0
+
+    with open(metrics_path, "w", newline="", encoding="utf-8") as csv_file:
+        writer = csv.DictWriter(
+            csv_file,
+            fieldnames=[
+                "episode",
+                "episode_reward",
+                "avg_loss",
+                "episode_steps",
+                "global_step",
+                "epsilon_end",
+                "arrived_vehicles",
+                "avg_wait_time",
+                "avg_travel_time",
+                "avg_stops",
+                "avg_queue",
+            ],
+        )
+        writer.writeheader()
+
+        for episode in range(1, int(episodes) + 1):
+            if hasattr(env, "set_seed"):
+                env.set_seed(int(seed + episode))
+
+            state = env.reset()
+
+            done = False
+            episode_reward = 0.0
+            episode_steps = 0
+            last_epsilon = float(eps_start)
+
+            losses = []
+
+            while not done:
+                epsilon = linear_epsilon(
+                    global_step=global_step,
+                    eps_start=eps_start,
+                    eps_end=eps_end,
+                    decay_steps=eps_decay_steps,
+                )
+                last_epsilon = float(epsilon)
+
+                action_id = agent.select_action(state=state, epsilon=epsilon)
+                next_state, reward, done, info = env.step(action_id)
+
+                agent.store_transition(state, action_id, reward, next_state, done)
+                loss_value = agent.update()
+                if loss_value is not None:
+                    losses.append(float(loss_value))
+
+                state = next_state
+                episode_reward += float(reward)
+                episode_steps += 1
+                global_step += 1
+
+            avg_loss = float(np.mean(losses)) if len(losses) > 0 else 0.0
+
+            kpi = {}
+            if isinstance(info, dict):
+                kpi = info.get("episode_kpi", {}) if done else {}
+
+            row: Dict[str, Any] = {
+                "episode": int(episode),
+                "episode_reward": float(episode_reward),
+                "avg_loss": float(avg_loss),
+                "episode_steps": int(episode_steps),
+                "global_step": int(global_step),
+                "epsilon_end": float(last_epsilon),
+                "arrived_vehicles": int(kpi.get("arrived_vehicles", 0)),
+                "avg_wait_time": float(kpi.get("avg_wait_time", 0.0)),
+                "avg_travel_time": float(kpi.get("avg_travel_time", 0.0)),
+                "avg_stops": float(kpi.get("avg_stops", 0.0)),
+                "avg_queue": float(kpi.get("avg_queue", 0.0)),
+            }
+
+            writer.writerow(row)
+            csv_file.flush()
+
+            should_save_periodic = int(save_every_episodes) > 0 and (int(episode) % int(save_every_episodes) == 0)
+            is_best = float(episode_reward) > float(best_reward)
+
+            if is_best:
+                best_reward = float(episode_reward)
+
+            if should_save_periodic:
+                model_path = os.path.join(model_dir, f"{run_id}_episode_{int(episode)}.pt")
+                agent.save_model(model_path)
+
+            if is_best:
+                best_model_path = os.path.join(model_dir, f"{run_id}_best.pt")
+                agent.save_model(best_model_path)
+
+            if int(print_every_episodes) > 0 and (int(episode) % int(print_every_episodes) == 0):
+                print(
+                    f"Episode {int(episode)}/{int(episodes)} | Reward={float(episode_reward):.3f} | AvgLoss={float(avg_loss):.6f} | Epsilon={float(last_epsilon):.4f}"
+                )
+
+    env.close()
+
+
+if __name__ == "__main__":
+    main()
