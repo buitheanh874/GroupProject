@@ -38,12 +38,12 @@ def run_simulation():
     try:
         # 3. Main Simulation Loop
         while not done and env.step_counter < max_steps:
-            
+
             # --- AGENT LOGIC ---
-            # Random action between 0.1 and 0.9
-            action = random.uniform(0.1, 0.9)
+            # Random discrete action (0..4) selecting NS/EW green split
+            action = random.randint(0, 4)
             # -------------------
-            
+
             next_state, reward, done, _ = env.step(action)
             total_reward += reward
             

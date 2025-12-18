@@ -42,18 +42,81 @@ class SUMOEnv:
         # 3. Setup Traffic Light Settings
         tl_conf = config['traffic_light']
         self.tl_id = tl_conf['tl_id']
-        self.cycle_time = tl_conf['cycle_time']
-        self.yellow_time = tl_conf['yellow_time']
+        self.cycle_time = tl_conf.get('cycle_time', 60)
+        self.yellow_time = tl_conf.get('yellow_time', 0)
         self.phases = {
             'ns_green': tl_conf['phase_ns_green'],
             'ns_yellow': tl_conf['phase_ns_yellow'],
             'ew_green': tl_conf['phase_ew_green'],
             'ew_yellow': tl_conf['phase_ew_yellow']
         }
-        
-        # Lane definitions (Specific to BI.net.xml structure)
-        self.lanes_NS = ["N2TL_0", "N2TL_1", "N2TL_2", "N2TL_3", "S2TL_0", "S2TL_1", "S2TL_2", "S2TL_3"]
-        self.lanes_EW = ["E2TL_0", "E2TL_1", "E2TL_2", "E2TL_3", "W2TL_0", "W2TL_1", "W2TL_2", "W2TL_3"]
+
+        # 4. Lane grouping (controlled vs slip lanes)
+        lanes_conf = config.get('lanes', {})
+        self.lanes_NS_ctrl = lanes_conf.get('ns_controlled', [])
+        self.lanes_EW_ctrl = lanes_conf.get('ew_controlled', [])
+        self.lanes_RT_NS = lanes_conf.get('ns_right_turn', [])
+        self.lanes_RT_EW = lanes_conf.get('ew_right_turn', [])
+
+        # Fallback to legacy lane definitions if config is missing
+        if not self.lanes_NS_ctrl:
+            self.lanes_NS_ctrl = [
+                "N2TL_0",
+                "N2TL_1",
+                "N2TL_2",
+                "N2TL_3",
+                "S2TL_0",
+                "S2TL_1",
+                "S2TL_2",
+                "S2TL_3",
+            ]
+
+        if not self.lanes_EW_ctrl:
+            self.lanes_EW_ctrl = [
+                "E2TL_0",
+                "E2TL_1",
+                "E2TL_2",
+                "E2TL_3",
+                "W2TL_0",
+                "W2TL_1",
+                "W2TL_2",
+                "W2TL_3",
+            ]
+
+        # 5. Action space (phase split choices)
+        self.action_splits = tl_conf.get(
+            'action_splits',
+            [
+                (0.30, 0.70),
+                (0.40, 0.60),
+                (0.50, 0.50),
+                (0.60, 0.40),
+                (0.70, 0.30),
+            ],
+        )
+
+        # 6. State normalization parameters
+        norm_conf = config.get('state_normalization', {})
+        mu_cfg = norm_conf.get('mu', {})
+        sigma_cfg = norm_conf.get('sigma', {})
+        self.state_mu = np.array(
+            [
+                mu_cfg.get('q_NS', 0.0),
+                mu_cfg.get('q_EW', 0.0),
+                mu_cfg.get('w_NS', 0.0),
+                mu_cfg.get('w_EW', 0.0),
+            ]
+        )
+        self.state_sigma = np.array(
+            [
+                sigma_cfg.get('q_NS', 1.0),
+                sigma_cfg.get('q_EW', 1.0),
+                sigma_cfg.get('w_NS', 1.0),
+                sigma_cfg.get('w_EW', 1.0),
+            ]
+        )
+        self.state_clip = norm_conf.get('clip', 5)
+        self.eps = 1e-6
         
         self.episode = 0
         self.step_counter = 0
@@ -84,68 +147,106 @@ class SUMOEnv:
         print(f"[INFO] Simulation reset. Episode: {self.episode}")
         return self._get_state()
 
-    def step(self, action):
+    def step(self, action_id):
         """
-        Executes one control cycle.
-        Action: Split ratio for NS Green (0.1 to 0.9).
+        Executes one control cycle according to the MDP spec.
+
+        Args:
+            action_id (int): Index in the discrete action set controlling the green split.
         """
-        # Calculate Phase Durations
-        available_green_time = self.cycle_time - (2 * self.yellow_time)
-        split_ns = np.clip(action, 0.1, 0.9)
-        green_ns = int(available_green_time * split_ns)
+        if action_id < 0 or action_id >= len(self.action_splits):
+            raise ValueError(f"Invalid action id {action_id}. Must be in [0, {len(self.action_splits) - 1}].")
+
+        rho_ns, rho_ew = self.action_splits[action_id]
+        if not np.isclose(rho_ns + rho_ew, 1.0):
+            raise ValueError("Invalid action split configuration: rho_ns + rho_ew must equal 1.0.")
+
+        # Calculate Phase Durations (cycle length includes both yellows)
+        available_green_time = max(self.cycle_time - (2 * self.yellow_time), 1)
+        green_ns = int(round(available_green_time * rho_ns))
         green_ew = available_green_time - green_ns
-        
+
+        # Cycle-level accumulators
+        wait_ns = 0.0
+        wait_ew = 0.0
+        q_ns_snapshot = 0
+        q_ew_snapshot = 0
+
         # Execute Phases using indices from config
-        self._set_phase(self.phases['ns_green'], green_ns)        
-        self._set_phase(self.phases['ns_yellow'], self.yellow_time) 
-        self._set_phase(self.phases['ew_green'], green_ew)        
-        self._set_phase(self.phases['ew_yellow'], self.yellow_time) 
+        q_ns_snapshot, q_ew_snapshot, wait_ns, wait_ew = self._run_phase(
+            self.phases['ns_green'], green_ns, wait_ns, wait_ew
+        )
+
+        if self.yellow_time > 0:
+            q_ns_snapshot, q_ew_snapshot, wait_ns, wait_ew = self._run_phase(
+                self.phases['ns_yellow'], self.yellow_time, wait_ns, wait_ew
+            )
+
+        q_ns_snapshot, q_ew_snapshot, wait_ns, wait_ew = self._run_phase(
+            self.phases['ew_green'], green_ew, wait_ns, wait_ew
+        )
+
+        if self.yellow_time > 0:
+            q_ns_snapshot, q_ew_snapshot, wait_ns, wait_ew = self._run_phase(
+                self.phases['ew_yellow'], self.yellow_time, wait_ns, wait_ew
+            )
 
         # Observe & Reward
-        next_state = self._get_state()
-        reward = self._compute_reward()
-        
+        state_raw = np.array([q_ns_snapshot, q_ew_snapshot, wait_ns, wait_ew], dtype=np.float32)
+        next_state = self._normalize_state(state_raw)
+        reward = -(wait_ns + wait_ew)
+
         # Check if simulation should end (no vehicles left)
         done = traci.simulation.getMinExpectedNumber() <= 0
-        
-        self._log_kpi(action, split_ns, reward)
 
-        return next_state, reward, done, {}
+        self._log_kpi(action_id, rho_ns, state_raw, reward)
 
-    def _set_phase(self, phase_index, duration):
+        return next_state, reward, done, {"state_raw": state_raw}
+
+    def _run_phase(self, phase_index, duration, wait_ns, wait_ew):
         traci.trafficlight.setPhase(self.tl_id, phase_index)
         traci.trafficlight.setPhaseDuration(self.tl_id, duration)
+
+        q_ns_snapshot = 0
+        q_ew_snapshot = 0
+
         for _ in range(int(duration)):
             traci.simulationStep()
             self.step_counter += 1
 
+            q_ns_snapshot = self._get_queue(self.lanes_NS_ctrl)
+            q_ew_snapshot = self._get_queue(self.lanes_EW_ctrl)
+
+            wait_ns += q_ns_snapshot
+            wait_ew += q_ew_snapshot
+
+        return q_ns_snapshot, q_ew_snapshot, wait_ns, wait_ew
+
+    def _get_queue(self, lane_list):
+        return sum([traci.lane.getLastStepHaltingNumber(lane) for lane in lane_list])
+
     def _get_state(self):
-        q_ns = sum([traci.lane.getLastStepHaltingNumber(lane) for lane in self.lanes_NS])
-        q_ew = sum([traci.lane.getLastStepHaltingNumber(lane) for lane in self.lanes_EW])
-        return np.array([q_ns, q_ew])
+        q_ns = self._get_queue(self.lanes_NS_ctrl)
+        q_ew = self._get_queue(self.lanes_EW_ctrl)
+        state_raw = np.array([q_ns, q_ew, 0.0, 0.0], dtype=np.float32)
+        return self._normalize_state(state_raw)
 
-    def _compute_reward(self):
-        wait_ns = sum([traci.lane.getWaitingTime(lane) for lane in self.lanes_NS])
-        wait_ew = sum([traci.lane.getWaitingTime(lane) for lane in self.lanes_EW])
-        return -(wait_ns + wait_ew)
+    def _normalize_state(self, state_raw):
+        state_norm = (state_raw - self.state_mu) / (self.state_sigma + self.eps)
+        state_norm = np.clip(state_norm, -self.state_clip, self.state_clip)
+        return state_norm
 
-    def _log_kpi(self, action, actual_split, reward):
+    def _log_kpi(self, action, actual_split, state_raw, reward):
         if self.log_file:
-            state = self._get_state()
-            
-            # --- BỔ SUNG: Tính toán thời gian chờ (Waiting Time) ---
-            wait_ns = sum([traci.lane.getWaitingTime(lane) for lane in self.lanes_NS])
-            wait_ew = sum([traci.lane.getWaitingTime(lane) for lane in self.lanes_EW])
-            # -------------------------------------------------------
-
             self.metrics.append({
                 'Episode': self.episode,
                 'Step': self.step_counter,
                 'Action': action,
-                'Queue_NS': state[0],
-                'Queue_EW': state[1],
-                'Wait_NS': wait_ns,   # <--- Đã thêm lại cột này
-                'Wait_EW': wait_ew,   # <--- Đã thêm lại cột này
+                'Split_NS': actual_split,
+                'Queue_NS': state_raw[0],
+                'Queue_EW': state_raw[1],
+                'Wait_NS': state_raw[2],
+                'Wait_EW': state_raw[3],
                 'Reward': reward
             })
 
