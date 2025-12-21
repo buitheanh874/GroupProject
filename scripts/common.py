@@ -36,8 +36,8 @@ def build_env(config: Dict[str, Any]) -> BaseEnv:
         lanes = SumoLaneGroups(
             lanes_ns_ctrl=[str(x) for x in lane_cfg.get("lanes_ns_ctrl", [])],
             lanes_ew_ctrl=[str(x) for x in lane_cfg.get("lanes_ew_ctrl", [])],
-            lanes_rt_ns=[str(x) for x in lane_cfg.get("lanes_rt_ns", [])],
-            lanes_rt_ew=[str(x) for x in lane_cfg.get("lanes_rt_ew", [])],
+            lanes_right_turn_slip_ns=[str(x) for x in lane_cfg.get("lanes_right_turn_slip_ns", [])],
+            lanes_right_turn_slip_ew=[str(x) for x in lane_cfg.get("lanes_right_turn_slip_ew", [])],
         )
 
         phases = SumoPhaseProgram(
@@ -51,6 +51,8 @@ def build_env(config: Dict[str, Any]) -> BaseEnv:
         action_splits_raw = sumo_cfg.get("action_splits", [])
         action_splits = [(float(x[0]), float(x[1])) for x in action_splits_raw] if len(action_splits_raw) > 0 else []
 
+        normalize_state = bool(sumo_cfg.get("normalize_state", True))
+
         sumo_env_config = SumoEnvConfig(
             sumo_binary=str(sumo_cfg.get("sumo_binary", "sumo")),
             net_file=str(sumo_cfg.get("net_file", "")),
@@ -58,21 +60,41 @@ def build_env(config: Dict[str, Any]) -> BaseEnv:
             additional_files=[str(x) for x in sumo_cfg.get("additional_files", [])],
             tls_id=str(sumo_cfg.get("tls_id", "tls0")),
             step_length_sec=float(sumo_cfg.get("step_length_sec", 1.0)),
-            cycle_length_sec=int(sumo_cfg.get("cycle_length_sec", 60)),
+            green_cycle_sec=int(sumo_cfg.get("green_cycle_sec", sumo_cfg.get("cycle_length_sec", 60))),
             yellow_sec=int(sumo_cfg.get("yellow_sec", 0)),
             all_red_sec=int(sumo_cfg.get("all_red_sec", 0)),
             max_cycles=int(sumo_cfg.get("max_cycles", 60)),
+            max_sim_seconds=int(sumo_cfg["max_sim_seconds"]) if sumo_cfg.get("max_sim_seconds") is not None else None,
             seed=int(config.get("run", {}).get("seed", 0)),
             rho_min=float(sumo_cfg.get("rho_min", 0.1)),
             action_splits=action_splits,
-            include_transition_in_waiting=bool(sumo_cfg.get("include_transition_in_waiting", False)),
+            include_transition_in_waiting=bool(sumo_cfg.get("include_transition_in_waiting", True)),
             terminate_on_empty=bool(sumo_cfg.get("terminate_on_empty", True)),
             sumo_extra_args=[str(x) for x in sumo_cfg.get("sumo_extra_args", [])],
+            normalize_state=normalize_state,
+            return_raw_state=bool(sumo_cfg.get("return_raw_state", False)),
+            enable_kpi_tracker=bool(sumo_cfg.get("enable_kpi_tracker", False)),
         )
 
         normalization_cfg = config.get("normalization", {})
-        mean = normalization_cfg.get("mean", [0.0, 0.0, 0.0, 0.0])
-        std = normalization_cfg.get("std", [1.0, 1.0, 1.0, 1.0])
+        mean: Any = normalization_cfg.get("mean")
+        std: Any = normalization_cfg.get("std")
+        norm_file = normalization_cfg.get("file")
+
+        if norm_file:
+            import json
+
+            with open(str(norm_file), "r", encoding="utf-8") as f:
+                data = json.load(f)
+            mean = data.get("mean", mean)
+            std = data.get("std", std)
+
+        if not normalize_state:
+            mean = [0.0, 0.0, 0.0, 0.0]
+            std = [1.0, 1.0, 1.0, 1.0]
+        else:
+            if mean is None or std is None:
+                raise ValueError("Normalization stats are required when normalize_state is True. Provide mean/std or a file path.")
 
         normalizer = StateNormalizer(mean=mean, std=std)
 

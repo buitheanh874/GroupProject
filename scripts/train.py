@@ -59,20 +59,23 @@ def main() -> None:
     with open(metrics_path, "w", newline="", encoding="utf-8") as csv_file:
         writer = csv.DictWriter(
             csv_file,
-            fieldnames=[
-                "episode",
-                "episode_reward",
-                "avg_loss",
-                "episode_steps",
-                "global_step",
-                "epsilon_end",
-                "arrived_vehicles",
-                "avg_wait_time",
-                "avg_travel_time",
-                "avg_stops",
-                "avg_queue",
-            ],
-        )
+                fieldnames=[
+                    "episode",
+                    "episode_reward",
+                    "avg_loss",
+                    "episode_steps",
+                    "global_step",
+                    "epsilon_end",
+                    "arrived_vehicles",
+                    "avg_wait_time",
+                    "avg_travel_time",
+                    "avg_stops",
+                    "avg_queue",
+                    "decision_cycle_sec",
+                    "decision_steps",
+                    "waiting_total",
+                ],
+            )
         writer.writeheader()
 
         for episode in range(1, int(episodes) + 1):
@@ -128,6 +131,9 @@ def main() -> None:
                 "avg_travel_time": float(kpi.get("avg_travel_time", 0.0)),
                 "avg_stops": float(kpi.get("avg_stops", 0.0)),
                 "avg_queue": float(kpi.get("avg_queue", 0.0)),
+                "decision_cycle_sec": float(info.get("decision_cycle_sec", 0.0)) if isinstance(info, dict) else 0.0,
+                "decision_steps": int(info.get("decision_steps", 0)) if isinstance(info, dict) else 0,
+                "waiting_total": float(info.get("waiting_total", 0.0)) if isinstance(info, dict) else 0.0,
             }
 
             writer.writerow(row)

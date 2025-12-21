@@ -3,70 +3,62 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
-from typing import Any, Dict
 
-project_root = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(project_root))
+repo_root = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(repo_root))
 
 from rl.utils import load_yaml_config, set_global_seed
-from scripts.common import build_agent, build_env, format_state
+from scripts.common import build_env
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str, required=True)
-    parser.add_argument("--controller", type=str, choices=["fixed", "rl"], default="fixed")
-    parser.add_argument("--model_path", type=str, default="")
-    parser.add_argument("--max_cycles", type=int, default=10)
+    parser.add_argument("--cycles", type=int, default=10)
+    parser.add_argument("--seed", type=int, default=0)
     args = parser.parse_args()
 
     config = load_yaml_config(args.config)
+    config.setdefault("run", {})
+    config["run"]["seed"] = int(args.seed)
 
-    run_cfg = config.get("run", {})
-    seed = int(run_cfg.get("seed", 0))
-    set_global_seed(seed)
+    set_global_seed(int(args.seed))
 
     env = build_env(config)
-
-    agent = None
-    if str(args.controller).lower() == "rl":
-        agent, _ = build_agent(config, env)
-        model_path = str(args.model_path).strip()
-        if model_path == "":
-            raise ValueError("model_path is required when controller is rl")
-        agent.load_model(model_path)
-        agent.to_eval_mode()
 
     fixed_action_id = int(config.get("baseline", {}).get("fixed_action_id", 2))
 
     if hasattr(env, "set_seed"):
-        env.set_seed(seed)
+        env.set_seed(int(args.seed))
 
     state = env.reset()
     done = False
 
-    cycle = 0
-    while not done and cycle < int(args.max_cycles):
-        if str(args.controller).lower() == "fixed":
+    try:
+        for cycle in range(int(args.cycles)):
+            if done:
+                break
+
             action_id = int(fixed_action_id)
-        else:
-            action_id = int(agent.select_action(state=state, epsilon=0.0))
+            next_state, reward, done, info = env.step(action_id)
 
-        next_state, reward, done, info = env.step(action_id)
+            g_ns = info.get("g_ns") if isinstance(info, dict) else None
+            g_ew = info.get("g_ew") if isinstance(info, dict) else None
+            decision_sec = info.get("decision_cycle_sec") if isinstance(info, dict) else None
+            decision_steps = info.get("decision_steps") if isinstance(info, dict) else None
+            waiting_total = info.get("waiting_total") if isinstance(info, dict) else None
+            state_raw = info.get("state_raw") if isinstance(info, dict) else None
+            state_norm = info.get("state_norm") if isinstance(info, dict) else None
 
-        state_raw = info.get("state_raw", None) if isinstance(info, dict) else None
-        raw_text = str(state_raw) if state_raw is not None else "N/A"
+            print(
+                f"cycle={cycle+1} action={action_id} g_ns={g_ns} g_ew={g_ew} decision_steps={decision_steps} "
+                f"decision_sec={decision_sec} state_raw={state_raw} state_norm={state_norm} "
+                f"W={waiting_total} reward={reward}"
+            )
 
-        print(f"Cycle={int(cycle)} | Action={int(action_id)} | Reward={float(reward):.3f} | StateNorm={format_state(next_state)} | StateRaw={raw_text}")
-
-        state = next_state
-        cycle += 1
-
-    if hasattr(env, "episode_kpi"):
-        kpi = env.episode_kpi()
-        print(f"Episode KPI: {kpi}")
-
-    env.close()
+            state = next_state
+    finally:
+        env.close()
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -14,8 +14,8 @@ from env.normalization import StateNormalizer
 class SumoLaneGroups:
     lanes_ns_ctrl: List[str]
     lanes_ew_ctrl: List[str]
-    lanes_rt_ns: List[str] = field(default_factory=list)
-    lanes_rt_ew: List[str] = field(default_factory=list)
+    lanes_right_turn_slip_ns: List[str] = field(default_factory=list)
+    lanes_right_turn_slip_ew: List[str] = field(default_factory=list)
 
     def validate(self) -> None:
         if len(self.lanes_ns_ctrl) <= 0:
@@ -49,16 +49,20 @@ class SumoEnvConfig:
     additional_files: List[str] = field(default_factory=list)
     tls_id: str = "tls0"
     step_length_sec: float = 1.0
-    cycle_length_sec: int = 60
+    green_cycle_sec: int = 60
     yellow_sec: int = 0
     all_red_sec: int = 0
     max_cycles: int = 60
+    max_sim_seconds: Optional[int] = None
     seed: int = 0
     rho_min: float = 0.1
     action_splits: List[Tuple[float, float]] = field(default_factory=list)
-    include_transition_in_waiting: bool = False
+    include_transition_in_waiting: bool = True
     terminate_on_empty: bool = True
     sumo_extra_args: List[str] = field(default_factory=list)
+    normalize_state: bool = True
+    return_raw_state: bool = False
+    enable_kpi_tracker: bool = False
 
 
 class SUMOEnv(BaseEnv):
@@ -82,11 +86,22 @@ class SUMOEnv(BaseEnv):
 
         self._validate_action_splits()
 
+        self._normalize_state = bool(self._config.normalize_state)
+        self._return_raw_state = bool(self._config.return_raw_state)
+        self._enable_kpi_tracker = bool(self._config.enable_kpi_tracker)
+
+        if float(self._config.step_length_sec) <= 0.0:
+            raise ValueError("step_length_sec must be > 0")
+        if int(self._config.green_cycle_sec) <= 0:
+            raise ValueError("green_cycle_sec must be > 0")
+
         self._traci: Optional[Any] = None
         self._connected = False
         self._cycle_index = 0
         self._episode_seed = int(self._config.seed)
-        self._kpi_tracker = EpisodeKpiTracker(stop_speed_threshold=0.1)
+        self._kpi_tracker: Optional[EpisodeKpiTracker] = None
+        self._kpi_disabled_warned = False
+        self._stepped_seconds = 0.0
 
     @property
     def state_dim(self) -> int:
@@ -105,8 +120,11 @@ class SUMOEnv(BaseEnv):
     def reset(self) -> np.ndarray:
         self.close()
         self._start_sumo()
+        self._validate_lanes()
         self._cycle_index = 0
-        self._kpi_tracker = EpisodeKpiTracker(stop_speed_threshold=0.1)
+        self._stepped_seconds = 0.0
+        self._kpi_disabled_warned = False
+        self._kpi_tracker = self._make_kpi_tracker() if self._enable_kpi_tracker else None
 
         q_ns = self._read_queue_ns()
         q_ew = self._read_queue_ew()
@@ -114,15 +132,9 @@ class SUMOEnv(BaseEnv):
         w_ew = 0.0
 
         state_raw = np.array([q_ns, q_ew, w_ns, w_ew], dtype=np.float32)
-        state_norm = self._normalizer.normalize(state_raw)
-
-        info = {
-            "state_raw": state_raw.tolist(),
-            "state_norm": state_norm.tolist(),
-            "sim_time": float(self._traci.simulation.getTime()) if self._traci is not None else 0.0,
-        }
-
-        return state_norm
+        state_norm = self._normalizer.normalize(state_raw) if self._normalize_state else state_raw
+        state = state_raw if self._return_raw_state else state_norm
+        return state
 
     def step(self, action_id: int) -> Tuple[np.ndarray, float, bool, Dict[str, Any]]:
         if not self._connected or self._traci is None:
@@ -132,80 +144,57 @@ class SUMOEnv(BaseEnv):
             raise ValueError(f"Invalid action_id: {action_id}")
 
         rho_ns, rho_ew = self._config.action_splits[action_id]
-        cycle_green_sec = int(self._config.cycle_length_sec)
+        green_cycle_sec = int(self._config.green_cycle_sec)
 
-        min_green_sec = int(round(float(self._config.rho_min) * float(cycle_green_sec)))
+        min_green_sec = int(round(float(self._config.rho_min) * float(green_cycle_sec)))
         min_green_sec = max(0, min_green_sec)
 
-        g_ns = int(round(float(rho_ns) * float(cycle_green_sec)))
+        g_ns = int(round(float(rho_ns) * float(green_cycle_sec)))
         g_ns = max(min_green_sec, g_ns)
-        g_ns = min(g_ns, max(min_green_sec, cycle_green_sec - min_green_sec))
-        g_ew = int(cycle_green_sec - g_ns)
+        g_ns = min(g_ns, max(min_green_sec, green_cycle_sec - min_green_sec))
+        g_ew = int(green_cycle_sec - g_ns)
 
         include_transition = bool(self._config.include_transition_in_waiting)
 
         w_ns = 0.0
         w_ew = 0.0
+        decision_steps = 0
 
         last_q_ns = 0.0
         last_q_ew = 0.0
 
-        last_q_ns, last_q_ew, w_ns, w_ew = self._run_interval(
-            phase_index=int(self._phases.ns_green),
-            duration_sec=int(g_ns),
-            w_ns=w_ns,
-            w_ew=w_ew,
-            accumulate_waiting=True,
-        )
+        intervals = [
+            (int(self._phases.ns_green), int(g_ns), True),
+        ]
 
-        if int(self._config.yellow_sec) > 0:
-            last_q_ns, last_q_ew, w_ns, w_ew = self._run_interval(
-                phase_index=int(self._phases.ns_yellow),
-                duration_sec=int(self._config.yellow_sec),
+        if self._config.yellow_sec > 0 and self._phases.ns_yellow is not None:
+            intervals.append((int(self._phases.ns_yellow), int(self._config.yellow_sec), include_transition))
+        if self._config.all_red_sec > 0 and self._phases.all_red is not None:
+            intervals.append((int(self._phases.all_red), int(self._config.all_red_sec), include_transition))
+
+        intervals.append((int(self._phases.ew_green), int(g_ew), True))
+
+        if self._config.yellow_sec > 0 and self._phases.ew_yellow is not None:
+            intervals.append((int(self._phases.ew_yellow), int(self._config.yellow_sec), include_transition))
+        if self._config.all_red_sec > 0 and self._phases.all_red is not None:
+            intervals.append((int(self._phases.all_red), int(self._config.all_red_sec), include_transition))
+
+        for phase_index, duration_sec, accumulate_waiting in intervals:
+            last_q_ns, last_q_ew, w_ns, w_ew, steps = self._run_interval(
+                phase_index=phase_index,
+                duration_sec=duration_sec,
                 w_ns=w_ns,
                 w_ew=w_ew,
-                accumulate_waiting=include_transition,
+                accumulate_waiting=accumulate_waiting,
             )
+            decision_steps += int(steps)
 
-        if int(self._config.all_red_sec) > 0:
-            last_q_ns, last_q_ew, w_ns, w_ew = self._run_interval(
-                phase_index=int(self._phases.all_red),
-                duration_sec=int(self._config.all_red_sec),
-                w_ns=w_ns,
-                w_ew=w_ew,
-                accumulate_waiting=include_transition,
-            )
-
-        last_q_ns, last_q_ew, w_ns, w_ew = self._run_interval(
-            phase_index=int(self._phases.ew_green),
-            duration_sec=int(g_ew),
-            w_ns=w_ns,
-            w_ew=w_ew,
-            accumulate_waiting=True,
-        )
-
-        if int(self._config.yellow_sec) > 0:
-            last_q_ns, last_q_ew, w_ns, w_ew = self._run_interval(
-                phase_index=int(self._phases.ew_yellow),
-                duration_sec=int(self._config.yellow_sec),
-                w_ns=w_ns,
-                w_ew=w_ew,
-                accumulate_waiting=include_transition,
-            )
-
-        if int(self._config.all_red_sec) > 0:
-            last_q_ns, last_q_ew, w_ns, w_ew = self._run_interval(
-                phase_index=int(self._phases.all_red),
-                duration_sec=int(self._config.all_red_sec),
-                w_ns=w_ns,
-                w_ew=w_ew,
-                accumulate_waiting=include_transition,
-            )
-
+        decision_cycle_sec = float(decision_steps) * float(self._config.step_length_sec)
         reward = -float(w_ns + w_ew)
 
         state_raw = np.array([float(last_q_ns), float(last_q_ew), float(w_ns), float(w_ew)], dtype=np.float32)
-        state_norm = self._normalizer.normalize(state_raw)
+        state_norm = self._normalizer.normalize(state_raw) if self._normalize_state else state_raw
+        state = state_raw if self._return_raw_state else state_norm
 
         self._cycle_index += 1
 
@@ -217,7 +206,13 @@ class SUMOEnv(BaseEnv):
         else:
             done_by_empty = False
 
-        done = bool(done_by_cycles or done_by_empty)
+        max_sim_seconds = self._config.max_sim_seconds if self._config.max_sim_seconds is not None else None
+        if max_sim_seconds is not None and max_sim_seconds > 0:
+            done_by_time = float(self._stepped_seconds) >= float(max_sim_seconds)
+        else:
+            done_by_time = False
+
+        done = bool(done_by_cycles or done_by_empty or done_by_time)
 
         info: Dict[str, Any] = {
             "cycle_index": int(self._cycle_index),
@@ -226,26 +221,40 @@ class SUMOEnv(BaseEnv):
             "split_rho_ew": float(rho_ew),
             "g_ns": int(g_ns),
             "g_ew": int(g_ew),
-            "w_ns": float(w_ns),
-            "w_ew": float(w_ew),
+            "green_cycle_sec": int(self._config.green_cycle_sec),
+            "decision_cycle_sec": float(decision_cycle_sec),
+            "decision_steps": int(decision_steps),
+            "step_length_sec": float(self._config.step_length_sec),
+            "yellow_sec": int(self._config.yellow_sec),
+            "all_red_sec": int(self._config.all_red_sec),
+            "wait_ns": float(w_ns),
+            "wait_ew": float(w_ew),
+            "waiting_total": float(w_ns + w_ew),
             "state_raw": state_raw.tolist(),
             "state_norm": state_norm.tolist(),
             "sim_time": float(self._traci.simulation.getTime()),
+            "total_stepped_seconds": float(self._stepped_seconds),
         }
 
-        if done:
+        if done and self._kpi_tracker is not None:
             info["episode_kpi"] = self._kpi_tracker.summary_dict()
 
-        return state_norm, reward, done, info
+        return state, float(reward), bool(done), info
 
     def episode_kpi(self) -> Dict[str, Any]:
+        if not self._enable_kpi_tracker or self._kpi_tracker is None:
+            return {}
         return self._kpi_tracker.summary_dict()
 
     def close(self) -> None:
-        if self._traci is not None and self._connected:
-            self._traci.close()
+        try:
+            if self._traci is not None and self._connected:
+                self._traci.close(False)
+        except Exception:
+            pass
         self._traci = None
         self._connected = False
+        self._kpi_tracker = None
 
     def _start_sumo(self) -> None:
         try:
@@ -258,6 +267,7 @@ class SUMOEnv(BaseEnv):
         command = self._build_sumo_command(seed=self._episode_seed)
         self._traci.start(command)
         self._connected = True
+        self._stepped_seconds = 0.0
 
     def _build_sumo_command(self, seed: int) -> List[str]:
         command: List[str] = [
@@ -286,18 +296,19 @@ class SUMOEnv(BaseEnv):
 
         return command
 
-    def _run_interval(self, phase_index: int, duration_sec: int, w_ns: float, w_ew: float, accumulate_waiting: bool) -> Tuple[float, float, float, float]:
-        if duration_sec <= 0:
+    def _run_interval(self, phase_index: int, duration_sec: int, w_ns: float, w_ew: float, accumulate_waiting: bool) -> Tuple[float, float, float, float, int]:
+        steps = self._sec_to_steps(duration_sec)
+        if steps <= 0:
             q_ns = self._read_queue_ns()
             q_ew = self._read_queue_ew()
-            return float(q_ns), float(q_ew), float(w_ns), float(w_ew)
+            return float(q_ns), float(q_ew), float(w_ns), float(w_ew), 0
 
-        self._set_phase(phase_index=phase_index, duration_sec=duration_sec)
+        self._set_phase(phase_index=phase_index, hold_steps=int(steps))
 
         last_q_ns = 0.0
         last_q_ew = 0.0
 
-        for _ in range(int(duration_sec)):
+        for _ in range(int(steps)):
             self._traci.simulationStep()
             q_ns_step = self._read_queue_ns()
             q_ew_step = self._read_queue_ew()
@@ -308,13 +319,23 @@ class SUMOEnv(BaseEnv):
                 w_ns += float(q_ns_step)
                 w_ew += float(q_ew_step)
 
-            self._kpi_tracker.on_simulation_step(self._traci, queue_length=float(q_ns_step + q_ew_step))
+            if self._kpi_tracker is not None:
+                try:
+                    self._kpi_tracker.on_simulation_step(self._traci, queue_length=float(q_ns_step + q_ew_step))
+                except Exception as exc:
+                    if not self._kpi_disabled_warned:
+                        print(f"[WARN] Disabling KPI tracker after error: {exc}")
+                        self._kpi_disabled_warned = True
+                    self._kpi_tracker = None
 
-        return float(last_q_ns), float(last_q_ew), float(w_ns), float(w_ew)
+            self._stepped_seconds += float(self._config.step_length_sec)
 
-    def _set_phase(self, phase_index: int, duration_sec: int) -> None:
+        return float(last_q_ns), float(last_q_ew), float(w_ns), float(w_ew), int(steps)
+
+    def _set_phase(self, phase_index: int, hold_steps: int) -> None:
+        hold_sec = float(int(hold_steps) * float(self._config.step_length_sec))
         self._traci.trafficlight.setPhase(str(self._config.tls_id), int(phase_index))
-        self._traci.trafficlight.setPhaseDuration(str(self._config.tls_id), float(int(duration_sec) + 1))
+        self._traci.trafficlight.setPhaseDuration(str(self._config.tls_id), float(hold_sec))
 
     def _read_queue_ns(self) -> float:
         total = 0.0
@@ -327,6 +348,32 @@ class SUMOEnv(BaseEnv):
         for lane_id in self._lanes.lanes_ew_ctrl:
             total += float(self._traci.lane.getLastStepHaltingNumber(str(lane_id)))
         return float(total)
+
+    def _sec_to_steps(self, duration_sec: int) -> int:
+        dur = float(int(duration_sec))
+        step = float(self._config.step_length_sec)
+        if dur <= 0.0:
+            return 0
+        steps = int(np.ceil(dur / step))
+        if steps <= 0:
+            return 0
+        return int(steps)
+
+    def _validate_lanes(self) -> None:
+        lane_ids = set([str(x) for x in self._traci.lane.getIDList()]) if self._traci is not None else set()
+        required = set([str(x) for x in self._lanes.lanes_ns_ctrl + self._lanes.lanes_ew_ctrl + self._lanes.lanes_right_turn_slip_ns + self._lanes.lanes_right_turn_slip_ew])
+        missing = [lane for lane in required if lane not in lane_ids]
+        if len(missing) > 0:
+            raise ValueError(f"Missing lanes in SUMO network: {missing}")
+
+    def _make_kpi_tracker(self) -> Optional[EpisodeKpiTracker]:
+        try:
+            return EpisodeKpiTracker(stop_speed_threshold=0.1, use_subscription=False)
+        except TypeError:
+            try:
+                return EpisodeKpiTracker(stop_speed_threshold=0.1)
+            except Exception:
+                return None
 
     def _validate_action_splits(self) -> None:
         for index, split in enumerate(self._config.action_splits):
