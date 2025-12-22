@@ -1,0 +1,60 @@
+run:
+  run_name: sumo_eval
+  seed: 100
+  device: cpu
+
+scenario:
+  name: default
+
+env:
+  type: sumo
+  sumo:
+    sumo_binary: sumo
+    net_file: path/to/network.net.xml
+    route_file: path/to/eval.rou.xml
+    additional_files: []
+    tls_id: tls0
+    step_length_sec: 1.0
+    cycle_length_sec: 60
+    yellow_sec: 0
+    all_red_sec: 0
+    max_cycles: 60
+    rho_min: 0.1
+    action_splits:
+      - [0.30, 0.70]
+      - [0.40, 0.60]
+      - [0.50, 0.50]
+      - [0.60, 0.40]
+      - [0.70, 0.30]
+    include_transition_in_waiting: false
+    terminate_on_empty: true
+    sumo_extra_args: []
+    lane_groups:
+      lanes_ns_ctrl: ["N_in_0", "S_in_0"]
+      lanes_ew_ctrl: ["E_in_0", "W_in_0"]
+      lanes_rt_ns: []
+      lanes_rt_ew: []
+    phase_program:
+      ns_green: 0
+      ew_green: 2
+      ns_yellow: 1
+      ew_yellow: 3
+      all_red: 4
+
+normalization:
+  mean: [0.0, 0.0, 0.0, 0.0]
+  std: [1.0, 1.0, 1.0, 1.0]
+
+agent:
+  hidden_dims: [128, 128]
+  gamma: 0.98
+  learning_rate: 0.001
+  batch_size: 64
+  replay_buffer_size: 100000
+  target_update_freq: 1000
+
+baseline:
+  fixed_action_id: 2
+
+logging:
+  results_dir: results

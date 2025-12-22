@@ -15,11 +15,36 @@ paths:
 
 traffic_light:
   tl_id: "TL"                 # The ID of the traffic light in .net.xml
-  cycle_time: 90              # Total cycle duration (s)
-  yellow_time: 4              # Yellow phase duration (s)
-  
+  cycle_time: 60              # Total cycle duration (s)
+  yellow_time: 2              # Yellow phase duration (s)
+
   # Phase indices matching BI.net.xml logic
   phase_ns_green: 0
   phase_ns_yellow: 1
   phase_ew_green: 4
   phase_ew_yellow: 5
+  action_splits:
+    - [0.30, 0.70]
+    - [0.40, 0.60]
+    - [0.50, 0.50]
+    - [0.60, 0.40]
+    - [0.70, 0.30]
+
+lanes:
+  ns_controlled: ["N2TL_0", "N2TL_1", "N2TL_2", "N2TL_3", "S2TL_0", "S2TL_1", "S2TL_2", "S2TL_3"]
+  ew_controlled: ["E2TL_0", "E2TL_1", "E2TL_2", "E2TL_3", "W2TL_0", "W2TL_1", "W2TL_2", "W2TL_3"]
+  ns_right_turn: []
+  ew_right_turn: []
+
+state_normalization:
+  mu:
+    q_NS: 0.0
+    q_EW: 0.0
+    w_NS: 0.0
+    w_EW: 0.0
+  sigma:
+    q_NS: 1.0
+    q_EW: 1.0
+    w_NS: 1.0
+    w_EW: 1.0
+  clip: 5
