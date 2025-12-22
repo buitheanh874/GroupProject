@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Set
 
 
 @dataclass
@@ -14,11 +14,14 @@ class EpisodeKpi:
 
 
 class EpisodeKpiTracker:
-    def __init__(self, stop_speed_threshold: float = 0.1):
+    def __init__(self, stop_speed_threshold: float = 0.1, use_subscription: bool = False):
         self._stop_speed_threshold = float(stop_speed_threshold)
+
         self._vehicle_depart_time: Dict[str, float] = {}
         self._vehicle_stop_count: Dict[str, int] = {}
         self._vehicle_is_stopped: Dict[str, bool] = {}
+        self._vehicle_accumulated_wait: Dict[str, float] = {}
+        self._active_vehicles: Set[str] = set()
 
         self._total_wait_time = 0.0
         self._total_travel_time = 0.0
@@ -29,41 +32,71 @@ class EpisodeKpiTracker:
         self._queue_samples = 0
 
     def on_simulation_step(self, traci_module: Any, queue_length: Optional[float] = None) -> None:
-        current_time = float(traci_module.simulation.getTime())
+        try:
+            current_time = float(traci_module.simulation.getTime())
+        except Exception:
+            return
 
-        departed_ids = traci_module.simulation.getDepartedIDList()
-        for vehicle_id in departed_ids:
-            self._vehicle_depart_time[vehicle_id] = current_time
-            self._vehicle_stop_count[vehicle_id] = 0
-            self._vehicle_is_stopped[vehicle_id] = False
+        try:
+            departed_ids = traci_module.simulation.getDepartedIDList()
+            for vehicle_id in departed_ids:
+                self._vehicle_depart_time[vehicle_id] = current_time
+                self._vehicle_stop_count[vehicle_id] = 0
+                self._vehicle_is_stopped[vehicle_id] = False
+                self._vehicle_accumulated_wait[vehicle_id] = 0.0
+                self._active_vehicles.add(vehicle_id)
+        except Exception:
+            pass
 
-        vehicle_ids = traci_module.vehicle.getIDList()
-        for vehicle_id in vehicle_ids:
-            speed = float(traci_module.vehicle.getSpeed(vehicle_id))
-            is_stopped = speed < self._stop_speed_threshold
-            was_stopped = bool(self._vehicle_is_stopped.get(vehicle_id, False))
+        try:
+            current_vehicle_ids = set(traci_module.vehicle.getIDList())
+            vehicles_to_track = self._active_vehicles.intersection(current_vehicle_ids)
 
-            if is_stopped and not was_stopped:
-                current_stop_count = int(self._vehicle_stop_count.get(vehicle_id, 0))
-                self._vehicle_stop_count[vehicle_id] = current_stop_count + 1
+            for vehicle_id in vehicles_to_track:
+                try:
+                    speed = float(traci_module.vehicle.getSpeed(vehicle_id))
+                    is_stopped = speed < self._stop_speed_threshold
+                    was_stopped = bool(self._vehicle_is_stopped.get(vehicle_id, False))
 
-            self._vehicle_is_stopped[vehicle_id] = is_stopped
+                    if is_stopped and not was_stopped:
+                        self._vehicle_stop_count[vehicle_id] = self._vehicle_stop_count.get(vehicle_id, 0) + 1
 
-        arrived_ids = traci_module.simulation.getArrivedIDList()
-        for vehicle_id in arrived_ids:
-            depart_time = self._vehicle_depart_time.get(vehicle_id)
-            if depart_time is not None:
-                self._total_travel_time += max(0.0, current_time - float(depart_time))
+                    if is_stopped:
+                        wait_increment = 1.0
+                        self._vehicle_accumulated_wait[vehicle_id] = (
+                            self._vehicle_accumulated_wait.get(vehicle_id, 0.0) + wait_increment
+                        )
 
-            wait_time = self._read_vehicle_wait_time(traci_module, vehicle_id)
-            self._total_wait_time += max(0.0, float(wait_time))
+                    self._vehicle_is_stopped[vehicle_id] = is_stopped
 
-            self._total_stop_count += int(self._vehicle_stop_count.get(vehicle_id, 0))
-            self._arrived_vehicle_count += 1
+                except Exception:
+                    continue
+        except Exception:
+            pass
 
-            self._vehicle_depart_time.pop(vehicle_id, None)
-            self._vehicle_stop_count.pop(vehicle_id, None)
-            self._vehicle_is_stopped.pop(vehicle_id, None)
+        try:
+            arrived_ids = traci_module.simulation.getArrivedIDList()
+            for vehicle_id in arrived_ids:
+                depart_time = self._vehicle_depart_time.get(vehicle_id)
+                if depart_time is not None:
+                    travel_time = max(0.0, current_time - float(depart_time))
+                    self._total_travel_time += travel_time
+
+                accumulated_wait = self._vehicle_accumulated_wait.get(vehicle_id, 0.0)
+                self._total_wait_time += max(0.0, accumulated_wait)
+
+                stop_count = self._vehicle_stop_count.get(vehicle_id, 0)
+                self._total_stop_count += int(stop_count)
+
+                self._arrived_vehicle_count += 1
+
+                self._vehicle_depart_time.pop(vehicle_id, None)
+                self._vehicle_stop_count.pop(vehicle_id, None)
+                self._vehicle_is_stopped.pop(vehicle_id, None)
+                self._vehicle_accumulated_wait.pop(vehicle_id, None)
+                self._active_vehicles.discard(vehicle_id)
+        except Exception:
+            pass
 
         if queue_length is not None:
             self._queue_sum += float(queue_length)
@@ -103,13 +136,3 @@ class EpisodeKpiTracker:
             "avg_stops": float(result.avg_stops),
             "avg_queue": float(result.avg_queue),
         }
-
-    def _read_vehicle_wait_time(self, traci_module: Any, vehicle_id: str) -> float:
-        vehicle_api = traci_module.vehicle
-        if hasattr(vehicle_api, "getAccumulatedWaitingTime"):
-            return float(vehicle_api.getAccumulatedWaitingTime(vehicle_id))
-
-        if hasattr(vehicle_api, "getWaitingTime"):
-            return float(vehicle_api.getWaitingTime(vehicle_id))
-
-        return 0.0

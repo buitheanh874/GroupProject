@@ -128,6 +128,40 @@ def main() -> None:
         ],
     )
 
+    run_step(
+        "eval_fixed_kpi",
+        [
+            sys.executable,
+            str(repo_root / "scripts" / "eval_sumo.py"),
+            "--config",
+            "configs/eval_sumo_kpi.yaml",
+            "--controller",
+            "fixed",
+            "--episodes",
+            "2",
+            "--seed",
+            "0",
+        ],
+    )
+
+    run_step(
+        "eval_rl_kpi",
+        [
+            sys.executable,
+            str(repo_root / "scripts" / "eval_sumo.py"),
+            "--config",
+            "configs/eval_sumo_kpi.yaml",
+            "--controller",
+            "rl",
+            "--model-path",
+            str(rl_model),
+            "--episodes",
+            "2",
+            "--seed",
+            "0",
+        ],
+    )
+
     print("ALL STEPS OK")
 
 

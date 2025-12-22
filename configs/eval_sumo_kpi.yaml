@@ -1,19 +1,7 @@
 run:
-  run_name: experiments
-  seed: 200
+  run_name: sumo_train
+  seed: 42
   device: cpu
-
-runtime:
-  model_path: models/prod_low_traffic_best.pt
-
-scenario_map:
-  low: networks/BI_50_test.rou.xml
-  high: networks/BI_150_test.rou.xml
-
-experiments:
-  controllers: [fixed, rl]
-  scenarios: [low, high]
-  runs_per_setting: 10
 
 env:
   type: sumo
@@ -29,8 +17,8 @@ env:
     yellow_sec: 2
     all_red_sec: 0
 
-    max_cycles: 0
-    max_sim_seconds: 3600
+    max_cycles: 60
+    max_sim_seconds: null
     rho_min: 0.1
 
     action_splits:
@@ -71,8 +59,20 @@ agent:
   replay_buffer_size: 100000
   target_update_freq: 1000
 
+exploration:
+  eps_start: 1.0
+  eps_end: 0.05
+  eps_decay_steps: 50000
+
+train:
+  episodes: 300
+  save_every_episodes: 50
+  print_every_episodes: 10
+
 baseline:
   fixed_action_id: 2
 
 logging:
+  log_dir: logs
+  model_dir: models
   results_dir: results

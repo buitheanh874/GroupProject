@@ -32,12 +32,16 @@ def main() -> None:
     config["env"]["sumo"]["normalize_state"] = False
     config["env"]["sumo"]["return_raw_state"] = True
 
+    if args.max_cycles is not None:
+        config["env"]["sumo"]["max_cycles"] = int(args.max_cycles)
+    else:
+        if config["env"]["sumo"].get("max_cycles", 0) <= 0:
+            config["env"]["sumo"]["max_cycles"] = 20
+
     set_global_seed(int(args.seed))
 
     env = build_env(config)
     fixed_action_id = int(config.get("baseline", {}).get("fixed_action_id", 2))
-    max_cycles_cfg = int(config.get("env", {}).get("sumo", {}).get("max_cycles", 60))
-    max_cycles_cap = int(args.max_cycles) if args.max_cycles is not None else max_cycles_cfg
 
     raw_states: List[List[float]] = []
 
@@ -46,16 +50,22 @@ def main() -> None:
             if hasattr(env, "set_seed"):
                 env.set_seed(int(args.seed + episode))
 
-            env.reset()
+            state = env.reset()
+            if isinstance(state, np.ndarray) and state.shape == (4,):
+                raw_states.append([float(x) for x in state.tolist()])
+
             done = False
-            cycles = 0
-            while not done and cycles < max_cycles_cap:
-                _, _, done, info = env.step(int(fixed_action_id))
-                cycles += 1
+            while not done:
+                next_state, _, done, info = env.step(int(fixed_action_id))
+
+                if isinstance(next_state, np.ndarray) and next_state.shape == (4,):
+                    raw_states.append([float(x) for x in next_state.tolist()])
+
                 if isinstance(info, dict) and "state_raw" in info:
                     raw = info["state_raw"]
                     if isinstance(raw, list) and len(raw) == 4:
-                        raw_states.append([float(x) for x in raw])
+                        pass
+
     finally:
         env.close()
 
@@ -75,11 +85,15 @@ def main() -> None:
         "std": [float(x) for x in std.tolist()],
         "episodes": int(args.episodes),
         "seed": int(args.seed),
+        "num_samples": len(raw_states),
     }
 
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(payload, f, indent=2)
 
+    print(f"Collected {len(raw_states)} states from {args.episodes} episodes")
+    print(f"Mean: {payload['mean']}")
+    print(f"Std:  {payload['std']}")
     print(f"Saved normalization stats to {output_path}")
 
 

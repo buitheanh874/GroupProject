@@ -198,21 +198,26 @@ class SUMOEnv(BaseEnv):
 
         self._cycle_index += 1
 
-        done_by_cycles = self._cycle_index >= int(self._config.max_cycles)
+        done = False
+
+        if int(self._config.max_cycles) > 0:
+            done_by_cycles = self._cycle_index >= int(self._config.max_cycles)
+            if done_by_cycles:
+                done = True
+
+        if self._config.max_sim_seconds is not None and int(self._config.max_sim_seconds) > 0:
+            done_by_time = float(self._stepped_seconds) >= float(self._config.max_sim_seconds)
+            if done_by_time:
+                done = True
 
         if bool(self._config.terminate_on_empty):
-            expected_remaining = int(self._traci.simulation.getMinExpectedNumber())
-            done_by_empty = expected_remaining <= 0
-        else:
-            done_by_empty = False
-
-        max_sim_seconds = self._config.max_sim_seconds if self._config.max_sim_seconds is not None else None
-        if max_sim_seconds is not None and max_sim_seconds > 0:
-            done_by_time = float(self._stepped_seconds) >= float(max_sim_seconds)
-        else:
-            done_by_time = False
-
-        done = bool(done_by_cycles or done_by_empty or done_by_time)
+            try:
+                expected_remaining = int(self._traci.simulation.getMinExpectedNumber())
+                done_by_empty = expected_remaining <= 0
+                if done_by_empty:
+                    done = True
+            except Exception:
+                pass
 
         info: Dict[str, Any] = {
             "cycle_index": int(self._cycle_index),
@@ -368,12 +373,9 @@ class SUMOEnv(BaseEnv):
 
     def _make_kpi_tracker(self) -> Optional[EpisodeKpiTracker]:
         try:
-            return EpisodeKpiTracker(stop_speed_threshold=0.1, use_subscription=False)
-        except TypeError:
-            try:
-                return EpisodeKpiTracker(stop_speed_threshold=0.1)
-            except Exception:
-                return None
+            return EpisodeKpiTracker(stop_speed_threshold=0.1)
+        except Exception:
+            return None
 
     def _validate_action_splits(self) -> None:
         for index, split in enumerate(self._config.action_splits):
