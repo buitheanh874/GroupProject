@@ -1,11 +1,7 @@
-# config.yaml
-# ==========================================
-# Configuration for SUMO RL Traffic Project
-# ==========================================
 
 simulation:
-  gui: true                   # Set to false for headless mode (faster training)
-  max_steps: 3600             # Simulation duration in seconds
+  gui: true                  
+  max_steps: 3600            
   log_file: "outputs/simulation_log.csv"
 
 paths:
@@ -14,11 +10,10 @@ paths:
   route_file_high: "networks/BI_150_test.rou.xml"
 
 traffic_light:
-  tl_id: "TL"                 # The ID of the traffic light in .net.xml
-  cycle_time: 60              # Total cycle duration (s)
-  yellow_time: 2              # Yellow phase duration (s)
+  tl_id: "TL"                 
+  cycle_time: 60              
+  yellow_time: 2              
 
-  # Phase indices matching BI.net.xml logic
   phase_ns_green: 0
   phase_ns_yellow: 1
   phase_ew_green: 4
