@@ -190,7 +190,10 @@ class SUMOEnv(BaseEnv):
             decision_steps += int(steps)
 
         decision_cycle_sec = float(decision_steps) * float(self._config.step_length_sec)
-        reward = -float(w_ns + w_ew)
+        lambda_fairness = 0.12
+        total_wait = float(w_ns + w_ew)
+        max_wait = max(float(w_ns), float(w_ew))
+        reward = -(total_wait + lambda_fairness * max_wait) / 3600.0
 
         state_raw = np.array([float(last_q_ns), float(last_q_ew), float(w_ns), float(w_ew)], dtype=np.float32)
         state_norm = self._normalizer.normalize(state_raw) if self._normalize_state else state_raw
