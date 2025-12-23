@@ -1,6 +1,6 @@
 run:
-  run_name: eval_high
-  seed: 100
+  run_name: train_fair_high
+  seed: 42
   device: cpu
 
 env:
@@ -20,8 +20,8 @@ env:
     max_cycles: 0
     max_sim_seconds: 3600
     rho_min: 0.1
-    lambda_fairness: 0.0 
-
+    lambda_fairness: 0.12  # WITH fairness penalty
+    
     action_splits:
       - [0.30, 0.70]
       - [0.40, 0.60]
@@ -60,8 +60,20 @@ agent:
   replay_buffer_size: 100000
   target_update_freq: 1000
 
+exploration:
+  eps_start: 1.0
+  eps_end: 0.05
+  eps_decay_steps: 15000
+
+train:
+  episodes: 300
+  save_every_episodes: 50
+  print_every_episodes: 10
+
 baseline:
   fixed_action_id: 2
 
 logging:
-  results_dir: results/eval_high
+  log_dir: logs/fair_high
+  model_dir: models/fair_high
+  results_dir: results/fair_high

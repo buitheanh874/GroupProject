@@ -67,6 +67,7 @@ def build_env(config: Dict[str, Any]) -> BaseEnv:
             max_sim_seconds=int(sumo_cfg["max_sim_seconds"]) if sumo_cfg.get("max_sim_seconds") is not None else None,
             seed=int(config.get("run", {}).get("seed", 0)),
             rho_min=float(sumo_cfg.get("rho_min", 0.1)),
+            lambda_fairness=float(sumo_cfg.get("lambda_fairness", 0.12)),
             action_splits=action_splits,
             include_transition_in_waiting=bool(sumo_cfg.get("include_transition_in_waiting", True)),
             terminate_on_empty=bool(sumo_cfg.get("terminate_on_empty", True)),

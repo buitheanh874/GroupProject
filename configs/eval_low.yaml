@@ -1,5 +1,5 @@
 run:
-  run_name: eval_high
+  run_name: eval_low
   seed: 100
   device: cpu
 
@@ -8,7 +8,7 @@ env:
   sumo:
     sumo_binary: sumo
     net_file: networks/BI.net.xml
-    route_file: networks/BI_150_test.rou.xml 
+    route_file: networks/BI_50_test.rou.xml  
     additional_files: []
     tls_id: TL
 
@@ -20,7 +20,7 @@ env:
     max_cycles: 0
     max_sim_seconds: 3600
     rho_min: 0.1
-    lambda_fairness: 0.0 
+    lambda_fairness: 0.0  
 
     action_splits:
       - [0.30, 0.70]
@@ -50,7 +50,7 @@ env:
 normalization:
   mean: [0.0, 0.0, 0.0, 0.0]
   std: [1.0, 1.0, 1.0, 1.0]
-  file: configs/norm_stats_high.json
+  file: configs/norm_stats_low.json
 
 agent:
   hidden_dims: [128, 128]
@@ -64,4 +64,4 @@ baseline:
   fixed_action_id: 2
 
 logging:
-  results_dir: results/eval_high
+  results_dir: results/eval_low
