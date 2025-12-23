@@ -56,6 +56,7 @@ class SumoEnvConfig:
     max_sim_seconds: Optional[int] = None
     seed: int = 0
     rho_min: float = 0.1
+    lambda_fairness: float = 0.12
     action_splits: List[Tuple[float, float]] = field(default_factory=list)
     include_transition_in_waiting: bool = True
     terminate_on_empty: bool = True
@@ -190,7 +191,8 @@ class SUMOEnv(BaseEnv):
             decision_steps += int(steps)
 
         decision_cycle_sec = float(decision_steps) * float(self._config.step_length_sec)
-        lambda_fairness = 0.12
+        
+        lambda_fairness = float(self._config.lambda_fairness)
         total_wait = float(w_ns + w_ew)
         max_wait = max(float(w_ns), float(w_ew))
         reward = -(total_wait + lambda_fairness * max_wait) / 3600.0
