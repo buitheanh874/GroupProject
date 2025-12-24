@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any, Dict, Tuple
 
 import numpy as np
@@ -11,6 +12,32 @@ from env.sumo_env import SUMOEnv, SumoEnvConfig, SumoLaneGroups, SumoPhaseProgra
 from env.toy_queue_env import ToyQueueEnv, ToyQueueEnvConfig
 from rl.agent import AgentConfig, DQNAgent
 from rl.utils import resolve_device
+
+
+def deep_merge(base: dict, override: dict) -> dict:
+    result = dict(base)
+    for key, value in override.items():
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            result[key] = deep_merge(result[key], value)
+        else:
+            result[key] = value
+    return result
+
+
+def load_config_with_inheritance(config_path: str) -> Dict[str, Any]:
+    from rl.utils import load_yaml_config
+    
+    config = load_yaml_config(config_path)
+    
+    if "_base" in config:
+        base_path = Path(config_path).parent / config["_base"]
+        base_config = load_yaml_config(str(base_path))
+        
+        merged = deep_merge(base_config, config)
+        merged.pop("_base", None)
+        return merged
+    
+    return config
 
 
 def build_env(config: Dict[str, Any]) -> BaseEnv:

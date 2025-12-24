@@ -9,7 +9,6 @@ from env.base_env import BaseEnv
 from env.kpi import EpisodeKpiTracker
 from env.normalization import StateNormalizer
 
-
 @dataclass
 class SumoLaneGroups:
     lanes_ns_ctrl: List[str]
@@ -86,6 +85,7 @@ class SUMOEnv(BaseEnv):
             ]
 
         self._validate_action_splits()
+        self._validate_config_consistency()
 
         self._normalize_state = bool(self._config.normalize_state)
         self._return_raw_state = bool(self._config.return_raw_state)
@@ -200,8 +200,12 @@ class SUMOEnv(BaseEnv):
         
         lambda_fairness = float(self._config.lambda_fairness)
         total_wait = float(w_ns + w_ew)
-        max_wait = max(float(w_ns), float(w_ew))
-        reward = -(total_wait + lambda_fairness * max_wait) / 3600.0
+
+        if lambda_fairness > 0.0:
+            max_wait = max(float(w_ns), float(w_ew))
+            reward = -(total_wait + lambda_fairness * max_wait) / 3600.0
+        else:
+            reward = -total_wait / 3600.0
 
         state_raw = np.array([float(last_q_ns), float(last_q_ew), float(w_ns), float(w_ew)], dtype=np.float32)
         self._last_state_raw = state_raw.copy()
@@ -213,21 +217,18 @@ class SUMOEnv(BaseEnv):
 
         done = False
 
-        if int(self._config.max_cycles) > 0:
-            done_by_cycles = self._cycle_index >= int(self._config.max_cycles)
-            if done_by_cycles:
-                done = True
-
         if self._config.max_sim_seconds is not None and int(self._config.max_sim_seconds) > 0:
-            done_by_time = float(self._stepped_seconds) >= float(self._config.max_sim_seconds)
-            if done_by_time:
+            if float(self._stepped_seconds) >= float(self._config.max_sim_seconds):
                 done = True
 
-        if bool(self._config.terminate_on_empty):
+        elif int(self._config.max_cycles) > 0:
+            if self._cycle_index >= int(self._config.max_cycles):
+                done = True
+
+        if not done and bool(self._config.terminate_on_empty):
             try:
                 expected_remaining = int(self._traci.simulation.getMinExpectedNumber())
-                done_by_empty = expected_remaining <= 0
-                if done_by_empty:
+                if expected_remaining <= 0:
                     done = True
             except Exception:
                 pass
@@ -403,3 +404,13 @@ class SUMOEnv(BaseEnv):
 
             if rho_ns < float(self._config.rho_min) or rho_ew < float(self._config.rho_min):
                 raise ValueError(f"Invalid action split at index {index}: rho below rho_min")
+
+    def _validate_config_consistency(self) -> None:
+        has_time_limit = self._config.max_sim_seconds is not None and self._config.max_sim_seconds > 0
+        has_cycle_limit = self._config.max_cycles > 0
+        
+        if not has_time_limit and not has_cycle_limit and not self._config.terminate_on_empty:
+            raise ValueError(
+                "At least one termination condition must be set: "
+                "max_sim_seconds, max_cycles, or terminate_on_empty"
+            )

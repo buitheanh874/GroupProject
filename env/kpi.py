@@ -16,6 +16,28 @@ class EpisodeKpi:
 
 
 class EpisodeKpiTracker:
+    """
+    Track per-vehicle KPIs across an episode.
+    
+    Metrics tracked:
+    - avg_wait_time: Average waiting time per arrived vehicle (seconds)
+    - avg_travel_time: Average travel time per arrived vehicle (seconds)
+    - avg_stops: Average number of stops per arrived vehicle
+    - avg_queue: Average queue length across all timesteps
+    - max_wait_time: Maximum waiting time of any vehicle
+    - p95_wait_time: 95th percentile waiting time
+    
+    NOTE: The waiting time here is DIFFERENT from MDP state w_NS/w_EW:
+    - KPI tracker: Tracks individual vehicle wait times, aggregates at episode end
+    - MDP state w_NS/w_EW: Sum of queued vehicles per second within a cycle
+    
+    Both measure vehicle-seconds but from different perspectives:
+    - KPI: "How long did each vehicle wait?" (vehicle-centric)
+    - MDP: "How many vehicles were waiting each second?" (time-centric)
+    
+    Both are valid and useful for different purposes.
+    """
+    
     def __init__(self, stop_speed_threshold: float = 0.1, use_subscription: bool = False):
         self._stop_speed_threshold = float(stop_speed_threshold)
 
