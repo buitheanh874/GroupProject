@@ -48,6 +48,7 @@ class MaxPressureSplitController:
             return int(self._default_action)
 
         target_rho_ns = q_ns / total
+        target_rho_ns = float(np.clip(target_rho_ns, 0.0, 1.0))
 
         best_action = 0
         best_diff = float("inf")

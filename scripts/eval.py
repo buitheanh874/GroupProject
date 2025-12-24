@@ -109,8 +109,14 @@ def main() -> None:
                     if controller == "fixed":
                         action_id = int(fixed_action_id)
                     elif controller == "max_pressure":
-                        state_raw = last_info.get("state_raw", state) if last_info else state
-                        action_id = max_pressure_controller.select_action(state_raw)
+                        if hasattr(env, "get_last_state_raw"):
+                            state_raw = env.get_last_state_raw()
+                            if state_raw is not None:
+                                action_id = max_pressure_controller.select_action(state_raw)
+                            else:
+                                action_id = int(fixed_action_id)
+                        else:
+                            action_id = int(fixed_action_id)
                     else:
                         action_id = int(agent.select_action(state=state, epsilon=0.0))
 

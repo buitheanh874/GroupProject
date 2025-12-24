@@ -103,6 +103,7 @@ class SUMOEnv(BaseEnv):
         self._kpi_tracker: Optional[EpisodeKpiTracker] = None
         self._kpi_disabled_warned = False
         self._stepped_seconds = 0.0
+        self._last_state_raw: Optional[np.ndarray] = None
 
     @property
     def state_dim(self) -> int:
@@ -117,6 +118,9 @@ class SUMOEnv(BaseEnv):
 
     def set_route_file(self, route_file: str) -> None:
         self._config.route_file = str(route_file)
+
+    def get_last_state_raw(self) -> Optional[np.ndarray]:
+        return self._last_state_raw
 
     def reset(self) -> np.ndarray:
         self.close()
@@ -133,6 +137,8 @@ class SUMOEnv(BaseEnv):
         w_ew = 0.0
 
         state_raw = np.array([q_ns, q_ew, w_ns, w_ew], dtype=np.float32)
+        self._last_state_raw = state_raw.copy()
+        
         state_norm = self._normalizer.normalize(state_raw) if self._normalize_state else state_raw
         state = state_raw if self._return_raw_state else state_norm
         return state
@@ -198,6 +204,8 @@ class SUMOEnv(BaseEnv):
         reward = -(total_wait + lambda_fairness * max_wait) / 3600.0
 
         state_raw = np.array([float(last_q_ns), float(last_q_ew), float(w_ns), float(w_ew)], dtype=np.float32)
+        self._last_state_raw = state_raw.copy()
+        
         state_norm = self._normalizer.normalize(state_raw) if self._normalize_state else state_raw
         state = state_raw if self._return_raw_state else state_norm
 
@@ -265,6 +273,7 @@ class SUMOEnv(BaseEnv):
         self._traci = None
         self._connected = False
         self._kpi_tracker = None
+        self._last_state_raw = None
 
     def _start_sumo(self) -> None:
         try:
