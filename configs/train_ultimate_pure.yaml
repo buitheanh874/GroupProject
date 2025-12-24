@@ -15,8 +15,9 @@ env:
     green_cycle_sec: 60
     yellow_sec: 0
     all_red_sec: 0
-    max_cycles: 10000
+    max_cycles: 120
     max_sim_seconds: 7200
+    terminate_on_empty: false
     rho_min: 0.1
     lambda_fairness: 0.0
     action_splits:
@@ -26,7 +27,6 @@ env:
       - [0.60, 0.40]
       - [0.70, 0.30]
     include_transition_in_waiting: true
-    terminate_on_empty: false
     sumo_extra_args: []
     enable_kpi_tracker: true
     lane_groups:
@@ -37,7 +37,7 @@ env:
       ew_green: 4
       ns_yellow: 1
       ew_yellow: 5
-      all_red: null
+      all_red: 0
 
 normalization:
   mean: [0.0, 0.0, 0.0, 0.0]
