@@ -9,7 +9,6 @@ from env.base_env import BaseEnv
 from env.kpi import EpisodeKpiTracker
 from env.normalization import StateNormalizer
 
-
 @dataclass
 class SumoLaneGroups:
     lanes_ns_ctrl: List[str]
@@ -56,6 +55,7 @@ class SumoEnvConfig:
     max_sim_seconds: Optional[int] = None
     seed: int = 0
     rho_min: float = 0.1
+    lambda_fairness: float = 0.12
     action_splits: List[Tuple[float, float]] = field(default_factory=list)
     include_transition_in_waiting: bool = True
     terminate_on_empty: bool = True
@@ -85,6 +85,7 @@ class SUMOEnv(BaseEnv):
             ]
 
         self._validate_action_splits()
+        self._validate_config_consistency()
 
         self._normalize_state = bool(self._config.normalize_state)
         self._return_raw_state = bool(self._config.return_raw_state)
@@ -102,6 +103,7 @@ class SUMOEnv(BaseEnv):
         self._kpi_tracker: Optional[EpisodeKpiTracker] = None
         self._kpi_disabled_warned = False
         self._stepped_seconds = 0.0
+        self._last_state_raw: Optional[np.ndarray] = None
 
     @property
     def state_dim(self) -> int:
@@ -116,6 +118,9 @@ class SUMOEnv(BaseEnv):
 
     def set_route_file(self, route_file: str) -> None:
         self._config.route_file = str(route_file)
+
+    def get_last_state_raw(self) -> Optional[np.ndarray]:
+        return self._last_state_raw
 
     def reset(self) -> np.ndarray:
         self.close()
@@ -132,6 +137,8 @@ class SUMOEnv(BaseEnv):
         w_ew = 0.0
 
         state_raw = np.array([q_ns, q_ew, w_ns, w_ew], dtype=np.float32)
+        self._last_state_raw = state_raw.copy()
+        
         state_norm = self._normalizer.normalize(state_raw) if self._normalize_state else state_raw
         state = state_raw if self._return_raw_state else state_norm
         return state
@@ -190,9 +197,19 @@ class SUMOEnv(BaseEnv):
             decision_steps += int(steps)
 
         decision_cycle_sec = float(decision_steps) * float(self._config.step_length_sec)
-        reward = -float(w_ns + w_ew)
+        
+        lambda_fairness = float(self._config.lambda_fairness)
+        total_wait = float(w_ns + w_ew)
+
+        if lambda_fairness > 0.0:
+            max_wait = max(float(w_ns), float(w_ew))
+            reward = -(total_wait + lambda_fairness * max_wait) / 3600.0
+        else:
+            reward = -total_wait / 3600.0
 
         state_raw = np.array([float(last_q_ns), float(last_q_ew), float(w_ns), float(w_ew)], dtype=np.float32)
+        self._last_state_raw = state_raw.copy()
+        
         state_norm = self._normalizer.normalize(state_raw) if self._normalize_state else state_raw
         state = state_raw if self._return_raw_state else state_norm
 
@@ -200,21 +217,18 @@ class SUMOEnv(BaseEnv):
 
         done = False
 
-        if int(self._config.max_cycles) > 0:
-            done_by_cycles = self._cycle_index >= int(self._config.max_cycles)
-            if done_by_cycles:
-                done = True
-
         if self._config.max_sim_seconds is not None and int(self._config.max_sim_seconds) > 0:
-            done_by_time = float(self._stepped_seconds) >= float(self._config.max_sim_seconds)
-            if done_by_time:
+            if float(self._stepped_seconds) >= float(self._config.max_sim_seconds):
                 done = True
 
-        if bool(self._config.terminate_on_empty):
+        elif int(self._config.max_cycles) > 0:
+            if self._cycle_index >= int(self._config.max_cycles):
+                done = True
+
+        if not done and bool(self._config.terminate_on_empty):
             try:
                 expected_remaining = int(self._traci.simulation.getMinExpectedNumber())
-                done_by_empty = expected_remaining <= 0
-                if done_by_empty:
+                if expected_remaining <= 0:
                     done = True
             except Exception:
                 pass
@@ -260,6 +274,7 @@ class SUMOEnv(BaseEnv):
         self._traci = None
         self._connected = False
         self._kpi_tracker = None
+        self._last_state_raw = None
 
     def _start_sumo(self) -> None:
         try:
@@ -389,3 +404,13 @@ class SUMOEnv(BaseEnv):
 
             if rho_ns < float(self._config.rho_min) or rho_ew < float(self._config.rho_min):
                 raise ValueError(f"Invalid action split at index {index}: rho below rho_min")
+
+    def _validate_config_consistency(self) -> None:
+        has_time_limit = self._config.max_sim_seconds is not None and self._config.max_sim_seconds > 0
+        has_cycle_limit = self._config.max_cycles > 0
+        
+        if not has_time_limit and not has_cycle_limit and not self._config.terminate_on_empty:
+            raise ValueError(
+                "At least one termination condition must be set: "
+                "max_sim_seconds, max_cycles, or terminate_on_empty"
+            )

@@ -11,9 +11,33 @@ class EpisodeKpi:
     avg_travel_time: float
     avg_stops: float
     avg_queue: float
+    max_wait_time: float
+    p95_wait_time: float
 
 
 class EpisodeKpiTracker:
+    """
+    Track per-vehicle KPIs across an episode.
+    
+    Metrics tracked:
+    - avg_wait_time: Average waiting time per arrived vehicle (seconds)
+    - avg_travel_time: Average travel time per arrived vehicle (seconds)
+    - avg_stops: Average number of stops per arrived vehicle
+    - avg_queue: Average queue length across all timesteps
+    - max_wait_time: Maximum waiting time of any vehicle
+    - p95_wait_time: 95th percentile waiting time
+    
+    NOTE: The waiting time here is DIFFERENT from MDP state w_NS/w_EW:
+    - KPI tracker: Tracks individual vehicle wait times, aggregates at episode end
+    - MDP state w_NS/w_EW: Sum of queued vehicles per second within a cycle
+    
+    Both measure vehicle-seconds but from different perspectives:
+    - KPI: "How long did each vehicle wait?" (vehicle-centric)
+    - MDP: "How many vehicles were waiting each second?" (time-centric)
+    
+    Both are valid and useful for different purposes.
+    """
+    
     def __init__(self, stop_speed_threshold: float = 0.1, use_subscription: bool = False):
         self._stop_speed_threshold = float(stop_speed_threshold)
 
@@ -30,6 +54,8 @@ class EpisodeKpiTracker:
 
         self._queue_sum = 0.0
         self._queue_samples = 0
+        
+        self._all_wait_times: list[float] = []
 
     def on_simulation_step(self, traci_module: Any, queue_length: Optional[float] = None) -> None:
         try:
@@ -84,6 +110,8 @@ class EpisodeKpiTracker:
 
                 accumulated_wait = self._vehicle_accumulated_wait.get(vehicle_id, 0.0)
                 self._total_wait_time += max(0.0, accumulated_wait)
+                
+                self._all_wait_times.append(max(0.0, accumulated_wait))
 
                 stop_count = self._vehicle_stop_count.get(vehicle_id, 0)
                 self._total_stop_count += int(stop_count)
@@ -109,10 +137,21 @@ class EpisodeKpiTracker:
             avg_wait_time = 0.0
             avg_travel_time = 0.0
             avg_stops = 0.0
+            max_wait_time = 0.0
+            p95_wait_time = 0.0
         else:
             avg_wait_time = float(self._total_wait_time) / float(arrived)
             avg_travel_time = float(self._total_travel_time) / float(arrived)
             avg_stops = float(self._total_stop_count) / float(arrived)
+            
+            if len(self._all_wait_times) > 0:
+                import numpy as np
+                wait_array = np.array(self._all_wait_times, dtype=np.float32)
+                max_wait_time = float(np.max(wait_array))
+                p95_wait_time = float(np.percentile(wait_array, 95))
+            else:
+                max_wait_time = 0.0
+                p95_wait_time = 0.0
 
         if self._queue_samples <= 0:
             avg_queue = 0.0
@@ -125,6 +164,8 @@ class EpisodeKpiTracker:
             avg_travel_time=avg_travel_time,
             avg_stops=avg_stops,
             avg_queue=avg_queue,
+            max_wait_time=max_wait_time,
+            p95_wait_time=p95_wait_time,
         )
 
     def summary_dict(self) -> Dict[str, Any]:
@@ -135,4 +176,6 @@ class EpisodeKpiTracker:
             "avg_travel_time": float(result.avg_travel_time),
             "avg_stops": float(result.avg_stops),
             "avg_queue": float(result.avg_queue),
+            "max_wait_time": float(result.max_wait_time),
+            "p95_wait_time": float(result.p95_wait_time),
         }

@@ -1,16 +1,62 @@
-﻿.venv/
+﻿# ----------------------------
+# Python / venv
+# ----------------------------
+.venv/
 __pycache__/
-*.pyc
+*.py[cod]
 *.pyo
 *.pyd
-*.log
 
+# ----------------------------
+# Logs / artifacts / outputs
+# ----------------------------
+*.log
 logs/
+results/
 models/
 outputs/
 
+# PyTorch / ML artifacts
+*.pt
+*.pth
+*.onnx
+
+# ----------------------------
+# SUMO generated artifacts (commonly produced)
+# Keep your source net/route files tracked; ignore run outputs.
+# ----------------------------
+*.tripinfo.xml
+*.emission.xml
+*.fcd.xml
+*.rou.xml
+*.add.xml
+*.net.xml.gz
+*.dump.xml
+*.stat.xml
+*.queue.xml
+*.edgedata.xml
+*.lanechange.xml
+*.stop.xml
+*.summary.xml
+
+# Generic exports
+*.csv
+
+# ----------------------------
+# Environment / secrets
+# ----------------------------
 .env
+*.env
+
+# ----------------------------
+# OS / IDE
+# ----------------------------
 .DS_Store
+Thumbs.db
 .vscode/
 .idea/
+
+# ----------------------------
+# Project-specific
+# ----------------------------
 configs/norm_stats.json

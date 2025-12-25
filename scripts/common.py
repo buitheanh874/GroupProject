@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any, Dict, Tuple
 
 import numpy as np
@@ -11,6 +12,32 @@ from env.sumo_env import SUMOEnv, SumoEnvConfig, SumoLaneGroups, SumoPhaseProgra
 from env.toy_queue_env import ToyQueueEnv, ToyQueueEnvConfig
 from rl.agent import AgentConfig, DQNAgent
 from rl.utils import resolve_device
+
+
+def deep_merge(base: dict, override: dict) -> dict:
+    result = dict(base)
+    for key, value in override.items():
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            result[key] = deep_merge(result[key], value)
+        else:
+            result[key] = value
+    return result
+
+
+def load_config_with_inheritance(config_path: str) -> Dict[str, Any]:
+    from rl.utils import load_yaml_config
+    
+    config = load_yaml_config(config_path)
+    
+    if "_base" in config:
+        base_path = Path(config_path).parent / config["_base"]
+        base_config = load_yaml_config(str(base_path))
+        
+        merged = deep_merge(base_config, config)
+        merged.pop("_base", None)
+        return merged
+    
+    return config
 
 
 def build_env(config: Dict[str, Any]) -> BaseEnv:
@@ -67,6 +94,7 @@ def build_env(config: Dict[str, Any]) -> BaseEnv:
             max_sim_seconds=int(sumo_cfg["max_sim_seconds"]) if sumo_cfg.get("max_sim_seconds") is not None else None,
             seed=int(config.get("run", {}).get("seed", 0)),
             rho_min=float(sumo_cfg.get("rho_min", 0.1)),
+            lambda_fairness=float(sumo_cfg.get("lambda_fairness", 0.12)),
             action_splits=action_splits,
             include_transition_in_waiting=bool(sumo_cfg.get("include_transition_in_waiting", True)),
             terminate_on_empty=bool(sumo_cfg.get("terminate_on_empty", True)),
