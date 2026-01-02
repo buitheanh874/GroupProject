@@ -22,7 +22,7 @@ class BaseEnv(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def step(self, action_id: int) -> Tuple[np.ndarray, float, bool, Dict[str, Any]]:
+    def step(self, action: Any) -> Tuple[np.ndarray, float, bool, Dict[str, Any]]:
         raise NotImplementedError
 
     def close(self) -> None:

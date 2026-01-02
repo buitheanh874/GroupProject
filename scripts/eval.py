@@ -56,13 +56,14 @@ def main() -> None:
         lanes_ew = [str(x) for x in lane_cfg.get("lanes_ew_ctrl", [])]
         
         splits_raw = sumo_cfg.get("action_splits", [])
-        splits_ns = [float(x[0]) for x in splits_raw]
+        splits_ns = [float(x[0]) for x in splits_raw] if len(splits_raw) > 0 else []
         
-        max_pressure_controller = MaxPressureSplitController(
-            lanes_ns=lanes_ns,
-            lanes_ew=lanes_ew,
-            splits_ns=splits_ns,
-        )
+        if len(lanes_ns) > 0 and len(lanes_ew) > 0 and len(splits_ns) > 0 and getattr(env, "state_dim", 4) == 4:
+            max_pressure_controller = MaxPressureSplitController(
+                lanes_ns=lanes_ns,
+                lanes_ew=lanes_ew,
+                splits_ns=splits_ns,
+            )
 
     fixed_action_id = int(config.get("baseline", {}).get("fixed_action_id", 2))
 
@@ -106,26 +107,63 @@ def main() -> None:
                 last_info = {}
 
                 while not done:
-                    if controller == "fixed":
-                        action_id = int(fixed_action_id)
-                    elif controller == "max_pressure":
-                        if hasattr(env, "get_last_state_raw"):
-                            state_raw = env.get_last_state_raw()
-                            if state_raw is not None:
-                                action_id = max_pressure_controller.select_action(state_raw)
+                    if isinstance(state, dict):
+                        tls_ids_sorted = sorted(state.keys())
+                        center_id = None
+                        if hasattr(env, "center_tls_id"):
+                            center_candidate = getattr(env, "center_tls_id")
+                            if isinstance(center_candidate, str) and center_candidate in tls_ids_sorted:
+                                center_id = center_candidate
+                        if center_id is None:
+                            center_id = tls_ids_sorted[0]
+
+                        if controller == "fixed":
+                            actions = {tls: int(fixed_action_id) for tls in tls_ids_sorted}
+                        elif controller == "max_pressure":
+                            actions = {tls: int(fixed_action_id) for tls in tls_ids_sorted}
+                        else:
+                            center_action = int(agent.select_action(state=state[center_id], epsilon=0.0))
+                            allowed_ids = None
+                            if hasattr(env, "cycle_to_actions"):
+                                for _, ids in env.cycle_to_actions.items():
+                                    if center_action in ids:
+                                        allowed_ids = [int(x) for x in ids]
+                                        break
+                                if allowed_ids is None:
+                                    for _, ids in env.cycle_to_actions.items():
+                                        if int(fixed_action_id) in ids:
+                                            allowed_ids = [int(x) for x in ids]
+                                            break
+                            actions = {tls: int(agent.select_action(state=state[tls], epsilon=0.0, allowed_action_ids=allowed_ids)) for tls in tls_ids_sorted}
+
+                        next_state, rewards, done, info = env.step(actions)
+                        reward_values = list(rewards.values()) if isinstance(rewards, dict) else [float(rewards)]
+                        total_reward += float(np.mean(reward_values))
+                        step_count += 1
+                        state = next_state
+                        if isinstance(info, dict):
+                            last_info = info
+                    else:
+                        if controller == "fixed":
+                            action_id = int(fixed_action_id)
+                        elif controller == "max_pressure":
+                            if max_pressure_controller is not None and hasattr(env, "get_last_state_raw"):
+                                state_raw = env.get_last_state_raw()
+                                if state_raw is not None:
+                                    action_id = max_pressure_controller.select_action(state_raw)
+                                else:
+                                    action_id = int(fixed_action_id)
                             else:
                                 action_id = int(fixed_action_id)
                         else:
-                            action_id = int(fixed_action_id)
-                    else:
-                        action_id = int(agent.select_action(state=state, epsilon=0.0))
+                            action_id = int(agent.select_action(state=state, epsilon=0.0))
 
-                    next_state, reward, done, info = env.step(action_id)
-                    total_reward += float(reward)
-                    step_count += 1
-                    state = next_state
-                    if isinstance(info, dict):
-                        last_info = info
+                        next_state, reward, done, info = env.step(action_id)
+                        total_reward += float(reward)
+                        step_count += 1
+                        state = next_state
+                        if isinstance(info, dict):
+                            last_info = info
 
                 kpi = last_info.get("episode_kpi", {}) if last_info else {}
                 if hasattr(env, "episode_kpi") and len(kpi) <= 0:

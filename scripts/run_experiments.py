@@ -22,19 +22,54 @@ def run_episode(env: Any, controller: str, fixed_action_id: int, agent: Optional
     last_info: Dict[str, Any] = {}
 
     while not done:
-        if controller == "fixed":
-            action_id = int(fixed_action_id)
+        if isinstance(state, dict):
+            tls_ids_sorted = sorted(state.keys())
+            center_id = None
+            if hasattr(env, "center_tls_id"):
+                center_candidate = getattr(env, "center_tls_id")
+                if isinstance(center_candidate, str) and center_candidate in tls_ids_sorted:
+                    center_id = center_candidate
+            if center_id is None:
+                center_id = tls_ids_sorted[0]
+
+            if controller == "fixed":
+                actions = {tls: int(fixed_action_id) for tls in tls_ids_sorted}
+            else:
+                center_action = int(agent.select_action(state=state[center_id], epsilon=0.0))
+                allowed_ids = None
+                if hasattr(env, "cycle_to_actions"):
+                    for _, ids in env.cycle_to_actions.items():
+                        if center_action in ids:
+                            allowed_ids = [int(x) for x in ids]
+                            break
+                    if allowed_ids is None:
+                        for _, ids in env.cycle_to_actions.items():
+                            if int(fixed_action_id) in ids:
+                                allowed_ids = [int(x) for x in ids]
+                                break
+                actions = {tls: int(agent.select_action(state=state[tls], epsilon=0.0, allowed_action_ids=allowed_ids)) for tls in tls_ids_sorted}
+
+            next_state, rewards, done, info = env.step(actions)
+            reward_values = list(rewards.values()) if isinstance(rewards, dict) else [float(rewards)]
+            total_reward += float(sum(reward_values) / len(reward_values))
+            step_count += 1
+            state = next_state
+            if isinstance(info, dict):
+                last_info = info
         else:
-            action_id = int(agent.select_action(state=state, epsilon=0.0))
+            if controller == "fixed":
+                action_id = int(fixed_action_id)
+            else:
+                action_id = int(agent.select_action(state=state, epsilon=0.0))
 
-        next_state, reward, done, info = env.step(action_id)
+            next_state, reward, done, info = env.step(action_id)
 
-        state = next_state
-        total_reward += float(reward)
-        step_count += 1
+            state = next_state
+            total_reward += float(reward)
+            step_count += 1
 
-        if isinstance(info, dict):
-            last_info = info
+            if isinstance(info, dict):
+                last_info = info
 
     kpi = {}
     if isinstance(last_info, dict):

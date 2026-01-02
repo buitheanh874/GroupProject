@@ -4,7 +4,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, List, Optional
 
 repo_root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(repo_root))
@@ -15,10 +15,10 @@ from rl.utils import ensure_dir, load_yaml_config, set_global_seed
 from scripts.common import build_env
 
 
-def try_vec4(x) -> Optional[List[float]]:
+def try_vec(x: Any, expected_dim: Optional[int]) -> Optional[List[float]]:
     try:
         arr = np.asarray(x, dtype=np.float32).reshape(-1)
-        if arr.size != 4:
+        if expected_dim is not None and arr.size != int(expected_dim):
             return None
         return [float(v) for v in arr.tolist()]
     except Exception:
@@ -54,6 +54,7 @@ def main() -> None:
     fixed_action_id = int(config.get("baseline", {}).get("fixed_action_id", 2))
 
     raw_states: List[List[float]] = []
+    expected_dim: Optional[int] = None
 
     try:
         for episode in range(int(args.episodes)):
@@ -61,17 +62,44 @@ def main() -> None:
                 env.set_seed(int(args.seed + episode))
 
             state = env.reset()
-            vec = try_vec4(state)
-            if vec is not None:
-                raw_states.append(vec)
+            expected_dim = int(getattr(env, "state_dim", len(state))) if expected_dim is None else expected_dim
+
+            if isinstance(state, dict):
+                for obs in state.values():
+                    vec = try_vec(obs, expected_dim)
+                    if vec is not None:
+                        raw_states.append(vec)
+            else:
+                vec = try_vec(state, expected_dim)
+                if vec is not None:
+                    raw_states.append(vec)
 
             done = False
             while not done:
-                next_state, _, done, info = env.step(int(fixed_action_id))
-                
-                vec = try_vec4(next_state)
-                if vec is not None:
-                    raw_states.append(vec)
+                action_input = {tls: int(fixed_action_id) for tls in sorted(state.keys())} if isinstance(state, dict) else int(fixed_action_id)
+                next_state, _, done, info = env.step(action_input)
+
+                if isinstance(info, dict) and "state_raw" in info:
+                    raw_info = info["state_raw"]
+                    if isinstance(raw_info, list):
+                        vec = try_vec(raw_info, expected_dim)
+                        if vec is not None:
+                            raw_states.append(vec)
+                    elif isinstance(raw_info, dict):
+                        for val in raw_info.values():
+                            vec = try_vec(val, expected_dim)
+                            if vec is not None:
+                                raw_states.append(vec)
+
+                if isinstance(next_state, dict):
+                    for obs in next_state.values():
+                        vec = try_vec(obs, expected_dim)
+                        if vec is not None:
+                            raw_states.append(vec)
+                else:
+                    vec = try_vec(next_state, expected_dim)
+                    if vec is not None:
+                        raw_states.append(vec)
 
     finally:
         env.close()
@@ -93,8 +121,8 @@ def main() -> None:
         "episodes": int(args.episodes),
         "seed": int(args.seed),
         "num_samples": len(raw_states),
-        "state_dim": 4,
-        "feature_names": ["q_NS", "q_EW", "w_NS", "w_EW"],
+        "state_dim": int(expected_dim) if expected_dim is not None else int(data.shape[1]),
+        "feature_names": [],
     }
 
     with open(output_path, "w", encoding="utf-8") as f:

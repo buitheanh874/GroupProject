@@ -65,16 +65,31 @@ class DQNAgent:
     def action_dim(self) -> int:
         return int(self._config.action_dim)
 
-    def select_action(self, state: np.ndarray, epsilon: float) -> int:
+    def select_action(self, state: np.ndarray, epsilon: float, allowed_action_ids: Optional[Sequence[int]] = None) -> int:
         epsilon_value = float(epsilon)
 
+        allowed: Optional[np.ndarray] = None
+        if allowed_action_ids is not None:
+            allowed = np.asarray(list(allowed_action_ids), dtype=np.int64).reshape(-1)
+            allowed = allowed[(allowed >= 0) & (allowed < int(self._config.action_dim))]
+            if allowed.size <= 0:
+                allowed = None
+
         if self._random_state.random() < epsilon_value:
+            if allowed is not None:
+                return int(self._random_state.choice(allowed))
             return int(self._random_state.integers(0, int(self._config.action_dim)))
 
         state_tensor = torch.as_tensor(state, dtype=torch.float32, device=self._device).view(1, -1)
         with torch.no_grad():
             q_values = self.online_net(state_tensor)
-            action_id = int(torch.argmax(q_values, dim=1).item())
+            if allowed is not None:
+                mask = torch.full_like(q_values, fill_value=-1e9)
+                idx = torch.as_tensor(allowed, dtype=torch.long, device=self._device)
+                mask[0, idx] = q_values[0, idx]
+                action_id = int(torch.argmax(mask, dim=1).item())
+            else:
+                action_id = int(torch.argmax(q_values, dim=1).item())
 
         return action_id
 

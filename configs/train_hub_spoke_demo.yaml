@@ -1,0 +1,87 @@
+run:
+  run_name: train_hub_spoke_demo
+  seed: 42
+  device: cpu
+
+env:
+  type: sumo
+  sumo:
+    sumo_binary: sumo
+    net_file: networks/BI.net.xml
+    route_file: networks/BI_unbalanced.rou.xml
+    additional_files: []
+    tls_id: TL
+    tls_ids: []
+    center_tls_id: TL
+    downstream_links:
+      N: TL2N
+      E: TL2E
+      S: TL2S
+      W: TL2W
+    vehicle_weights:
+      motorcycle: 0.25
+      passenger: 1.0
+      bus: 3.0
+    step_length_sec: 1.0
+    green_cycle_sec: 60
+    yellow_sec: 2
+    all_red_sec: 0
+    max_cycles: 30
+    max_sim_seconds: 1800
+    terminate_on_empty: false
+    rho_min: 0.1
+    lambda_fairness: 0.0
+    action_splits:
+      - [0.30, 0.70]
+      - [0.40, 0.60]
+      - [0.50, 0.50]
+      - [0.60, 0.40]
+      - [0.70, 0.30]
+    action_table: []
+    include_transition_in_waiting: true
+    sumo_extra_args: []
+    enable_kpi_tracker: true
+    normalize_state: true
+    return_raw_state: false
+    state_dim: 12
+    lane_groups:
+      lanes_ns_ctrl: ["N2TL_0", "N2TL_1", "N2TL_2", "N2TL_3", "S2TL_0", "S2TL_1", "S2TL_2", "S2TL_3"]
+      lanes_ew_ctrl: ["E2TL_0", "E2TL_1", "E2TL_2", "E2TL_3", "W2TL_0", "W2TL_1", "W2TL_2", "W2TL_3"]
+      lanes_right_turn_slip_ns: []
+      lanes_right_turn_slip_ew: []
+    phase_program:
+      ns_green: 0
+      ew_green: 4
+      ns_yellow: 1
+      ew_yellow: 5
+      all_red: 0
+
+normalization:
+  mean: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+  std: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+
+agent:
+  hidden_dims: [128, 128]
+  gamma: 0.98
+  learning_rate: 0.0001
+  batch_size: 64
+  replay_buffer_size: 100000
+  target_update_freq: 1000
+
+exploration:
+  eps_start: 1.0
+  eps_end: 0.05
+  eps_decay_steps: 20000
+
+train:
+  episodes: 5
+  save_every_episodes: 0
+  print_every_episodes: 1
+
+baseline:
+  fixed_action_id: 2
+
+logging:
+  log_dir: logs/hub_spoke_demo
+  model_dir: models/hub_spoke_demo
+  results_dir: results/hub_spoke_demo
