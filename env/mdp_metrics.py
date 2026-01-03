@@ -97,6 +97,14 @@ class CycleMetricsAggregator:
                 total += float(weight) * (float(wait_time) ** exp_val)
         return float(total)
 
+    def waiting_sums(self, order: Iterable[str]) -> np.ndarray:
+        values = []
+        for key in order:
+            dir_key = str(key).upper()
+            waits = self._waiting.get(dir_key, {})
+            values.append(float(sum(waits.values())))
+        return np.asarray(values, dtype=np.float32)
+
     def fairness_value(self, metric: str = "max") -> float:
         metric_key = str(metric).lower()
         if metric_key not in {"max", "p95"}:

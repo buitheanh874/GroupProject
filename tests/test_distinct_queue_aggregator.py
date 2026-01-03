@@ -52,6 +52,17 @@ def test_fairness_p95_and_weighted_wait():
     assert math.isclose(weighted, 3.0)
 
 
+def test_waiting_sums_and_transition_exclusion():
+    agg = CycleMetricsAggregator(directions=["N", "S"], queue_mode="distinct_cycle")
+    agg.observe("N", ["v1"], step_sec=0.5, accumulate_waiting=True)
+    agg.observe("N", ["v1", "v2"], step_sec=0.5, accumulate_waiting=True)
+    agg.observe("S", ["s1"], step_sec=0.5, accumulate_waiting=False)  # transition excluded
+    sums = agg.waiting_sums(order=["N", "S"])
+    # N: v1 waited 1.0s, v2 waited 0.5s
+    assert math.isclose(float(sums[0]), 1.5)
+    assert math.isclose(float(sums[1]), 0.0)
+
+
 if __name__ == "__main__":
     test_distinct_queue_counts_and_snapshot()
     test_snapshot_mode_uses_last_step_only()

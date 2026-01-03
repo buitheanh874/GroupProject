@@ -51,3 +51,25 @@ python scripts/run_experiments.py --config configs/experiments.yaml --model_path
 - Sample config: `configs/train_hub_spoke_demo.yaml` (runs on `networks/BI.net.xml`, single TLS but 12D state/action-table enabled). Multi-node layouts require SUMO files in `networks/hub_spoke/` (see README there).
 - Action masking: `env.cycle_to_actions` maps `cycle_sec` to action ids so you can enforce synchronized cycle choices across TLS.
 - Validation tips: if `tls_ids` has multiple entries, use `state_dim: 12` and provide `lane_groups_by_tls`. For 12D center occupancy, include `downstream_links` N/E/S/W or set `enable_downstream_occupancy: false` to skip occupancy.
+
+## Normalization Stats Collection Protocol
+- Collect raw states with `scripts/collect_norm_stats.py` (or `collect_normalization_stats.py`) using a fixed-action baseline for at least 50 samples; the script emits warnings if sample count is low.
+- Standard deviations are clamped to `>=1e-6` to avoid divide-by-zero during normalization; clamping is reported in stdout.
+- Keep `normalize_state: true` in training configs and ensure mean/std align with `state_dim`.
+
+## Route Randomization Workflow
+- Generate demand variants without SUMO by scaling an existing `.rou.xml`:
+  ```
+  python scripts/generate_randomized_routes.py --input networks/BIGMAP.rou.xml --output-dir networks/randomized --variants 5 --seed 42 --global-range 0.7 1.3 --per-flow-noise 0.1
+  ```
+- The script scales all flow demand fields (probability/vehsPerHour/number) with a deterministic global factor and per-flow noise, preserving begin/end windows.
+
+## Cross-Eval Protocol
+- Compare pure vs fairness checkpoints across lambda values:
+  ```
+  python scripts/cross_eval_fairness.py --config configs/eval_sumo.yaml --pure_ckpt models/pure.pt --fair_ckpt models/fair.pt --lambda_values 0 0.12 --output-dir results/cross_eval
+  ```
+- Wrapper invokes `scripts/eval.py` per lambda/policy combination and writes logs plus a summary CSV.
+
+## MDP Compliance Map
+- See `docs/MDP_COMPLIANCE.md` for key spec→code pointers (reward normalization, queue counting, fairness, spillback/anti-flicker, PCU/enhanced rewards, validation, time-aware gamma).

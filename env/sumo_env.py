@@ -247,7 +247,6 @@ class SUMOEnv(BaseEnv):
         self._kpi_disabled_warned = False
         self._stepped_seconds = 0.0
         self._last_state_raw: Optional[Any] = None
-        self._prev_accum_wait: Dict[str, float] = {}
         self._lane_id_set: set[str] = set()
         self._edge_id_set: set[str] = set()
         self._prev_cycle_sec: Optional[int] = None
@@ -284,7 +283,6 @@ class SUMOEnv(BaseEnv):
         self._cycle_index = 0
         self._stepped_seconds = 0.0
         self._kpi_disabled_warned = False
-        self._prev_accum_wait = {}
         self._prev_cycle_sec = None
         self._kpi_tracker = self._make_kpi_tracker() if self._enable_kpi_tracker else None
 
@@ -335,7 +333,6 @@ class SUMOEnv(BaseEnv):
         self._connected = False
         self._kpi_tracker = None
         self._last_state_raw = None
-        self._prev_accum_wait = {}
         self._prev_cycle_sec = None
 
     def _step_legacy(self, action_id: int) -> Tuple[np.ndarray, float, bool, Dict[str, Any]]:
@@ -355,12 +352,7 @@ class SUMOEnv(BaseEnv):
 
         include_transition = bool(self._config.include_transition_in_waiting)
 
-        w_ns = 0.0
-        w_ew = 0.0
         decision_steps = 0
-
-        last_q_ns = 0.0
-        last_q_ew = 0.0
 
         # Track per-cycle queue membership; distinct vehicles by default for MDP compliance.
         agg = CycleMetricsAggregator(directions=["NS", "EW"], queue_mode=self._queue_count_mode)
@@ -409,11 +401,6 @@ class SUMOEnv(BaseEnv):
                     weight_lookup=self._vehicle_weight_lookup if self._use_pcu_weighted_wait or self._use_enhanced_reward else None,
                 )
 
-                if accumulate_waiting:
-                    # Waiting accumulation respects include_transition_in_waiting.
-                    w_ns += float(len(queued_ns))
-                    w_ew += float(len(queued_ew))
-
                 if self._kpi_tracker is not None:
                     try:
                         queue_total = float(len(queued_ns) + len(queued_ew))
@@ -431,6 +418,9 @@ class SUMOEnv(BaseEnv):
         if queue_counts.size >= 2:
             last_q_ns = float(queue_counts[0])
             last_q_ew = float(queue_counts[1])
+        waiting_sums = agg.waiting_sums(order=["NS", "EW"])
+        w_ns = float(waiting_sums[0]) if waiting_sums.size >= 1 else 0.0
+        w_ew = float(waiting_sums[1]) if waiting_sums.size >= 2 else 0.0
 
         decision_cycle_sec = float(decision_steps) * float(self._config.step_length_sec)
 
@@ -558,7 +548,6 @@ class SUMOEnv(BaseEnv):
         remaining_steps: Dict[str, int] = {tls_id: intervals_by_tls[tls_id][0][1] if len(intervals_by_tls[tls_id]) > 0 else 0 for tls_id in self._tls_ids}
 
         last_q_dir: Dict[str, np.ndarray] = {tls_id: np.zeros(4, dtype=np.float32) for tls_id in self._tls_ids}
-        w_dir: Dict[str, np.ndarray] = {tls_id: np.zeros(4, dtype=np.float32) for tls_id in self._tls_ids}
         # Per-TLS aggregators keep distinct-per-cycle queue counts and waiting stats.
         agg_by_tls: Dict[str, CycleMetricsAggregator] = {
             tls_id: CycleMetricsAggregator(directions=["N", "E", "S", "W"], queue_mode=self._queue_count_mode) for tls_id in self._tls_ids
@@ -584,10 +573,6 @@ class SUMOEnv(BaseEnv):
                         weight_lookup=self._vehicle_weight_lookup if self._use_pcu_weighted_wait or self._use_enhanced_reward else None,
                     )
 
-                snapshot_counts = agg.snapshot_counts(order=["N", "E", "S", "W"])
-                if accumulate_waiting:
-                    # Waiting accumulation respects include_transition_in_waiting.
-                    w_dir[tls_id] += snapshot_counts
                 last_q_dir[tls_id] = agg.queue_counts(order=["N", "E", "S", "W"])
 
             if self._kpi_tracker is not None:
@@ -619,12 +604,14 @@ class SUMOEnv(BaseEnv):
         t_step_value = float(cycle_sec + 2 * int(self._config.yellow_sec) + 2 * int(self._config.all_red_sec))
         wait_exponent = float(self._reward_exponent if self._use_enhanced_reward else 1.0)
         wait_totals: Dict[str, float] = {}
+        w_dir: Dict[str, np.ndarray] = {}
         fairness_values: Dict[str, float] = {}
         for tls_id in self._tls_ids:
             agg = agg_by_tls[tls_id]
             last_q_dir[tls_id] = agg.queue_counts(order=["N", "E", "S", "W"])
             wait_totals[tls_id] = agg.waiting_total(exponent=wait_exponent, use_weights=self._use_pcu_weighted_wait)
             fairness_values[tls_id] = agg.fairness_value(metric=self._fairness_metric)
+            w_dir[tls_id] = agg.waiting_sums(order=["N", "E", "S", "W"])
 
         lambda_fairness = float(self._config.lambda_fairness)
         fairness_penalty = 0.0
@@ -754,31 +741,6 @@ class SUMOEnv(BaseEnv):
         if len(self._tls_ids) != 1:
             raise ValueError("Multi-agent mode requires a dict of actions")
         return {self._tls_ids[0]: int(actions)}
-
-    def _accumulate_weighted_wait(self, vehicle_ids: List[str], seen: set[str]) -> float:
-        total = 0.0
-        for veh_id in vehicle_ids:
-            veh = str(veh_id)
-            seen.add(veh)
-            try:
-                accum_wait = float(self._traci.vehicle.getAccumulatedWaitingTime(veh))
-            except Exception:
-                continue
-            prev = self._prev_accum_wait.get(veh, accum_wait)
-            delta = max(0.0, float(accum_wait) - float(prev))
-            try:
-                type_id = str(self._traci.vehicle.getTypeID(veh))
-                weight = float(self._vehicle_weights.get(type_id, 1.0))
-            except Exception:
-                weight = 1.0
-            total += delta * weight
-            self._prev_accum_wait[veh] = float(accum_wait)
-
-        stale_ids = [vid for vid in self._prev_accum_wait.keys() if vid not in seen]
-        for vid in stale_ids:
-            self._prev_accum_wait.pop(vid, None)
-
-        return float(total)
 
     def _run_interval_single(self, phase_index: int, duration_sec: int, w_ns: float, w_ew: float, accumulate_waiting: bool) -> Tuple[float, float, float, float, int]:
         steps = self._sec_to_steps(duration_sec)
