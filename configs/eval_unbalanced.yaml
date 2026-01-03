@@ -1,5 +1,5 @@
 run:
-  run_name: eval_high_unbalanced
+  run_name: eval_stress_test
   seed: 100
   device: cpu
 
@@ -18,7 +18,7 @@ env:
     all_red_sec: 0
 
     max_cycles: 0
-    max_sim_seconds: 3600
+    max_sim_seconds: 2500
     rho_min: 0.1
     lambda_fairness: 0.0 
 
@@ -30,7 +30,7 @@ env:
       - [0.70, 0.30]
 
     include_transition_in_waiting: true
-    terminate_on_empty: false
+    terminate_on_empty: true
     sumo_extra_args: []
     enable_kpi_tracker: true
 
@@ -50,7 +50,7 @@ env:
 normalization:
   mean: [0.0, 0.0, 0.0, 0.0]
   std: [1.0, 1.0, 1.0, 1.0]
-  file: configs/norm_stats_high.json
+  file: configs/norm_stats_ultimate_clean.json
 
 agent:
   hidden_dims: [128, 128]
@@ -64,4 +64,4 @@ baseline:
   fixed_action_id: 2
 
 logging:
-  results_dir: results/eval_high
+  results_dir: results/eval_stress_test

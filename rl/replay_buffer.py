@@ -12,6 +12,7 @@ class TransitionBatch:
     states: torch.Tensor
     actions: torch.Tensor
     rewards: torch.Tensor
+    gammas: torch.Tensor
     next_states: torch.Tensor
     dones: torch.Tensor
 
@@ -25,13 +26,14 @@ class ReplayBuffer:
         self._states = np.zeros((self._capacity, self._state_dim), dtype=np.float32)
         self._actions = np.zeros((self._capacity, 1), dtype=np.int64)
         self._rewards = np.zeros((self._capacity, 1), dtype=np.float32)
+        self._gammas = np.ones((self._capacity, 1), dtype=np.float32)
         self._next_states = np.zeros((self._capacity, self._state_dim), dtype=np.float32)
         self._dones = np.zeros((self._capacity, 1), dtype=np.float32)
 
         self._size = 0
         self._pos = 0
 
-    def push(self, state: np.ndarray, action: int, reward: float, next_state: np.ndarray, done: bool) -> None:
+    def push(self, state: np.ndarray, action: int, reward: float, next_state: np.ndarray, done: bool, gamma: float = 1.0) -> None:
         state_array = np.asarray(state, dtype=np.float32).reshape(1, -1)
         next_state_array = np.asarray(next_state, dtype=np.float32).reshape(1, -1)
 
@@ -43,6 +45,7 @@ class ReplayBuffer:
         self._states[index] = state_array[0]
         self._actions[index] = int(action)
         self._rewards[index] = float(reward)
+        self._gammas[index] = float(gamma)
         self._next_states[index] = next_state_array[0]
         self._dones[index] = float(1.0 if bool(done) else 0.0)
 
@@ -59,6 +62,7 @@ class ReplayBuffer:
         states = torch.as_tensor(self._states[indices], dtype=torch.float32, device=device)
         actions = torch.as_tensor(self._actions[indices], dtype=torch.int64, device=device)
         rewards = torch.as_tensor(self._rewards[indices], dtype=torch.float32, device=device)
+        gammas = torch.as_tensor(self._gammas[indices], dtype=torch.float32, device=device)
         next_states = torch.as_tensor(self._next_states[indices], dtype=torch.float32, device=device)
         dones = torch.as_tensor(self._dones[indices], dtype=torch.float32, device=device)
 
@@ -66,6 +70,7 @@ class ReplayBuffer:
             states=states,
             actions=actions,
             rewards=rewards,
+            gammas=gammas,
             next_states=next_states,
             dones=dones,
         )

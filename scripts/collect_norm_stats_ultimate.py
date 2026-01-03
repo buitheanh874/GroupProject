@@ -17,44 +17,57 @@ def main() -> None:
     config_path = "configs/train_ultimate_pure.yaml"
     output_path = "configs/norm_stats_ultimate_clean.json"
 
-    output_file = Path(output_path)
-    
-    if not output_file.exists():
-        print(f"\nCreating dummy {output_path}...")
-        output_file.parent.mkdir(parents=True, exist_ok=True)
-        
-        dummy_stats = {
-            "mean": [0.0, 0.0, 0.0, 0.0],
-            "std": [1.0, 1.0, 1.0, 1.0],
-            "episodes": 0,
-            "seed": 0,
-            "num_samples": 0,
-        }
-        
-        with open(output_file, "w", encoding="utf-8") as f:
-            json.dump(dummy_stats, f, indent=2)
+    config_abs = (repo_root / config_path).resolve()
+    output_abs = (repo_root / output_path).resolve()
 
-    print("\nRunning normalization collection...")
+    if not config_abs.exists():
+        sys.exit(f"Config file not found: {config_abs}")
+
+    output_abs.parent.mkdir(parents=True, exist_ok=True)
+
+    tmp_path = output_abs.with_suffix(output_abs.suffix + ".tmp")
+    if tmp_path.exists():
+        tmp_path.unlink()
+
     cmd = [
         sys.executable,
-        "scripts/collect_norm_stats.py",
-        "--config", config_path,
+        str(repo_root / "scripts" / "collect_norm_stats.py"),
+        "--config", str(config_abs),
         "--episodes", "5",
         "--seed", "0",
-        "--out", output_path,
+        "--out", str(tmp_path),
     ]
-    
-    result = subprocess.run(cmd, cwd=repo_root)
-    
-    if result.returncode != 0:
-        sys.exit(f"Normalization collection failed with exit code {result.returncode}")
+
+    try:
+        print("\nRunning normalization collection...")
+        result = subprocess.run(cmd, cwd=str(repo_root), check=True)
+        
+        if not tmp_path.exists():
+            sys.exit(f"Collector succeeded but temp file not found: {tmp_path}")
+        
+        tmp_path.replace(output_abs)
+        
+    except subprocess.CalledProcessError as exc:
+        if tmp_path.exists():
+            try:
+                tmp_path.unlink()
+            except Exception:
+                pass
+        sys.exit(f"Normalization collection failed with exit code {exc.returncode}")
+    except Exception as exc:
+        if tmp_path.exists():
+            try:
+                tmp_path.unlink()
+            except Exception:
+                pass
+        raise exc
 
     print("\n" + "=" * 80)
-    print(f"Normalization stats saved to: {output_path}")
+    print(f"Normalization stats saved to: {output_abs}")
     print("=" * 80)
     
-    if output_file.exists():
-        with open(output_file, "r", encoding="utf-8") as f:
+    if output_abs.exists():
+        with open(output_abs, "r", encoding="utf-8") as f:
             stats = json.load(f)
         print(json.dumps(stats, indent=2))
 

@@ -97,18 +97,73 @@ def run_training(config: Dict[str, Any]) -> str:
                     )
                     last_epsilon = float(epsilon)
 
-                    action_id = agent.select_action(state=state, epsilon=epsilon)
-                    next_state, reward, done, info = env.step(action_id)
+                    if isinstance(state, dict):
+                        tls_ids_sorted = sorted(state.keys())
+                        center_id = None
+                        if hasattr(env, "center_tls_id"):
+                            center_id_candidate = getattr(env, "center_tls_id")
+                            if isinstance(center_id_candidate, str) and center_id_candidate in tls_ids_sorted:
+                                center_id = center_id_candidate
+                        if center_id is None:
+                            center_id = tls_ids_sorted[0]
 
-                    agent.store_transition(state, action_id, reward, next_state, done)
-                    loss_value = agent.update()
-                    if loss_value is not None:
-                        losses.append(float(loss_value))
+                        center_action = agent.select_action(state=state[center_id], epsilon=epsilon)
+                        allowed_ids = None
+                        if hasattr(env, "cycle_to_actions"):
+                            for _, ids in env.cycle_to_actions.items():
+                                if center_action in ids:
+                                    allowed_ids = [int(x) for x in ids]
+                                    break
+                        if allowed_ids is None:
+                            if hasattr(env, "cycle_to_actions"):
+                                for _, ids in env.cycle_to_actions.items():
+                                    if int(config.get("baseline", {}).get("fixed_action_id", 2)) in ids:
+                                        allowed_ids = [int(x) for x in ids]
+                                        break
 
-                    state = next_state
-                    episode_reward += float(reward)
-                    episode_steps += 1
-                    global_step += 1
+                        actions: Dict[str, int] = {}
+                        for tls_id in tls_ids_sorted:
+                            actions[str(tls_id)] = agent.select_action(
+                                state=state[tls_id],
+                                epsilon=epsilon,
+                                allowed_action_ids=allowed_ids,
+                            )
+
+                        next_state, rewards, done, info = env.step(actions)
+
+                        step_rewards = list(rewards.values()) if isinstance(rewards, dict) else [float(rewards)]
+                        step_reward = float(np.mean(step_rewards))
+
+                        gamma_value = agent.compute_gamma(info.get("t_step") if isinstance(info, dict) else None)
+
+                        for tls_id in tls_ids_sorted:
+                            action_id = actions[tls_id]
+                            next_obs = next_state.get(tls_id) if isinstance(next_state, dict) else next_state
+                            reward_value = rewards.get(tls_id, 0.0) if isinstance(rewards, dict) else rewards
+                            agent.store_transition(state[tls_id], action_id, reward_value, next_obs, done, gamma=gamma_value)
+
+                        loss_value = agent.update()
+                        if loss_value is not None:
+                            losses.append(float(loss_value))
+
+                        state = next_state
+                        episode_reward += float(step_reward)
+                        episode_steps += 1
+                        global_step += len(actions)
+                    else:
+                        action_id = agent.select_action(state=state, epsilon=epsilon)
+                        next_state, reward, done, info = env.step(action_id)
+
+                        gamma_value = agent.compute_gamma(info.get("t_step") if isinstance(info, dict) else None)
+                        agent.store_transition(state, action_id, reward, next_state, done, gamma=gamma_value)
+                        loss_value = agent.update()
+                        if loss_value is not None:
+                            losses.append(float(loss_value))
+
+                        state = next_state
+                        episode_reward += float(reward)
+                        episode_steps += 1
+                        global_step += 1
 
                 avg_loss = float(np.mean(losses)) if len(losses) > 0 else 0.0
 
@@ -130,7 +185,9 @@ def run_training(config: Dict[str, Any]) -> str:
                     "avg_queue": float(kpi.get("avg_queue", 0.0)),
                     "decision_cycle_sec": float(info.get("decision_cycle_sec", 0.0)) if isinstance(info, dict) else 0.0,
                     "decision_steps": int(info.get("decision_steps", 0)) if isinstance(info, dict) else 0,
-                    "waiting_total": float(info.get("waiting_total", 0.0)) if isinstance(info, dict) else 0.0,
+                    "waiting_total": float(
+                        info.get("waiting_total", info.get("total_wait_reward", info.get("total_weighted_wait", 0.0))) if isinstance(info, dict) else 0.0
+                    ),
                 }
 
                 writer.writerow(row)
