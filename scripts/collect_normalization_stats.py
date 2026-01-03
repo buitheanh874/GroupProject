@@ -80,6 +80,10 @@ def main() -> None:
     data = np.asarray(raw_states, dtype=np.float32)
     mean = data.mean(axis=0)
     std = data.std(axis=0)
+    if len(raw_states) < 50:
+        print(f"[WARN] Only collected {len(raw_states)} samples; normalization stats may be noisy.")
+    if np.any(std < 1e-6):
+        print("[WARN] Standard deviation contained near-zero values; clamping to avoid divide-by-zero.")
     std = np.maximum(std, 1e-6)
 
     config["normalization"] = {

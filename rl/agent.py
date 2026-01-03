@@ -22,6 +22,9 @@ class AgentConfig:
     replay_buffer_size: int
     target_update_freq: int
     seed: int
+    use_time_aware_gamma: bool = False
+    gamma_0: float = 0.98
+    t_ref: float = 60.0
 
 
 class DQNAgent:
@@ -30,6 +33,9 @@ class DQNAgent:
         self._device = device
 
         self._random_state = np.random.default_rng(int(config.seed))
+        self._use_time_aware_gamma = bool(getattr(config, "use_time_aware_gamma", False))
+        self._gamma_base = float(getattr(config, "gamma_0", config.gamma))
+        self._t_ref = float(max(1e-6, getattr(config, "t_ref", 60.0)))
 
         self.online_net = DuelingDQN(
             state_dim=int(config.state_dim),
@@ -59,7 +65,22 @@ class DQNAgent:
 
     @property
     def gamma(self) -> float:
+        if self._use_time_aware_gamma:
+            return float(self._gamma_base)
         return float(self._config.gamma)
+
+    @property
+    def use_time_aware_gamma(self) -> bool:
+        return bool(self._use_time_aware_gamma)
+
+    @property
+    def t_ref(self) -> float:
+        return float(self._t_ref)
+
+    def compute_gamma(self, t_step: Optional[float]) -> float:
+        if not self._use_time_aware_gamma or t_step is None:
+            return float(self.gamma)
+        return float(self._gamma_base ** (float(t_step) / float(self._t_ref)))
 
     @property
     def action_dim(self) -> int:
@@ -93,13 +114,15 @@ class DQNAgent:
 
         return action_id
 
-    def store_transition(self, state: np.ndarray, action: int, reward: float, next_state: np.ndarray, done: bool) -> None:
+    def store_transition(self, state: np.ndarray, action: int, reward: float, next_state: np.ndarray, done: bool, gamma: Optional[float] = None) -> None:
+        gamma_value = float(gamma) if gamma is not None else float(self.gamma)
         self.replay_buffer.push(
             state=state,
             action=int(action),
             reward=float(reward),
             next_state=next_state,
             done=bool(done),
+            gamma=float(gamma_value),
         )
 
     def update(self) -> Optional[float]:
@@ -112,7 +135,7 @@ class DQNAgent:
             next_q_online = self.online_net(batch.next_states)
             next_actions = torch.argmax(next_q_online, dim=1, keepdim=True)
             next_q_target = self.target_net(batch.next_states).gather(1, next_actions)
-            target_q = batch.rewards + float(self._config.gamma) * next_q_target * (1.0 - batch.dones)
+            target_q = batch.rewards + batch.gammas * next_q_target * (1.0 - batch.dones)
 
         current_q = self.online_net(batch.states).gather(1, batch.actions)
 

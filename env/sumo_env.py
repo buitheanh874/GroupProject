@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union
 
 import numpy as np
 
 from env.base_env import BaseEnv
 from env.kpi import EpisodeKpiTracker
 from env.normalization import StateNormalizer
+from env.mdp_metrics import CycleMetricsAggregator, compute_normalized_reward
 
 
 @dataclass
@@ -97,6 +98,7 @@ class SumoEnvConfig:
     downstream_links: Dict[str, str] = field(default_factory=dict)
     vehicle_weights: Dict[str, float] = field(default_factory=dict)
     step_length_sec: float = 1.0
+    halt_speed_threshold: float = 0.1
     green_cycle_sec: int = 60
     yellow_sec: int = 0
     all_red_sec: int = 0
@@ -104,10 +106,21 @@ class SumoEnvConfig:
     max_sim_seconds: Optional[int] = None
     seed: int = 0
     rho_min: float = 0.1
+    g_min_sec: int = 5
     lambda_fairness: float = 0.12
+    fairness_metric: str = "max"
     action_splits: List[Tuple[float, float]] = field(default_factory=list)
     action_table: List[Dict[str, Any]] = field(default_factory=list)
     include_transition_in_waiting: bool = True
+    queue_count_mode: str = "distinct_cycle"
+    use_pcu_weighted_wait: Optional[bool] = None
+    use_enhanced_reward: bool = False
+    reward_exponent: float = 1.0
+    enable_anti_flicker: bool = False
+    kappa: float = 0.0
+    enable_spillback_penalty: bool = False
+    beta: float = 0.0
+    occ_threshold: float = 0.0
     terminate_on_empty: bool = True
     sumo_extra_args: List[str] = field(default_factory=list)
     normalize_state: bool = True
@@ -115,6 +128,7 @@ class SumoEnvConfig:
     enable_kpi_tracker: bool = False
     state_dim: int = 4
     enable_downstream_occupancy: bool = True
+
 
 
 class SUMOEnv(BaseEnv):
@@ -180,6 +194,8 @@ class SUMOEnv(BaseEnv):
         if float(self._config.step_length_sec) <= 0.0:
             raise ValueError("step_length_sec must be > 0")
 
+        self._g_min_sec = int(self._config.g_min_sec)
+
         if self._legacy_mode and len(self._config.action_splits) <= 0:
             self._config.action_splits = [
                 (0.30, 0.70),
@@ -202,8 +218,26 @@ class SUMOEnv(BaseEnv):
         self._enable_kpi_tracker = bool(self._config.enable_kpi_tracker)
         self._include_transition_in_waiting = bool(self._config.include_transition_in_waiting)
         self._enable_downstream_occupancy = bool(self._config.enable_downstream_occupancy)
+        self._queue_count_mode = str(self._config.queue_count_mode or "distinct_cycle").lower()
+        if self._queue_count_mode not in {"distinct_cycle", "snapshot_last_step"}:
+            raise ValueError("queue_count_mode must be distinct_cycle or snapshot_last_step")
+        self._halt_speed_threshold = float(self._config.halt_speed_threshold)
+        self._fairness_metric = str(self._config.fairness_metric or "max").lower()
+        if self._fairness_metric not in {"max", "p95"}:
+            raise ValueError("fairness_metric must be max or p95")
+        self._use_enhanced_reward = bool(self._config.use_enhanced_reward)
+        self._reward_exponent = float(self._config.reward_exponent)
+        self._enable_anti_flicker = bool(self._config.enable_anti_flicker)
+        self._kappa = float(self._config.kappa)
+        self._enable_spillback_penalty = bool(self._config.enable_spillback_penalty)
+        self._beta = float(self._config.beta)
+        self._occ_threshold = float(self._config.occ_threshold)
 
         self._vehicle_weights = {str(k): float(v) for k, v in self._config.vehicle_weights.items()}
+        if self._config.use_pcu_weighted_wait is None:
+            self._use_pcu_weighted_wait = len(self._vehicle_weights) > 0
+        else:
+            self._use_pcu_weighted_wait = bool(self._config.use_pcu_weighted_wait)
 
         self._traci: Optional[Any] = None
         self._connected = False
@@ -216,6 +250,7 @@ class SUMOEnv(BaseEnv):
         self._prev_accum_wait: Dict[str, float] = {}
         self._lane_id_set: set[str] = set()
         self._edge_id_set: set[str] = set()
+        self._prev_cycle_sec: Optional[int] = None
 
     @property
     def state_dim(self) -> int:
@@ -250,6 +285,7 @@ class SUMOEnv(BaseEnv):
         self._stepped_seconds = 0.0
         self._kpi_disabled_warned = False
         self._prev_accum_wait = {}
+        self._prev_cycle_sec = None
         self._kpi_tracker = self._make_kpi_tracker() if self._enable_kpi_tracker else None
 
         if self._legacy_mode:
@@ -300,6 +336,7 @@ class SUMOEnv(BaseEnv):
         self._kpi_tracker = None
         self._last_state_raw = None
         self._prev_accum_wait = {}
+        self._prev_cycle_sec = None
 
     def _step_legacy(self, action_id: int) -> Tuple[np.ndarray, float, bool, Dict[str, Any]]:
         if action_id < 0 or action_id >= self.action_dim:
@@ -307,15 +344,14 @@ class SUMOEnv(BaseEnv):
 
         action_def = self._action_defs[action_id]
         rho_ns, rho_ew = float(action_def.rho_ns), float(action_def.rho_ew)
-        green_cycle_sec = int(self._config.green_cycle_sec)
+        cycle_sec = int(action_def.cycle_sec)
+        min_green_sec = int(round(float(self._config.rho_min) * float(cycle_sec)))
+        min_green_sec = max(int(self._g_min_sec), min_green_sec)
 
-        min_green_sec = int(round(float(self._config.rho_min) * float(green_cycle_sec)))
-        min_green_sec = max(0, min_green_sec)
-
-        g_ns = int(round(float(rho_ns) * float(green_cycle_sec)))
+        g_ns = int(round(float(rho_ns) * float(cycle_sec)))
         g_ns = max(min_green_sec, g_ns)
-        g_ns = min(g_ns, max(min_green_sec, green_cycle_sec - min_green_sec))
-        g_ew = int(green_cycle_sec - g_ns)
+        g_ns = min(g_ns, max(min_green_sec, cycle_sec - min_green_sec))
+        g_ew = int(cycle_sec - g_ns)
 
         include_transition = bool(self._config.include_transition_in_waiting)
 
@@ -325,6 +361,9 @@ class SUMOEnv(BaseEnv):
 
         last_q_ns = 0.0
         last_q_ew = 0.0
+
+        # Track per-cycle queue membership; distinct vehicles by default for MDP compliance.
+        agg = CycleMetricsAggregator(directions=["NS", "EW"], queue_mode=self._queue_count_mode)
 
         intervals = [
             (int(self._phases.ns_green), int(g_ns), True),
@@ -343,25 +382,80 @@ class SUMOEnv(BaseEnv):
             intervals.append((int(self._phases.all_red), int(self._config.all_red_sec), include_transition))
 
         for phase_index, duration_sec, accumulate_waiting in intervals:
-            last_q_ns, last_q_ew, w_ns, w_ew, steps = self._run_interval_single(
-                phase_index=phase_index,
-                duration_sec=duration_sec,
-                w_ns=w_ns,
-                w_ew=w_ew,
-                accumulate_waiting=accumulate_waiting,
-            )
-            decision_steps += int(steps)
+            steps = self._sec_to_steps(duration_sec)
+            if steps <= 0:
+                continue
+
+            self._set_phase(tls_id=str(self._config.tls_id), phase_index=phase_index, hold_steps=int(steps))
+
+            for _ in range(int(steps)):
+                self._traci.simulationStep()
+
+                queued_ns = self._queued_for_lanes(self._lanes_single.lanes_ns_ctrl)
+                queued_ew = self._queued_for_lanes(self._lanes_single.lanes_ew_ctrl)
+
+                agg.observe(
+                    direction="NS",
+                    queued_vehicle_ids=queued_ns,
+                    step_sec=float(self._config.step_length_sec),
+                    accumulate_waiting=bool(accumulate_waiting),
+                    weight_lookup=self._vehicle_weight_lookup if self._use_pcu_weighted_wait or self._use_enhanced_reward else None,
+                )
+                agg.observe(
+                    direction="EW",
+                    queued_vehicle_ids=queued_ew,
+                    step_sec=float(self._config.step_length_sec),
+                    accumulate_waiting=bool(accumulate_waiting),
+                    weight_lookup=self._vehicle_weight_lookup if self._use_pcu_weighted_wait or self._use_enhanced_reward else None,
+                )
+
+                if accumulate_waiting:
+                    # Waiting accumulation respects include_transition_in_waiting.
+                    w_ns += float(len(queued_ns))
+                    w_ew += float(len(queued_ew))
+
+                if self._kpi_tracker is not None:
+                    try:
+                        queue_total = float(len(queued_ns) + len(queued_ew))
+                        self._kpi_tracker.on_simulation_step(self._traci, queue_length=queue_total)
+                    except Exception as exc:
+                        if not self._kpi_disabled_warned:
+                            print(f"[WARN] Disabling KPI tracker after error: {exc}")
+                            self._kpi_disabled_warned = True
+                        self._kpi_tracker = None
+
+                self._stepped_seconds += float(self._config.step_length_sec)
+                decision_steps += 1
+
+        queue_counts = agg.queue_counts(order=["NS", "EW"])
+        if queue_counts.size >= 2:
+            last_q_ns = float(queue_counts[0])
+            last_q_ew = float(queue_counts[1])
 
         decision_cycle_sec = float(decision_steps) * float(self._config.step_length_sec)
 
-        lambda_fairness = float(self._config.lambda_fairness)
-        total_wait = float(w_ns + w_ew)
+        t_step_value = float(cycle_sec + 2 * float(self._config.yellow_sec) + 2 * float(self._config.all_red_sec))
+        wait_exponent = float(self._reward_exponent if self._use_enhanced_reward else 1.0)
+        total_wait = agg.waiting_total(exponent=wait_exponent, use_weights=self._use_pcu_weighted_wait)
 
+        lambda_fairness = float(self._config.lambda_fairness)
+        fairness_value = 0.0
+        fairness_penalty = 0.0
         if lambda_fairness > 0.0:
-            max_wait = max(float(w_ns), float(w_ew))
-            reward = -(total_wait + lambda_fairness * max_wait) / 3600.0
-        else:
-            reward = -total_wait / 3600.0
+            fairness_value = float(agg.fairness_value(metric=self._fairness_metric))
+            fairness_penalty = float(lambda_fairness) * float(fairness_value)
+
+        spill_penalty = self._compute_spillback_penalty()
+        anti_flicker_penalty = self._compute_anti_flicker_penalty(cycle_sec=cycle_sec)
+
+        reward = compute_normalized_reward(
+            wait_total=total_wait,
+            t_step=float(t_step_value),
+            decision_cycle_sec=float(decision_cycle_sec),
+            fairness_penalty=float(fairness_penalty),
+            spill_penalty=float(spill_penalty),
+            anti_flicker_penalty=float(anti_flicker_penalty),
+        )
 
         state_raw = np.array([float(last_q_ns), float(last_q_ew), float(w_ns), float(w_ew)], dtype=np.float32)
         self._last_state_raw = state_raw.copy()
@@ -370,6 +464,7 @@ class SUMOEnv(BaseEnv):
         state = state_raw if self._return_raw_state else state_norm
 
         self._cycle_index += 1
+        self._prev_cycle_sec = int(cycle_sec)
 
         done = False
 
@@ -396,12 +491,18 @@ class SUMOEnv(BaseEnv):
             "split_rho_ew": float(rho_ew),
             "g_ns": int(g_ns),
             "g_ew": int(g_ew),
-            "green_cycle_sec": int(self._config.green_cycle_sec),
+            "green_cycle_sec": int(cycle_sec),
             "decision_cycle_sec": float(decision_cycle_sec),
             "decision_steps": int(decision_steps),
             "step_length_sec": float(self._config.step_length_sec),
             "yellow_sec": int(self._config.yellow_sec),
             "all_red_sec": int(self._config.all_red_sec),
+            "t_step": float(t_step_value),
+            "fairness_penalty": float(fairness_penalty),
+            "fairness_value": float(fairness_value),
+            "anti_flicker_penalty": float(anti_flicker_penalty),
+            "spill_penalty": float(spill_penalty),
+            "total_wait_reward": float(total_wait),
             "wait_ns": float(w_ns),
             "wait_ew": float(w_ew),
             "waiting_total": float(w_ns + w_ew),
@@ -458,39 +559,42 @@ class SUMOEnv(BaseEnv):
 
         last_q_dir: Dict[str, np.ndarray] = {tls_id: np.zeros(4, dtype=np.float32) for tls_id in self._tls_ids}
         w_dir: Dict[str, np.ndarray] = {tls_id: np.zeros(4, dtype=np.float32) for tls_id in self._tls_ids}
-        weighted_wait: Dict[str, float] = {tls_id: 0.0 for tls_id in self._tls_ids}
+        # Per-TLS aggregators keep distinct-per-cycle queue counts and waiting stats.
+        agg_by_tls: Dict[str, CycleMetricsAggregator] = {
+            tls_id: CycleMetricsAggregator(directions=["N", "E", "S", "W"], queue_mode=self._queue_count_mode) for tls_id in self._tls_ids
+        }
 
         for _ in range(int(decision_steps)):
             self._traci.simulationStep()
-            seen_vehicles: set[str] = set()
 
             for tls_id in self._tls_ids:
                 accumulate_waiting = True
                 if len(intervals_by_tls[tls_id]) > 0 and interval_pos[tls_id] < len(intervals_by_tls[tls_id]):
                     accumulate_waiting = bool(intervals_by_tls[tls_id][interval_pos[tls_id]][2])
 
-                dirs = self._direction_lanes_by_tls[tls_id]
-                q_values = self._read_queue_directions(dirs)
-                last_q_dir[tls_id] = q_values
-                if accumulate_waiting:
-                    w_dir[tls_id] += q_values
+                queued_dirs = self._queued_directions_for_tls(tls_id)
+                agg = agg_by_tls[tls_id]
 
-                lane_ids = self._lane_sets_by_tls[tls_id]
-                veh_ids = []
-                for lane in lane_ids:
-                    try:
-                        veh_ids.extend(self._traci.lane.getLastStepVehicleIDs(str(lane)))
-                    except Exception:
-                        continue
-                delta_wait = self._accumulate_weighted_wait(veh_ids, seen_vehicles)
+                for dir_key in ["N", "E", "S", "W"]:
+                    agg.observe(
+                        direction=dir_key,
+                        queued_vehicle_ids=queued_dirs.get(dir_key, []),
+                        step_sec=float(self._config.step_length_sec),
+                        accumulate_waiting=bool(accumulate_waiting),
+                        weight_lookup=self._vehicle_weight_lookup if self._use_pcu_weighted_wait or self._use_enhanced_reward else None,
+                    )
+
+                snapshot_counts = agg.snapshot_counts(order=["N", "E", "S", "W"])
                 if accumulate_waiting:
-                    weighted_wait[tls_id] += delta_wait
+                    # Waiting accumulation respects include_transition_in_waiting.
+                    w_dir[tls_id] += snapshot_counts
+                last_q_dir[tls_id] = agg.queue_counts(order=["N", "E", "S", "W"])
 
             if self._kpi_tracker is not None:
                 try:
                     queue_total = 0.0
                     for tls_id in self._tls_ids:
-                        queue_total += float(np.sum(last_q_dir[tls_id]))
+                        queue_total += float(np.sum(agg_by_tls[tls_id].snapshot_counts(order=["N", "E", "S", "W"])))
                     self._kpi_tracker.on_simulation_step(self._traci, queue_length=queue_total)
                 except Exception as exc:
                     if not self._kpi_disabled_warned:
@@ -513,8 +617,33 @@ class SUMOEnv(BaseEnv):
         states: Dict[str, np.ndarray] = {}
 
         t_step_value = float(cycle_sec + 2 * int(self._config.yellow_sec) + 2 * int(self._config.all_red_sec))
+        wait_exponent = float(self._reward_exponent if self._use_enhanced_reward else 1.0)
+        wait_totals: Dict[str, float] = {}
+        fairness_values: Dict[str, float] = {}
         for tls_id in self._tls_ids:
-            rewards[tls_id] = -float(weighted_wait[tls_id]) / float(t_step_value if t_step_value > 0 else decision_cycle_sec)
+            agg = agg_by_tls[tls_id]
+            last_q_dir[tls_id] = agg.queue_counts(order=["N", "E", "S", "W"])
+            wait_totals[tls_id] = agg.waiting_total(exponent=wait_exponent, use_weights=self._use_pcu_weighted_wait)
+            fairness_values[tls_id] = agg.fairness_value(metric=self._fairness_metric)
+
+        lambda_fairness = float(self._config.lambda_fairness)
+        fairness_penalty = 0.0
+        if lambda_fairness > 0.0 and len(fairness_values) > 0:
+            # Aggregate fairness across TLS conservatively using the worst case.
+            fairness_penalty = float(lambda_fairness) * float(max(fairness_values.values()))
+
+        spill_penalty = self._compute_spillback_penalty()
+        anti_flicker_penalty = self._compute_anti_flicker_penalty(cycle_sec=cycle_sec)
+
+        for tls_id in self._tls_ids:
+            rewards[tls_id] = compute_normalized_reward(
+                wait_total=float(wait_totals[tls_id]),
+                t_step=float(t_step_value),
+                decision_cycle_sec=float(decision_cycle_sec),
+                fairness_penalty=float(fairness_penalty),
+                spill_penalty=float(spill_penalty),
+                anti_flicker_penalty=float(anti_flicker_penalty),
+            )
             state_raw = self._build_state_vector(
                 tls_id=tls_id,
                 last_q_dir=last_q_dir[tls_id],
@@ -528,6 +657,7 @@ class SUMOEnv(BaseEnv):
             self._last_state_raw[tls_id] = state_raw.copy()
 
         self._cycle_index += 1
+        self._prev_cycle_sec = int(cycle_sec)
 
         done = False
 
@@ -556,7 +686,12 @@ class SUMOEnv(BaseEnv):
             "decision_cycle_sec": float(decision_cycle_sec),
             "decision_steps": int(decision_steps),
             "step_length_sec": float(self._config.step_length_sec),
-            "total_weighted_wait": float(sum(weighted_wait.values())),
+            "t_step": float(t_step_value),
+            "fairness_penalty": float(fairness_penalty),
+            "fairness_value": float(max(fairness_values.values()) if len(fairness_values) > 0 else 0.0),
+            "spill_penalty": float(spill_penalty),
+            "anti_flicker_penalty": float(anti_flicker_penalty),
+            "total_wait_reward": float(sum(wait_totals.values())),
             "mean_reward": float(np.mean(list(rewards.values()))),
             "state_raw": {tls: state.tolist() for tls, state in ((k, self._last_state_raw[k]) for k in self._tls_ids)},
             "sim_time": float(self._traci.simulation.getTime()),
@@ -587,7 +722,7 @@ class SUMOEnv(BaseEnv):
         if cycle <= 0:
             raise ValueError("cycle_sec must be > 0")
         min_green_sec = int(round(float(self._config.rho_min) * float(cycle)))
-        min_green_sec = max(0, min_green_sec)
+        min_green_sec = max(int(self._g_min_sec), min_green_sec)
 
         g_ns = int(round(float(action_def.rho_ns) * float(cycle)))
         g_ns = max(min_green_sec, g_ns)
@@ -600,6 +735,7 @@ class SUMOEnv(BaseEnv):
 
         intervals.append((int(self._phases.ns_green), self._sec_to_steps(g_ns), True))
         if self._config.yellow_sec > 0 and self._phases.ns_yellow is not None:
+            # include_transition_in_waiting controls whether yellow/all-red contribute to waiting accumulation.
             intervals.append((int(self._phases.ns_yellow), self._sec_to_steps(int(self._config.yellow_sec)), self._include_transition_in_waiting))
         if self._config.all_red_sec > 0 and self._phases.all_red is not None:
             intervals.append((int(self._phases.all_red), self._sec_to_steps(int(self._config.all_red_sec)), self._include_transition_in_waiting))
@@ -685,6 +821,58 @@ class SUMOEnv(BaseEnv):
         self._traci.trafficlight.setPhase(str(tls_id), int(phase_index))
         self._traci.trafficlight.setPhaseDuration(str(tls_id), float(hold_sec))
 
+    def _vehicle_weight_lookup(self, vehicle_id: str) -> float:
+        try:
+            type_id = str(self._traci.vehicle.getTypeID(str(vehicle_id)))
+            return float(self._vehicle_weights.get(type_id, 1.0))
+        except Exception:
+            return 1.0
+
+    def _queued_for_lanes(self, lane_ids: Iterable[str]) -> List[str]:
+        queued: List[str] = []
+        seen: Set[str] = set()
+        for lane_id in lane_ids:
+            try:
+                veh_ids = self._traci.lane.getLastStepVehicleIDs(str(lane_id))
+            except Exception:
+                continue
+            for vid in veh_ids:
+                veh = str(vid)
+                if veh in seen:
+                    continue
+                seen.add(veh)
+                try:
+                    speed = float(self._traci.vehicle.getSpeed(veh))
+                except Exception:
+                    continue
+                if speed < float(self._halt_speed_threshold):
+                    queued.append(veh)
+        return queued
+
+    def _queued_directions_for_tls(self, tls_id: str) -> Dict[str, List[str]]:
+        dirs = self._direction_lanes_by_tls.get(tls_id, {})
+        queued: Dict[str, List[str]] = {}
+        for key in ["N", "E", "S", "W"]:
+            queued[key] = self._queued_for_lanes(dirs.get(key, []))
+        return queued
+
+    def _compute_spillback_penalty(self) -> float:
+        if not self._enable_spillback_penalty:
+            return 0.0
+        if not self._enable_downstream_occupancy or len(self._downstream_links) == 0:
+            return 0.0
+        occupancy = self._read_downstream_occupancy() if self._traci is not None else np.zeros(4, dtype=np.float32)
+        occ_threshold = float(np.clip(self._occ_threshold, 0.0, 1.0))
+        over_thresh = np.clip(occupancy - occ_threshold, 0.0, None)
+        return float(self._beta) * float(np.sum(over_thresh))
+
+    def _compute_anti_flicker_penalty(self, cycle_sec: int) -> float:
+        if not self._enable_anti_flicker:
+            return 0.0
+        if self._prev_cycle_sec is None:
+            return 0.0
+        return float(self._kappa) if int(cycle_sec) != int(self._prev_cycle_sec) else 0.0
+
     def _read_queue_ns(self) -> float:
         total = 0.0
         if self._lanes_single is None:
@@ -719,13 +907,18 @@ class SUMOEnv(BaseEnv):
                 continue
             if link_id in self._lane_id_set:
                 try:
-                    values.append(float(self._traci.lane.getLastStepOccupancy(str(link_id))))
+                    raw = float(self._traci.lane.getLastStepOccupancy(str(link_id)))
+                    # TraCI returns occupancy in percent, normalize to [0, 1].
+                    occ = float(raw / 100.0) if raw > 1.0 else float(raw)
+                    values.append(float(np.clip(occ, 0.0, 1.0)))
                     continue
                 except Exception:
                     pass
             if link_id in self._edge_id_set:
                 try:
-                    values.append(float(self._traci.edge.getLastStepOccupancy(str(link_id))))
+                    raw = float(self._traci.edge.getLastStepOccupancy(str(link_id)))
+                    occ = float(raw / 100.0) if raw > 1.0 else float(raw)
+                    values.append(float(np.clip(occ, 0.0, 1.0)))
                     continue
                 except Exception:
                     pass
@@ -768,6 +961,13 @@ class SUMOEnv(BaseEnv):
                 raise ValueError(f"Invalid action split at index {index}: rho_ns + rho_ew must be 1.0")
             if int(action.cycle_sec) <= 0:
                 raise ValueError(f"cycle_sec must be > 0 for action index {index}")
+            if float(action.rho_ns) < float(self._config.rho_min) or float(action.rho_ew) < float(self._config.rho_min):
+                raise ValueError(f"Invalid action split at index {index}: rho must be >= rho_min={self._config.rho_min}")
+            min_green_sec = max(int(round(float(self._config.rho_min) * float(action.cycle_sec))), int(self._g_min_sec))
+            g_ns = int(round(float(action.rho_ns) * float(action.cycle_sec)))
+            g_ew = int(round(float(action.rho_ew) * float(action.cycle_sec)))
+            if g_ns < min_green_sec or g_ew < min_green_sec:
+                raise ValueError(f"Invalid action split at index {index}: green phases must be >= g_min_sec={self._g_min_sec}")
 
     def _build_action_definitions(self) -> List[SumoActionDefinition]:
         if len(self._config.action_table) > 0:

@@ -134,11 +134,13 @@ def run_training(config: Dict[str, Any]) -> str:
                         step_rewards = list(rewards.values()) if isinstance(rewards, dict) else [float(rewards)]
                         step_reward = float(np.mean(step_rewards))
 
+                        gamma_value = agent.compute_gamma(info.get("t_step") if isinstance(info, dict) else None)
+
                         for tls_id in tls_ids_sorted:
                             action_id = actions[tls_id]
                             next_obs = next_state.get(tls_id) if isinstance(next_state, dict) else next_state
                             reward_value = rewards.get(tls_id, 0.0) if isinstance(rewards, dict) else rewards
-                            agent.store_transition(state[tls_id], action_id, reward_value, next_obs, done)
+                            agent.store_transition(state[tls_id], action_id, reward_value, next_obs, done, gamma=gamma_value)
 
                         loss_value = agent.update()
                         if loss_value is not None:
@@ -152,7 +154,8 @@ def run_training(config: Dict[str, Any]) -> str:
                         action_id = agent.select_action(state=state, epsilon=epsilon)
                         next_state, reward, done, info = env.step(action_id)
 
-                        agent.store_transition(state, action_id, reward, next_state, done)
+                        gamma_value = agent.compute_gamma(info.get("t_step") if isinstance(info, dict) else None)
+                        agent.store_transition(state, action_id, reward, next_state, done, gamma=gamma_value)
                         loss_value = agent.update()
                         if loss_value is not None:
                             losses.append(float(loss_value))
@@ -182,7 +185,9 @@ def run_training(config: Dict[str, Any]) -> str:
                     "avg_queue": float(kpi.get("avg_queue", 0.0)),
                     "decision_cycle_sec": float(info.get("decision_cycle_sec", 0.0)) if isinstance(info, dict) else 0.0,
                     "decision_steps": int(info.get("decision_steps", 0)) if isinstance(info, dict) else 0,
-                    "waiting_total": float(info.get("waiting_total", info.get("total_weighted_wait", 0.0)) if isinstance(info, dict) else 0.0),
+                    "waiting_total": float(
+                        info.get("waiting_total", info.get("total_wait_reward", info.get("total_weighted_wait", 0.0))) if isinstance(info, dict) else 0.0
+                    ),
                 }
 
                 writer.writerow(row)

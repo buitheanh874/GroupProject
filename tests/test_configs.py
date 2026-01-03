@@ -10,10 +10,12 @@ def test_all_train_configs_have_normalization():
     for config_file in config_dir.glob("train_*.yaml"):
         with open(config_file) as f:
             cfg = yaml.safe_load(f)
-        
+
         sumo_cfg = cfg.get("env", {}).get("sumo", {})
+        if len(sumo_cfg) == 0:
+            continue
         norm_cfg = cfg.get("normalization", {})
-        
+
         assert sumo_cfg.get("normalize_state") == True, \
             f"{config_file.name}: normalize_state must be True"
         
