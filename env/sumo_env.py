@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union
+from pathlib import Path
+import random
 
 import numpy as np
 
@@ -9,7 +11,6 @@ from env.base_env import BaseEnv
 from env.kpi import EpisodeKpiTracker
 from env.normalization import StateNormalizer
 from env.mdp_metrics import CycleMetricsAggregator, compute_normalized_reward
-
 
 @dataclass
 class SumoLaneGroups:
@@ -128,7 +129,6 @@ class SumoEnvConfig:
     enable_kpi_tracker: bool = False
     state_dim: int = 4
     enable_downstream_occupancy: bool = True
-
 
 
 class SUMOEnv(BaseEnv):
@@ -250,6 +250,39 @@ class SUMOEnv(BaseEnv):
         self._lane_id_set: set[str] = set()
         self._edge_id_set: set[str] = set()
         self._prev_cycle_sec: Optional[int] = None
+        self._route_pool: List[str] = []
+
+    def set_route_file_pool(self, route_files: List[str]) -> None:
+        """Set a pool of route files to randomly select from during reset.
+        
+        This enables demand randomization across training episodes to prevent
+        overfitting to a single traffic pattern.
+        
+        Args:
+            route_files: List of route file paths (relative to project root)
+            
+        Raises:
+            ValueError: If route_files is empty or not a list
+            FileNotFoundError: If any route file does not exist
+        """
+        if not isinstance(route_files, list) or len(route_files) == 0:
+            raise ValueError("route_files must be a non-empty list")
+        
+        validated_files = []
+        for path_str in route_files:
+            route_path = Path(path_str)
+            if not route_path.exists():
+                raise FileNotFoundError(
+                    f"Route file not found: {path_str}\n"
+                    f"Current working directory: {Path.cwd()}\n"
+                    f"Please check the path or run from project root."
+                )
+            validated_files.append(str(route_path))
+        
+        self._route_pool = validated_files
+        print(f"[SUMOEnv] Route pool configured with {len(self._route_pool)} files:")
+        for idx, route in enumerate(self._route_pool, 1):
+            print(f"  {idx}. {Path(route).name}")
 
     @property
     def state_dim(self) -> int:
@@ -277,7 +310,19 @@ class SUMOEnv(BaseEnv):
         return self._last_state_raw
 
     def reset(self) -> Any:
+        """Reset environment for new episode.
+        
+        If route pool is configured, randomly selects a route file
+        before starting SUMO.
+        """
         self.close()
+
+        if hasattr(self, "_route_pool") and len(self._route_pool) > 0:
+            selected_route = random.choice(self._route_pool)
+            self._config.route_file = selected_route
+            route_name = Path(selected_route).name
+            print(f"[SUMOEnv] Episode {getattr(self, '_episode_count', 0) + 1}: Using route '{route_name}'")
+        
         self._start_sumo()
         self._validate_lanes()
         self._cycle_index = 0
@@ -285,6 +330,10 @@ class SUMOEnv(BaseEnv):
         self._kpi_disabled_warned = False
         self._prev_cycle_sec = None
         self._kpi_tracker = self._make_kpi_tracker() if self._enable_kpi_tracker else None
+
+        if not hasattr(self, '_episode_count'):
+            self._episode_count = 0
+        self._episode_count += 1
 
         if self._legacy_mode:
             q_ns = self._read_queue_ns()
@@ -354,33 +403,17 @@ class SUMOEnv(BaseEnv):
 
         decision_steps = 0
 
-        # Track per-cycle queue membership; distinct vehicles by default for MDP compliance.
         agg = CycleMetricsAggregator(directions=["NS", "EW"], queue_mode=self._queue_count_mode)
 
-        intervals = [
-            (int(self._phases.ns_green), int(g_ns), True),
-        ]
+        intervals = self._build_intervals_for_action(g_ns=g_ns, g_ew=g_ew)
 
-        if self._config.yellow_sec > 0 and self._phases.ns_yellow is not None:
-            intervals.append((int(self._phases.ns_yellow), int(self._config.yellow_sec), include_transition))
-        if self._config.all_red_sec > 0 and self._phases.all_red is not None:
-            intervals.append((int(self._phases.all_red), int(self._config.all_red_sec), include_transition))
-
-        intervals.append((int(self._phases.ew_green), int(g_ew), True))
-
-        if self._config.yellow_sec > 0 and self._phases.ew_yellow is not None:
-            intervals.append((int(self._phases.ew_yellow), int(self._config.yellow_sec), include_transition))
-        if self._config.all_red_sec > 0 and self._phases.all_red is not None:
-            intervals.append((int(self._phases.all_red), int(self._config.all_red_sec), include_transition))
-
-        for phase_index, duration_sec, accumulate_waiting in intervals:
-            steps = self._sec_to_steps(duration_sec)
-            if steps <= 0:
+        for phase_index, duration_steps, accumulate_waiting in intervals:
+            if duration_steps <= 0:
                 continue
 
-            self._set_phase(tls_id=str(self._config.tls_id), phase_index=phase_index, hold_steps=int(steps))
+            self._set_phase(tls_id=str(self._config.tls_id), phase_index=phase_index, hold_steps=int(duration_steps))
 
-            for _ in range(int(steps)):
+            for _ in range(int(duration_steps)):
                 self._traci.simulationStep()
 
                 queued_ns = self._queued_for_lanes(self._lanes_single.lanes_ns_ctrl)
@@ -548,7 +581,6 @@ class SUMOEnv(BaseEnv):
         remaining_steps: Dict[str, int] = {tls_id: intervals_by_tls[tls_id][0][1] if len(intervals_by_tls[tls_id]) > 0 else 0 for tls_id in self._tls_ids}
 
         last_q_dir: Dict[str, np.ndarray] = {tls_id: np.zeros(4, dtype=np.float32) for tls_id in self._tls_ids}
-        # Per-TLS aggregators keep distinct-per-cycle queue counts and waiting stats.
         agg_by_tls: Dict[str, CycleMetricsAggregator] = {
             tls_id: CycleMetricsAggregator(directions=["N", "E", "S", "W"], queue_mode=self._queue_count_mode) for tls_id in self._tls_ids
         }
@@ -616,7 +648,6 @@ class SUMOEnv(BaseEnv):
         lambda_fairness = float(self._config.lambda_fairness)
         fairness_penalty = 0.0
         if lambda_fairness > 0.0 and len(fairness_values) > 0:
-            # Aggregate fairness across TLS conservatively using the worst case.
             fairness_penalty = float(lambda_fairness) * float(max(fairness_values.values()))
 
         spill_penalty = self._compute_spillback_penalty()
@@ -718,16 +749,37 @@ class SUMOEnv(BaseEnv):
         return int(g_ns), int(g_ew)
 
     def _build_intervals_for_action(self, g_ns: int, g_ew: int) -> List[Tuple[int, int, bool]]:
+        """Build TLS phase intervals for one decision cycle.
+        
+        Returns:
+            List of (phase_index, duration_steps, accumulate_waiting) tuples
+            
+        The third element controls waiting time accumulation:
+            - True: Waiting during this phase counts toward reward
+            - False: Waiting during this phase is excluded from reward
+            
+        Rationale for the flag:
+            Yellow/all-red times are fixed and uncontrollable by the agent.
+            Including them (default) gives realistic delay metrics but penalizes
+            agent for mandatory transitions. Excluding them focuses reward on
+            controllable green time but may not reflect real-world delay.
+            
+        Config key: include_transition_in_waiting (default: true)
+        
+        Important: Queue observation (q_NS, q_EW) is ALWAYS tracked regardless
+        of this flag. Only waiting time accumulation (w_NS, w_EW) is affected.
+        """
         intervals: List[Tuple[int, int, bool]] = []
 
         intervals.append((int(self._phases.ns_green), self._sec_to_steps(g_ns), True))
+        
         if self._config.yellow_sec > 0 and self._phases.ns_yellow is not None:
-            # include_transition_in_waiting controls whether yellow/all-red contribute to waiting accumulation.
             intervals.append((int(self._phases.ns_yellow), self._sec_to_steps(int(self._config.yellow_sec)), self._include_transition_in_waiting))
         if self._config.all_red_sec > 0 and self._phases.all_red is not None:
             intervals.append((int(self._phases.all_red), self._sec_to_steps(int(self._config.all_red_sec)), self._include_transition_in_waiting))
 
         intervals.append((int(self._phases.ew_green), self._sec_to_steps(g_ew), True))
+        
         if self._config.yellow_sec > 0 and self._phases.ew_yellow is not None:
             intervals.append((int(self._phases.ew_yellow), self._sec_to_steps(int(self._config.yellow_sec)), self._include_transition_in_waiting))
         if self._config.all_red_sec > 0 and self._phases.all_red is not None:
@@ -870,7 +922,6 @@ class SUMOEnv(BaseEnv):
             if link_id in self._lane_id_set:
                 try:
                     raw = float(self._traci.lane.getLastStepOccupancy(str(link_id)))
-                    # TraCI returns occupancy in percent, normalize to [0, 1].
                     occ = float(raw / 100.0) if raw > 1.0 else float(raw)
                     values.append(float(np.clip(occ, 0.0, 1.0)))
                     continue

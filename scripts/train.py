@@ -23,6 +23,12 @@ def run_training(config: Dict[str, Any]) -> str:
     set_global_seed(seed)
 
     env = build_env(config)
+
+    train_cfg = config.get("train", {})
+    route_pool = train_cfg.get("route_pool", [])
+    if route_pool and hasattr(env, "set_route_file_pool"):
+        env.set_route_file_pool(list(route_pool))
+
     agent, _ = build_agent(config, env)
     agent.to_train_mode()
 
@@ -39,7 +45,6 @@ def run_training(config: Dict[str, Any]) -> str:
 
     metrics_path = os.path.join(log_dir, f"{run_id}_train_metrics.csv")
 
-    train_cfg = config.get("train", {})
     episodes = int(train_cfg.get("episodes", 200))
     save_every_episodes = int(train_cfg.get("save_every_episodes", 50))
     print_every_episodes = int(train_cfg.get("print_every_episodes", 10))

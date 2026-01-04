@@ -7,8 +7,8 @@ env:
   type: sumo
   sumo:
     sumo_binary: sumo
-    net_file: networks/BI.net.xml
-    route_file: networks/BI_50_test.rou.xml
+    net_file: networks/BIGMAP.net.xml
+    route_file: networks/BIGMAP.rou.xml
     additional_files: []
     tls_id: TL
 
@@ -70,6 +70,8 @@ train:
   episodes: 300
   save_every_episodes: 50
   print_every_episodes: 10
+  route_pool:
+    - networks/BIGMAP.rou.xml
 
 baseline:
   fixed_action_id: 2
