@@ -1039,9 +1039,39 @@ class SUMOEnv(BaseEnv):
 
         if self._multi_mode:
             defs: List[SumoActionDefinition] = []
+            
+            action_table_by_cycle = {
+                30: [
+                    (0.30, 0.70),
+                    (0.50, 0.50),
+                    (0.70, 0.30),
+                ],
+                60: [
+                    (0.20, 0.80),
+                    (0.30, 0.70),
+                    (0.40, 0.60),
+                    (0.50, 0.50),
+                    (0.60, 0.40),
+                    (0.70, 0.30),
+                    (0.80, 0.20),
+                ],
+                90: [
+                    (0.30, 0.70),
+                    (0.40, 0.60),
+                    (0.50, 0.50),
+                    (0.60, 0.40),
+                    (0.70, 0.30),
+                ],
+            }
+            
             for cycle in [30, 60, 90]:
-                for rho_ns, rho_ew in splits:
-                    defs.append(SumoActionDefinition(cycle_sec=int(cycle), rho_ns=float(rho_ns), rho_ew=float(rho_ew)))
+                for rho_ns, rho_ew in action_table_by_cycle[cycle]:
+                    defs.append(SumoActionDefinition(
+                        cycle_sec=int(cycle),
+                        rho_ns=float(rho_ns),
+                        rho_ew=float(rho_ew)
+                    ))
+            
             return defs
 
         return [

@@ -12,6 +12,8 @@ env:
     additional_files: []
     tls_id: TL
 
+    state_dim: 12
+
     normalize_state: true
     step_length_sec: 1.0
     green_cycle_sec: 60
@@ -74,7 +76,7 @@ train:
     - networks/BIGMAP.rou.xml
 
 baseline:
-  fixed_action_id: 2
+  fixed_action_id: 7
 
 logging:
   log_dir: logs
