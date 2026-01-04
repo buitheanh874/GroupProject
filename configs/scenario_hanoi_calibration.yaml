@@ -1,0 +1,50 @@
+scenario:
+  net_file: networks/BIGMAP.net.xml
+
+  entry_edges:
+    - N2TL
+    - S2TL
+    - E2TL
+    - W2TL
+
+  exit_edges:
+    - TL2N
+    - TL2S
+    - TL2E
+    - TL2W
+
+  vehicle_mix_mean:
+    motorcycle: 0.84
+    passenger: 0.12
+    bus: 0.03
+    other: 0.01
+
+  vehicle_mix_kappa: 50
+
+  pcu_weights:
+    motorcycle: 0.25
+    passenger: 1.0
+    bus: 3.0
+    other: 1.0
+
+  demand:
+    total_pcu_per_hour:
+      low: 3000
+      med: 5000
+      high: 7000
+    entry_dirichlet_alpha: 2.0
+
+  turning:
+    mean_LSR: [0.15, 0.70, 0.15]
+    kappa: 30
+
+  turning_overrides: {}
+
+  stages:
+    enabled: false
+    intervals: []
+
+  simulation:
+    step_length_sec: 1.0
+    duration_sec: 3600
+    min_total_vehicles: 100
