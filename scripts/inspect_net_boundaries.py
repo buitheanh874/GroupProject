@@ -4,10 +4,11 @@ import argparse
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import Dict, List, Set
+from typing import Dict, List
 
 
 def parse_network_topology(net_file: Path) -> tuple[Dict[str, int], Dict[str, int], List[str]]:
+    """Parse network to count incoming/outgoing connections per edge."""
     tree = ET.parse(str(net_file))
     root = tree.getroot()
 
@@ -23,6 +24,7 @@ def parse_network_topology(net_file: Path) -> tuple[Dict[str, int], Dict[str, in
         edge_incoming[edge_id] = 0
         edge_outgoing[edge_id] = 0
 
+    # Count connections
     for conn in root.findall("connection"):
         from_edge = conn.get("from")
         to_edge = conn.get("to")
@@ -40,6 +42,7 @@ def identify_boundaries(
     outgoing: Dict[str, int],
     all_edges: List[str],
 ) -> tuple[List[str], List[str]]:
+    """Identify entry (source) and exit (sink) edges."""
     entry_edges = []
     exit_edges = []
 
@@ -57,17 +60,20 @@ def identify_boundaries(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Inspect network boundaries and suggest entry/exit edges")
+    parser = argparse.ArgumentParser(
+        description="Inspect SUMO network to identify entry/exit edges for Hanoi scenario generation"
+    )
     parser.add_argument("--net", required=True, help="SUMO network file (.net.xml)")
-    parser.add_argument("--out", default="boundary_suggestion.yaml", help="Output YAML file")
+    parser.add_argument("--out", default="configs/scenario_hanoi_calibration.yaml", 
+                       help="Output calibration YAML file")
     args = parser.parse_args()
 
     net_path = Path(args.net)
     if not net_path.exists():
-        sys.exit(f"Network file not found: {net_path}")
+        sys.exit(f"ERROR: Network file not found: {net_path}")
 
     print("=" * 80)
-    print("NETWORK BOUNDARY INSPECTION")
+    print("HANOI SCENARIO - NETWORK BOUNDARY INSPECTION")
     print("=" * 80)
     print(f"Network: {net_path.name}")
     print()
@@ -75,22 +81,25 @@ def main() -> None:
     try:
         incoming, outgoing, all_edges = parse_network_topology(net_path)
     except Exception as exc:
-        sys.exit(f"Failed to parse network: {exc}")
+        sys.exit(f"ERROR: Failed to parse network: {exc}")
 
     entry_edges, exit_edges = identify_boundaries(incoming, outgoing, all_edges)
 
-    print(f"Total edges: {len(all_edges)}")
+    print(f"Total edges in network: {len(all_edges)}")
     print()
-    print("ENTRY EDGES (source nodes - no incoming connections):")
+    print(f"ENTRY EDGES (source - no incoming): {len(entry_edges)}")
     for edge in entry_edges:
         print(f"  - {edge}")
     print()
-    print("EXIT EDGES (sink nodes - no outgoing connections):")
+    print(f"EXIT EDGES (sink - no outgoing): {len(exit_edges)}")
     for edge in exit_edges:
         print(f"  - {edge}")
     print()
 
-    yaml_content = f"""scenario:
+    yaml_content = f"""# Hanoi Traffic Scenario Calibration
+# Generated from: {net_path.name}
+
+scenario:
   net_file: {net_path.name}
 
   entry_edges:
@@ -111,7 +120,7 @@ def main() -> None:
     bus: 0.03
     other: 0.01
 
-  vehicle_mix_kappa: 50
+  vehicle_mix_kappa: 50 
 
   pcu_weights:
     motorcycle: 0.25
@@ -124,14 +133,13 @@ def main() -> None:
       low: 3000
       med: 5000
       high: 7000
-    entry_dirichlet_alpha: 2.0
+    entry_dirichlet_alpha: 2.0  
 
   turning:
     mean_LSR: [0.15, 0.70, 0.15]
-    kappa: 30
+    kappa: 30  
 
   turning_overrides: {}
-
   simulation:
     step_length_sec: 1.0
     duration_sec: 3600
@@ -139,20 +147,21 @@ def main() -> None:
 """
 
     out_path = Path(args.out)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(yaml_content, encoding="utf-8")
 
     print("=" * 80)
-    print(f"Configuration template saved: {out_path}")
+    print(f"Calibration file generated: {out_path}")
     print("=" * 80)
     print()
-    print("Next steps:")
-    print(f"1. Review {out_path} - adjust entry/exit edges if needed")
-    print("2. Tune vehicle_mix_mean and demand levels based on local data")
-    print("3. Run route generation:")
+    print("NEXT STEPS:")
+    print(f"1. Review {out_path} - adjust demand levels based on real data if available")
+    print("2. Verify entry/exit edges match your network topology")
+    print("3. Generate route variants:")
     print(f"   python scripts/generate_hanoi_route_variants.py \\")
     print(f"     --calib {out_path} \\")
     print(f"     --out-dir networks/variants \\")
-    print(f"     --split train --n 100 --seed 42")
+    print(f"     --split train --n 50 --seed 42 --level med")
     print()
 
 

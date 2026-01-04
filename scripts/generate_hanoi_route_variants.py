@@ -6,13 +6,21 @@ import subprocess
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 import numpy as np
 import yaml
 
 
 class HanoiRouteGenerator:
+    """Generate Hanoi-realistic traffic scenarios with Dirichlet randomization.
+    
+    Implements 3-layer randomization:
+    1. Entry demand split (boundary flows)
+    2. Turning ratios (L/S/R per approach)
+    3. Vehicle type mix (motorcycle-heavy Hanoi pattern)
+    """
+    
     def __init__(self, calib_path: str, out_dir: str, seed: int):
         self.calib_path = Path(calib_path)
         self.out_dir = Path(out_dir)
@@ -22,6 +30,7 @@ class HanoiRouteGenerator:
         self.load_calibration()
         
     def load_calibration(self) -> None:
+        """Load calibration config with Hanoi-specific priors."""
         if not self.calib_path.exists():
             raise FileNotFoundError(f"Calibration file not found: {self.calib_path}")
         
@@ -29,7 +38,7 @@ class HanoiRouteGenerator:
             self.config = yaml.safe_load(f)
         
         scenario_cfg = self.config.get("scenario", {})
-        
+
         self.net_file = scenario_cfg.get("net_file", "networks/BIGMAP.net.xml")
         self.entry_edges = scenario_cfg.get("entry_edges", [])
         self.exit_edges = scenario_cfg.get("exit_edges", [])
@@ -38,7 +47,7 @@ class HanoiRouteGenerator:
             raise ValueError("entry_edges not configured in calibration file")
         if not self.exit_edges:
             raise ValueError("exit_edges not configured in calibration file")
-        
+
         self.vehicle_mix_mean = scenario_cfg.get("vehicle_mix_mean", {
             "motorcycle": 0.84,
             "passenger": 0.12,
@@ -66,13 +75,18 @@ class HanoiRouteGenerator:
         self.turning_mean_LSR = turning_cfg.get("mean_LSR", [0.15, 0.70, 0.15])
         self.turning_kappa = turning_cfg.get("kappa", 30)
         self.turning_overrides = scenario_cfg.get("turning_overrides", {})
-        
         sim_cfg = scenario_cfg.get("simulation", {})
         self.step_length_sec = sim_cfg.get("step_length_sec", 1.0)
         self.duration_sec = sim_cfg.get("duration_sec", 3600)
         self.min_total_vehicles = sim_cfg.get("min_total_vehicles", 100)
     
     def sample_scenario_params(self, level: str = "med") -> Dict[str, Any]:
+        """Sample scenario parameters using 3-layer Dirichlet randomization.
+        
+        Layer 1: Entry demand split
+        Layer 2: Turning ratios
+        Layer 3: Vehicle type mix
+        """
         if level not in self.demand_levels:
             raise ValueError(f"Unknown demand level: {level}")
         
@@ -82,7 +96,6 @@ class HanoiRouteGenerator:
         K = len(self.entry_edges)
         pi = self.rng.dirichlet([entry_alpha] * K)
         Q_entry = {edge: float(total_pcu * pi[i]) for i, edge in enumerate(self.entry_edges)}
-        
         v_mean = [
             self.vehicle_mix_mean.get("motorcycle", 0.84),
             self.vehicle_mix_mean.get("passenger", 0.12),
@@ -121,6 +134,7 @@ class HanoiRouteGenerator:
         }
     
     def convert_pcu_to_vehicles(self, Q_pcu: float, v_mix: Dict[str, float]) -> Dict[str, float]:
+        """Convert PCU/h to vehicles/h per type using PCU weights."""
         w = self.pcu_weights
         result = {}
         
@@ -133,6 +147,7 @@ class HanoiRouteGenerator:
         return result
     
     def generate_flows_xml(self, scenario: Dict[str, Any], output_path: Path) -> None:
+        """Generate SUMO flows.xml from scenario parameters."""
         root = ET.Element("routes")
         
         vtypes = [
@@ -197,6 +212,7 @@ class HanoiRouteGenerator:
         tree.write(output_path, encoding="UTF-8", xml_declaration=True)
     
     def generate_turns_xml(self, scenario: Dict[str, Any], output_path: Path) -> None:
+        """Generate SUMO turns.xml from turning ratios."""
         root = ET.Element("turns")
         interval = ET.SubElement(root, "interval")
         interval.set("begin", "0")
@@ -219,6 +235,7 @@ class HanoiRouteGenerator:
         tree.write(output_path, encoding="UTF-8", xml_declaration=True)
     
     def run_jtrrouter(self, flows_path: Path, turns_path: Path, route_path: Path) -> bool:
+        """Run SUMO jtrrouter to generate routes from flows and turns."""
         net_path = Path(self.net_file)
         
         if not net_path.exists():
@@ -243,14 +260,15 @@ class HanoiRouteGenerator:
             return False
     
     def fallback_route_generation(self, flows_path: Path, route_path: Path) -> None:
+        """Fallback: copy flows as routes (without turn-based routing)."""
         tree = ET.parse(str(flows_path))
         root = tree.getroot()
         
         routes_root = ET.Element("routes")
-        
+
         for vtype in root.findall("vType"):
             routes_root.append(vtype)
-        
+
         for flow in root.findall("flow"):
             routes_root.append(flow)
         
@@ -259,6 +277,7 @@ class HanoiRouteGenerator:
         routes_tree.write(route_path, encoding="UTF-8", xml_declaration=True)
     
     def validate_route_file(self, route_path: Path) -> bool:
+        """Validate generated route file meets minimum requirements."""
         try:
             tree = ET.parse(str(route_path))
             root = tree.getroot()
@@ -281,31 +300,32 @@ class HanoiRouteGenerator:
             print(f"Error validating route file: {exc}")
             return False
     
-    def generate_variant(self, seed_idx: int, level: str = "med") -> Optional[str]:
+    def generate_variant(self, seed_idx: int, level: str = "med") -> str | None:
+        """Generate one route variant with given seed and demand level."""
         variant_seed = self.seed + seed_idx
         self.rng = np.random.default_rng(int(variant_seed))
-        
+
         scenario = self.sample_scenario_params(level=level)
-        
+
         temp_dir = self.out_dir / "_temp"
         temp_dir.mkdir(parents=True, exist_ok=True)
         
         flows_path = temp_dir / f"flows_{variant_seed}.xml"
         turns_path = temp_dir / f"turns_{variant_seed}.xml"
-        
+
         self.generate_flows_xml(scenario, flows_path)
         self.generate_turns_xml(scenario, turns_path)
-        
+
         route_path = self.out_dir / f"BIGMAP_variant_seed{variant_seed:06d}.rou.xml"
         
         success = self.run_jtrrouter(flows_path, turns_path, route_path)
         
         if not success or not route_path.exists():
             self.fallback_route_generation(flows_path, route_path)
-        
+
         if not self.validate_route_file(route_path):
             return None
-        
+
         meta_path = self.out_dir / f"meta_{variant_seed:06d}.json"
         meta = {
             "seed": variant_seed,
@@ -322,7 +342,7 @@ class HanoiRouteGenerator:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Generate Hanoi-style random route variants for training/evaluation"
+        description="Generate Hanoi-style random route variants for SUMO training/evaluation"
     )
     parser.add_argument("--calib", required=True, help="Path to calibration YAML file")
     parser.add_argument("--out-dir", required=True, help="Output directory for route files")
@@ -382,6 +402,7 @@ def main() -> None:
     print()
 
     if len(generated_files) > 0:
+
         manifest_path = out_dir / f"{args.split}_manifest.txt"
         with open(manifest_path, "w", encoding="utf-8") as f:
             for route_file in generated_files:
