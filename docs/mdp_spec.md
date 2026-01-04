@@ -176,13 +176,50 @@ s_t = [q_{NS}, q_{EW}, w_{NS}, w_{EW}]
 ### 3.2 How to compute `q_*` and `w_*` (TraCI-friendly)
 
 A vehicle is considered **queued** if its speed is below:
-- `v_th = 0.1 m/s` (SUMO “halting” threshold is compatible via `getLastStepHaltingNumber`).
+- `v_th = 0.1 m/s` (SUMO "halting" threshold is compatible via `getLastStepHaltingNumber`).
+
+#### Queue Counting Mode (MDP Requirement)
+
+This implementation uses **distinct-cycle counting** as specified in MDP:
+- `q_NS(t)`: Number of **distinct vehicles** that were queued at least once during cycle t
+- `q_EW(t)`: Number of **distinct vehicles** that were queued at least once during cycle t
+
+This differs from snapshot counting:
+- Snapshot: Count queued vehicles at one instant (e.g., end of cycle)
+- Distinct-cycle: Count unique vehicles queued anytime during cycle
+
+**Config key**: `queue_count_mode: "distinct_cycle"` (default, MDP-compliant)
+
+Implementation in `env/mdp_metrics.py:CycleMetricsAggregator`:
+```python
+agg = CycleMetricsAggregator(directions=["NS", "EW"], queue_mode="distinct_cycle")
+
+for each simulation step in cycle:
+    agg.observe("NS", queued_vehicle_ids=queued_ns, step_sec=1.0, accumulate_waiting=True)
+    agg.observe("EW", queued_vehicle_ids=queued_ew, step_sec=1.0, accumulate_waiting=True)
+
+q_NS, q_EW = agg.queue_counts(order=["NS", "EW"])
+w_NS, w_EW = agg.waiting_sums(order=["NS", "EW"])
+```
+
+#### Waiting Time Accumulation
 
 Per simulation step (recommended 1s):
 ```python
 q_NS_step = sum(traci.lane.getLastStepHaltingNumber(l) for l in LANES_NS_CTRL)
 q_EW_step = sum(traci.lane.getLastStepHaltingNumber(l) for l in LANES_EW_CTRL)
 ```
+
+During controllable phases (green):
+```python
+w_NS += q_NS_step * step_length_sec
+w_EW += q_EW_step * step_length_sec
+```
+
+During transition phases (yellow/all-red):
+- Default (MDP-conservative): accumulate waiting (realistic penalty)
+- Optional: exclude transitions (controllable-only)
+- Controlled by config: `include_transition_in_waiting: true`
 
 **Snapshot (queue):**
 - At the **end of the cycle**: `q_NS = q_NS_step`, `q_EW = q_EW_step`.

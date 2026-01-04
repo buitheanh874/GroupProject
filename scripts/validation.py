@@ -99,7 +99,21 @@ def validate_scalar_params(
     if fairness_metric not in {"max", "p95"}:
         raise ValueError("fairness_metric must be max or p95")
     if queue_count_mode not in {"distinct_cycle", "snapshot_last_step"}:
-        raise ValueError("queue_count_mode must be distinct_cycle or snapshot_last_step")
+        raise ValueError(
+            f"queue_count_mode must be 'distinct_cycle' or 'snapshot_last_step', got '{queue_count_mode}'\n"
+            f"Note: 'snapshot_last_step' is deprecated (not MDP-compliant).\n"
+            f"Recommended: Use 'distinct_cycle' (MDP requirement)."
+        )
+
+    if queue_count_mode == "snapshot_last_step":
+        import warnings
+        warnings.warn(
+            "queue_count_mode='snapshot_last_step' is deprecated.\n"
+            "This mode does not comply with MDP specification.\n"
+            "Please use 'distinct_cycle' instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
     if halt_speed_threshold < 0.0:
         raise ValueError("halt_speed_threshold must be >=0")
     if use_enhanced_reward and reward_exponent < 1.0:

@@ -176,6 +176,25 @@ class SUMOEnv(BaseEnv):
         for tls_id, group in self._lanes_by_tls.items():
             group.validate()
             self._direction_lanes_by_tls[tls_id] = group.direction_lanes()
+            
+            ctrl_lanes = set(group.lanes_ns_ctrl + group.lanes_ew_ctrl)
+            slip_lanes = set(group.lanes_right_turn_slip_ns + group.lanes_right_turn_slip_ew)
+            overlap = ctrl_lanes.intersection(slip_lanes)
+            
+            if len(overlap) > 0:
+                raise ValueError(
+                    f"Lane configuration error for TLS '{tls_id}':\n"
+                    f"  Controlled lanes and slip lanes must not overlap.\n"
+                    f"  Overlapping lanes: {sorted(overlap)}\n"
+                    f"  Per MDP spec: Slip lanes (free-flow right-turn) must be excluded from state/reward.\n"
+                    f"  Fix: Remove these lanes from either lanes_*_ctrl or lanes_right_turn_slip_*"
+                )
+            
+            if len(slip_lanes) > 0:
+                print(
+                    f"[INFO] TLS '{tls_id}': {len(slip_lanes)} slip lanes excluded from MDP:\n"
+                    f"  {sorted(slip_lanes)}"
+                )
 
         self._lane_sets_by_tls: Dict[str, List[str]] = {}
         for tls_id, dirs in self._direction_lanes_by_tls.items():
@@ -749,7 +768,8 @@ class SUMOEnv(BaseEnv):
         return int(g_ns), int(g_ew)
 
     def _build_intervals_for_action(self, g_ns: int, g_ew: int) -> List[Tuple[int, int, bool]]:
-        """Build TLS phase intervals for one decision cycle.
+        """
+        Build TLS phase intervals for one decision cycle.
         
         Returns:
             List of (phase_index, duration_steps, accumulate_waiting) tuples
@@ -875,10 +895,15 @@ class SUMOEnv(BaseEnv):
             return 0.0
         if not self._enable_downstream_occupancy or len(self._downstream_links) == 0:
             return 0.0
-        occupancy = self._read_downstream_occupancy() if self._traci is not None else np.zeros(4, dtype=np.float32)
+        if self._traci is None:
+            return 0.0
+    
+        occupancy = self._read_downstream_occupancy()
         occ_threshold = float(np.clip(self._occ_threshold, 0.0, 1.0))
-        over_thresh = np.clip(occupancy - occ_threshold, 0.0, None)
-        return float(self._beta) * float(np.sum(over_thresh))
+        over_thresh = np.maximum(occupancy - occ_threshold, 0.0)
+        penalty = float(self._beta) * float(np.sum(over_thresh))
+    
+        return penalty
 
     def _compute_anti_flicker_penalty(self, cycle_sec: int) -> float:
         if not self._enable_anti_flicker:

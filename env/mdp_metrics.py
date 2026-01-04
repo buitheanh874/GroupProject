@@ -19,8 +19,22 @@ class CycleMetricsAggregator:
             raise ValueError("directions must not be empty")
         self._directions = sorted(set(dirs))
         mode = str(self.queue_mode).lower()
+        
         if mode not in {"distinct_cycle", "snapshot_last_step"}:
-            raise ValueError("queue_mode must be distinct_cycle or snapshot_last_step")
+            raise ValueError(
+                f"queue_mode must be 'distinct_cycle' or 'snapshot_last_step', got '{mode}'"
+            )
+        
+        if mode == "snapshot_last_step":
+            import warnings
+            warnings.warn(
+                "queue_mode='snapshot_last_step' is deprecated and not MDP-compliant.\n"
+                "Use queue_mode='distinct_cycle' instead (MDP requirement).\n"
+                "This mode will be removed in future versions.",
+                DeprecationWarning,
+                stacklevel=2
+            )
+        
         self._queue_mode = mode
         self.reset()
 

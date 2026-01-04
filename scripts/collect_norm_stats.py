@@ -107,14 +107,36 @@ def main() -> None:
     if len(raw_states) == 0:
         sys.exit("No raw states collected. Check SUMO configuration and lane grouping.")
 
+    if len(raw_states) < 50:
+        sys.exit(
+            f"ERROR: Insufficient samples for normalization statistics.\n"
+            f"  Collected: {len(raw_states)} samples\n"
+            f"  Required: 50+ samples\n"
+            f"  Solution: Increase --episodes or --max-cycles\n"
+            f"  Recommended: --episodes 10 or more"
+        )
+
     data = np.asarray(raw_states, dtype=np.float32)
     mean = data.mean(axis=0)
     std = data.std(axis=0)
-    if len(raw_states) < 50:
-        print(f"[WARN] Only collected {len(raw_states)} samples; normalization stats may be noisy.")
+
     if np.any(std < 1e-6):
-        print("[WARN] Standard deviation contained near-zero values; clamping to avoid divide-by-zero.")
+        problematic = [i for i, s in enumerate(std) if s < 1e-6]
+        print(
+            f"[WARN] Standard deviation near-zero for features: {problematic}\n"
+            f"  This may indicate:\n"
+            f"    - Constant values (no variance)\n"
+            f"    - Insufficient traffic in simulation\n"
+            f"  Clamping to 1e-6 to avoid divide-by-zero"
+        )
+
     std = np.maximum(std, 1e-6)
+
+    if len(raw_states) < 100:
+        print(
+            f"[WARN] Sample count ({len(raw_states)}) is below recommended (100+).\n"
+            f"  Normalization statistics may be less robust."
+        )
 
     output_path = Path(args.out)
     ensure_dir(str(output_path.parent))
