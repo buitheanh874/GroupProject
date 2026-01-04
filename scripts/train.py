@@ -12,6 +12,7 @@ import numpy as np
 project_root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(project_root))
 
+from rl.cycle_tracker import CycleDistributionTracker
 from rl.utils import ensure_dir, generate_run_id, linear_epsilon, load_yaml_config, save_yaml_config, set_global_seed
 from scripts.common import build_agent, build_env
 
@@ -22,6 +23,12 @@ def run_training(config: Dict[str, Any]) -> str:
     set_global_seed(seed)
 
     env = build_env(config)
+
+    train_cfg = config.get("train", {})
+    route_pool = train_cfg.get("route_pool", [])
+    if route_pool and hasattr(env, "set_route_file_pool"):
+        env.set_route_file_pool(list(route_pool))
+
     agent, _ = build_agent(config, env)
     agent.to_train_mode()
 
@@ -38,7 +45,6 @@ def run_training(config: Dict[str, Any]) -> str:
 
     metrics_path = os.path.join(log_dir, f"{run_id}_train_metrics.csv")
 
-    train_cfg = config.get("train", {})
     episodes = int(train_cfg.get("episodes", 200))
     save_every_episodes = int(train_cfg.get("save_every_episodes", 50))
     print_every_episodes = int(train_cfg.get("print_every_episodes", 10))
@@ -48,30 +54,42 @@ def run_training(config: Dict[str, Any]) -> str:
     eps_end = float(exploration_cfg.get("eps_end", 0.05))
     eps_decay_steps = int(exploration_cfg.get("eps_decay_steps", 50000))
 
+    allowed_cycles = []
+    if hasattr(env, "_action_defs"):
+        allowed_cycles = sorted(set(int(a.cycle_sec) for a in env._action_defs))
+    cycle_tracker = None
+    if len(allowed_cycles) > 1:
+        cycle_tracker = CycleDistributionTracker(allowed_cycles)
+    log_cycle_every = int(train_cfg.get("log_cycle_distribution_every", 10))
+
     best_reward = -float("inf")
     global_step = 0
 
     try:
         with open(metrics_path, "w", newline="", encoding="utf-8") as csv_file:
-            writer = csv.DictWriter(
-                csv_file,
-                fieldnames=[
-                    "episode",
-                    "episode_reward",
-                    "avg_loss",
-                    "episode_steps",
-                    "global_step",
-                    "epsilon_end",
-                    "arrived_vehicles",
-                    "avg_wait_time",
-                    "avg_travel_time",
-                    "avg_stops",
-                    "avg_queue",
-                    "decision_cycle_sec",
-                    "decision_steps",
-                    "waiting_total",
-                ],
-            )
+            fieldnames = [
+                "episode",
+                "episode_reward",
+                "avg_loss",
+                "episode_steps",
+                "global_step",
+                "epsilon_end",
+                "arrived_vehicles",
+                "avg_wait_time",
+                "avg_travel_time",
+                "avg_stops",
+                "avg_queue",
+                "decision_cycle_sec",
+                "decision_steps",
+                "waiting_total",
+            ]
+            
+            if cycle_tracker is not None:
+                for cycle in allowed_cycles:
+                    fieldnames.append(f"cycle_{cycle}_pct")
+                fieldnames.append("cycle_entropy")
+            
+            writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
             writer.writeheader()
 
             for episode in range(1, int(episodes) + 1):
@@ -164,6 +182,11 @@ def run_training(config: Dict[str, Any]) -> str:
                         episode_reward += float(reward)
                         episode_steps += 1
                         global_step += 1
+                    
+                    if cycle_tracker is not None and isinstance(info, dict):
+                        cycle_key = info.get("green_cycle_sec") or info.get("cycle_sec")
+                        if cycle_key is not None:
+                            cycle_tracker.record(int(cycle_key))
 
                 avg_loss = float(np.mean(losses)) if len(losses) > 0 else 0.0
 
@@ -189,6 +212,12 @@ def run_training(config: Dict[str, Any]) -> str:
                         info.get("waiting_total", info.get("total_wait_reward", info.get("total_weighted_wait", 0.0))) if isinstance(info, dict) else 0.0
                     ),
                 }
+                
+                if cycle_tracker is not None:
+                    cycle_dist = cycle_tracker.get_distribution()
+                    for cycle in allowed_cycles:
+                        row[f"cycle_{cycle}_pct"] = float(cycle_dist.get(cycle, 0.0))
+                    row["cycle_entropy"] = float(cycle_tracker.get_entropy())
 
                 writer.writerow(row)
                 csv_file.flush()
@@ -211,6 +240,10 @@ def run_training(config: Dict[str, Any]) -> str:
                     print(
                         f"Episode {int(episode)}/{int(episodes)} | Reward={float(episode_reward):.3f} | AvgLoss={float(avg_loss):.6f} | Epsilon={float(last_epsilon):.4f}"
                     )
+                    if cycle_tracker is not None and (int(episode) % int(log_cycle_every) == 0):
+                        print(f"  {cycle_tracker.get_summary_str()}")
+                        print(f"  Cycle entropy: {cycle_tracker.get_entropy():.3f}")
+                        cycle_tracker.reset()
     finally:
         try:
             env.close()

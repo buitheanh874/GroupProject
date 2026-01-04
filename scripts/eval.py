@@ -43,6 +43,8 @@ def main() -> None:
         agent, _ = build_agent(config, env)
         model_path = str(args.model_path).strip()
         if model_path == "":
+            model_path = str(config.get("eval", {}).get("model_path", "")).strip()
+        if model_path == "":
             raise ValueError("model_path is required for RL evaluation")
         agent.load_model(model_path)
         agent.to_eval_mode()

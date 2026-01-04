@@ -19,8 +19,22 @@ class CycleMetricsAggregator:
             raise ValueError("directions must not be empty")
         self._directions = sorted(set(dirs))
         mode = str(self.queue_mode).lower()
+        
         if mode not in {"distinct_cycle", "snapshot_last_step"}:
-            raise ValueError("queue_mode must be distinct_cycle or snapshot_last_step")
+            raise ValueError(
+                f"queue_mode must be 'distinct_cycle' or 'snapshot_last_step', got '{mode}'"
+            )
+        
+        if mode == "snapshot_last_step":
+            import warnings
+            warnings.warn(
+                "queue_mode='snapshot_last_step' is deprecated and not MDP-compliant.\n"
+                "Use queue_mode='distinct_cycle' instead (MDP requirement).\n"
+                "This mode will be removed in future versions.",
+                DeprecationWarning,
+                stacklevel=2
+            )
+        
         self._queue_mode = mode
         self.reset()
 
@@ -96,6 +110,14 @@ class CycleMetricsAggregator:
                     weight = float(self._weights.get(dir_key, {}).get(vid, 1.0))
                 total += float(weight) * (float(wait_time) ** exp_val)
         return float(total)
+
+    def waiting_sums(self, order: Iterable[str]) -> np.ndarray:
+        values = []
+        for key in order:
+            dir_key = str(key).upper()
+            waits = self._waiting.get(dir_key, {})
+            values.append(float(sum(waits.values())))
+        return np.asarray(values, dtype=np.float32)
 
     def fairness_value(self, metric: str = "max") -> float:
         metric_key = str(metric).lower()
