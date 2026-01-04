@@ -1,5 +1,5 @@
 run:
-  run_name: sumo_train
+  run_name: sumo_train_jtr
   seed: 42
   device: cpu
 
@@ -24,6 +24,13 @@ env:
     max_sim_seconds: 3600
     rho_min: 0.1
     lambda_fairness: 0.12
+    
+    vehicle_weights:
+      motorcycle: 0.25
+      passenger: 1.0
+      bus: 3.0
+    
+    use_pcu_weighted_wait: true
     
     action_splits:
       - [0.30, 0.70]
@@ -72,8 +79,7 @@ train:
   episodes: 300
   save_every_episodes: 50
   print_every_episodes: 10
-  route_pool:
-    - networks/BIGMAP.rou.xml
+  route_pool: []
 
 baseline:
   fixed_action_id: 7
