@@ -99,7 +99,7 @@ def build_env(config: Dict[str, Any]) -> BaseEnv:
                     approach_lanes={str(k): [str(vv) for vv in v] for k, v in cfg.get("approach_lanes", {}).items()} if isinstance(cfg.get("approach_lanes", {}), dict) else {},
                 )
         else:
-            lanes_by_tls[str(sumo_cfg.get("tls_id", "tls0"))] = SumoLaneGroups(
+            lanes_by_tls[str(sumo_cfg.get("tls_id", "CENTER"))] = SumoLaneGroups(
                 lanes_ns_ctrl=[str(x) for x in lane_cfg.get("lanes_ns_ctrl", [])],
                 lanes_ew_ctrl=[str(x) for x in lane_cfg.get("lanes_ew_ctrl", [])],
                 lanes_right_turn_slip_ns=[str(x) for x in lane_cfg.get("lanes_right_turn_slip_ns", [])],
@@ -202,7 +202,7 @@ def build_env(config: Dict[str, Any]) -> BaseEnv:
         if state_dim not in (4, 12):
             raise ValueError(f"state_dim must be 4 or 12, got {state_dim}")
 
-        tls_ids_effective = tls_ids if len(tls_ids) > 0 else [str(sumo_cfg.get("tls_id", "tls0"))]
+        tls_ids_effective = tls_ids if len(tls_ids) > 0 else [str(sumo_cfg.get("tls_id", "CENTER"))]
         center_tls_effective = str(center_tls_id) if center_tls_id is not None else str(tls_ids_effective[0])
 
         if state_dim == 12:
@@ -239,7 +239,8 @@ def build_env(config: Dict[str, Any]) -> BaseEnv:
             net_file=str(sumo_cfg.get("net_file", "")),
             route_file=str(sumo_cfg.get("route_file", "")),
             additional_files=[str(x) for x in sumo_cfg.get("additional_files", [])],
-            tls_id=str(sumo_cfg.get("tls_id", "tls0")),
+            route_pool=[str(x) for x in sumo_cfg.get("route_pool", [])],
+            tls_id=str(sumo_cfg.get("tls_id", "CENTER")),
             tls_ids=tls_ids_effective,
             center_tls_id=center_tls_effective,
             downstream_links=downstream_links,

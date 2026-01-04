@@ -2,201 +2,97 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Dict, List, Tuple
 
-import yaml
 
-
-def parse_network_topology(net_file: Path) -> Tuple[Dict[str, int], Dict[str, int], List[str]]:
-    tree = ET.parse(str(net_file))
+def _parse_net(net_path: Path) -> Tuple[Dict[str, str], List[Tuple[str, str, str]]]:
+    tree = ET.parse(str(net_path))
     root = tree.getroot()
 
-    edge_incoming: Dict[str, int] = {}
-    edge_outgoing: Dict[str, int] = {}
-    all_edges: List[str] = []
+    node_types: Dict[str, str] = {}
+    for node in root.findall("node"):
+        node_id = node.get("id")
+        if not node_id:
+            continue
+        node_types[node_id] = node.get("type", "")
 
+    edges: List[Tuple[str, str, str]] = []
     for edge in root.findall("edge"):
         edge_id = edge.get("id")
-        if not edge_id:
+        if not edge_id or edge_id.startswith(":"):
             continue
-        if edge_id.startswith(":"):
+        from_node = edge.get("from")
+        to_node = edge.get("to")
+        if from_node is None or to_node is None:
             continue
+        edges.append((edge_id, from_node, to_node))
 
-        lanes = edge.findall("lane")
-        if not lanes:
-            continue
-
-        all_edges.append(edge_id)
-        edge_incoming[edge_id] = 0
-        edge_outgoing[edge_id] = 0
-
-    for conn in root.findall("connection"):
-        from_edge = conn.get("from")
-        to_edge = conn.get("to")
-
-        if from_edge in edge_outgoing:
-            edge_outgoing[from_edge] += 1
-        if to_edge in edge_incoming:
-            edge_incoming[to_edge] += 1
-
-    return edge_incoming, edge_outgoing, all_edges
+    return node_types, edges
 
 
-def identify_boundaries(
-    incoming: Dict[str, int],
-    outgoing: Dict[str, int],
-    all_edges: List[str],
-) -> Tuple[List[str], List[str]]:
+def _compute_degrees(edges: List[Tuple[str, str, str]]) -> Tuple[Dict[str, int], Dict[str, int]]:
+    indeg: Dict[str, int] = {}
+    outdeg: Dict[str, int] = {}
+    for _, u, v in edges:
+        outdeg[u] = outdeg.get(u, 0) + 1
+        indeg[v] = indeg.get(v, 0) + 1
+        indeg.setdefault(u, 0)
+        outdeg.setdefault(v, 0)
+    return indeg, outdeg
+
+
+def inspect_boundaries(net_path: Path) -> Tuple[List[str], List[str]]:
+    node_types, edges = _parse_net(net_path)
+    indeg, outdeg = _compute_degrees(edges)
+
     entry_edges: List[str] = []
     exit_edges: List[str] = []
 
-    for edge_id in all_edges:
-        in_degree = int(incoming.get(edge_id, 0))
-        out_degree = int(outgoing.get(edge_id, 0))
+    for edge_id, from_node, to_node in edges:
+        from_type = node_types.get(from_node, "")
+        to_type = node_types.get(to_node, "")
 
-        if in_degree == 0 and out_degree > 0:
+        if indeg.get(from_node, 0) == 0 or from_type == "dead_end":
             entry_edges.append(edge_id)
-
-        if in_degree > 0 and out_degree == 0:
+        if outdeg.get(to_node, 0) == 0 or to_type == "dead_end":
             exit_edges.append(edge_id)
 
-    return sorted(entry_edges), sorted(exit_edges)
-
-
-def generate_calibration_yaml(
-    net_file: Path,
-    entry_edges: List[str],
-    exit_edges: List[str],
-    output_path: Path,
-) -> None:
-    yaml_content = {
-        "scenario": {
-            "net_file": str(net_file.name),
-            "entry_edges": entry_edges,
-            "exit_edges": exit_edges,
-            "vehicle_mix_mean": {
-                "motorcycle": 0.84,
-                "passenger": 0.12,
-                "bus": 0.03,
-                "other": 0.01,
-            },
-            "vehicle_mix_kappa": 50,
-            "pcu_weights": {
-                "motorcycle": 0.25,
-                "passenger": 1.0,
-                "bus": 3.0,
-                "other": 1.0,
-            },
-            "demand": {
-                "total_pcu_per_hour": {
-                    "low": 3000,
-                    "med": 5000,
-                    "high": 7000,
-                },
-                "entry_dirichlet_alpha": 2.0,
-            },
-            "turning": {
-                "mean_LSR": [0.15, 0.70, 0.15],
-                "kappa": 30,
-            },
-            "turning_overrides": {},
-            "stages": {
-                "enabled": False,
-                "intervals": [],
-            },
-            "simulation": {
-                "step_length_sec": 1.0,
-                "duration_sec": 3600,
-                "min_total_vehicles": 100,
-            },
-        }
-    }
-
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-
-    with open(output_path, "w", encoding="utf-8") as f:
-        yaml.dump(yaml_content, f, default_flow_style=False, sort_keys=False, indent=2)
+    return sorted(set(entry_edges)), sorted(set(exit_edges))
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Auto-detect entry/exit edges from SUMO network for Hanoi scenario calibration"
+        description="Heuristic entry/exit edge detection for Hanoi scenario calibration"
     )
-    parser.add_argument("--net", required=True, help="SUMO network file (.net.xml)")
-    parser.add_argument(
-        "--out",
-        default="configs/scenario_hanoi_calibration.yaml",
-        help="Output calibration YAML file",
-    )
+    parser.add_argument("--net", required=True, help="Path to SUMO .net.xml file")
+    parser.add_argument("--out", required=True, help="Output JSON path for detected boundaries")
     args = parser.parse_args()
 
     net_path = Path(args.net)
     if not net_path.exists():
         sys.exit(f"ERROR: Network file not found: {net_path}")
 
-    print("=" * 80)
-    print("HANOI SCENARIO - NETWORK BOUNDARY DETECTION")
-    print("=" * 80)
-    print(f"Network: {net_path.name}\n")
-
     try:
-        incoming, outgoing, all_edges = parse_network_topology(net_path)
+        entry_edges, exit_edges = inspect_boundaries(net_path)
     except Exception as exc:
         sys.exit(f"ERROR: Failed to parse network: {exc}")
 
-    entry_edges, exit_edges = identify_boundaries(incoming, outgoing, all_edges)
-
-    print(f"Total edges in network: {len(all_edges)}\n")
-
-    print(f"ENTRY EDGES (source - no incoming): {len(entry_edges)}")
-    for edge in entry_edges:
-        out_degree = outgoing.get(edge, 0)
-        print(f"  - {edge} (out_degree={out_degree})")
-
-    print()
-
-    print(f"EXIT EDGES (sink - no outgoing): {len(exit_edges)}")
-    for edge in exit_edges:
-        in_degree = incoming.get(edge, 0)
-        print(f"  - {edge} (in_degree={in_degree})")
-
-    print()
-
-    if len(entry_edges) == 0:
-        print("WARNING: No entry edges detected!")
-        print("Possible reasons:")
-        print("  - Network has no clear boundaries (all edges interconnected)")
-        print("  - Need manual specification in calibration file")
-        print()
-
-    if len(exit_edges) == 0:
-        print("WARNING: No exit edges detected!")
-        print("Possible reasons:")
-        print("  - Network has no clear boundaries")
-        print("  - Need manual specification in calibration file")
-        print()
+    result = {
+        "net": str(net_path),
+        "entry_edges": entry_edges,
+        "exit_edges": exit_edges,
+        "notes": [],
+    }
 
     out_path = Path(args.out)
-    generate_calibration_yaml(net_path, entry_edges, exit_edges, out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
 
-    print("=" * 80)
-    print(f"Calibration file generated: {out_path}")
-    print("=" * 80)
-    print()
-    print("NEXT STEPS:")
-    print(f"1. Review {out_path}")
-    print("   - Verify entry/exit edges match your network topology")
-    print("   - Adjust demand levels based on real data if available")
-    print()
-    print("2. Generate route variants:")
-    print("   python scripts/generate_hanoi_route_variants.py \\")
-    print(f"     --calib {out_path} \\")
-    print("     --out-dir networks/variants \\")
-    print("     --split train --n 50 --seed 42 --level med")
-    print()
+    print(json.dumps(result, indent=2))
 
 
 if __name__ == "__main__":

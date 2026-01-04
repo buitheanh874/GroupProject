@@ -124,23 +124,18 @@ class CycleMetricsAggregator:
         if metric_key not in {"max", "p95"}:
             raise ValueError("fairness_metric must be max or p95")
         
-        direction_avg_waits = []
-        for dir_key, waits in self._waiting.items():
-            if len(waits) == 0:
-                direction_avg_waits.append(0.0)
-            else:
-                total_wait = sum(waits.values())
-                num_vehicles = len(waits)
-                direction_avg_waits.append(float(total_wait) / float(num_vehicles))
-        
-        if len(direction_avg_waits) == 0:
+        waits_all = []
+        for waits in self._waiting.values():
+            waits_all.extend(float(w) for w in waits.values())
+
+        if len(waits_all) == 0:
             return 0.0
-        
+
         if metric_key == "p95":
-            waits_arr = np.asarray(direction_avg_waits, dtype=np.float32)
+            waits_arr = np.asarray(waits_all, dtype=np.float32)
             return float(np.percentile(waits_arr, 95))
         else:
-            return float(max(direction_avg_waits))
+            return float(max(waits_all))
 
 
 def compute_normalized_reward(

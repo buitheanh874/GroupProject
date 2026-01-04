@@ -13,7 +13,7 @@ from scripts.common import build_env
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=str, default="configs/train_sumo.yaml")
+    parser.add_argument("--config", type=str, default="configs/train_hub_spoke_demo.yaml")
     parser.add_argument("--cycles", type=int, default=60)
     parser.add_argument("--seed", type=int, default=0)
     args = parser.parse_args()

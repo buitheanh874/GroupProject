@@ -93,7 +93,8 @@ class SumoEnvConfig:
     net_file: str
     route_file: str
     additional_files: List[str] = field(default_factory=list)
-    tls_id: str = "tls0"
+    route_pool: List[str] = field(default_factory=list)
+    tls_id: str = "CENTER"
     tls_ids: List[str] = field(default_factory=list)
     center_tls_id: Optional[str] = None
     downstream_links: Dict[str, str] = field(default_factory=dict)
@@ -142,6 +143,7 @@ class SUMOEnv(BaseEnv):
         self._config = config
         self._phases = phases
         self._normalizer = normalizer
+        self._rng = random.Random(int(config.seed))
 
         self._tls_ids = [str(x) for x in config.tls_ids] if len(config.tls_ids) > 0 else [str(config.tls_id)]
         self._center_tls_id = str(config.center_tls_id) if config.center_tls_id is not None else str(self._tls_ids[0])
@@ -195,15 +197,6 @@ class SUMOEnv(BaseEnv):
                     f"[INFO] TLS '{tls_id}': {len(slip_lanes)} slip lanes excluded from MDP:\n"
                     f"  {sorted(slip_lanes)}"
                 )
-
-        self._lane_sets_by_tls: Dict[str, List[str]] = {}
-        for tls_id, dirs in self._direction_lanes_by_tls.items():
-            lanes_all = []
-            for lanes_list in dirs.values():
-                lanes_all.extend(lanes_list)
-            lanes_all.extend(self._lanes_by_tls[tls_id].lanes_right_turn_slip_ns)
-            lanes_all.extend(self._lanes_by_tls[tls_id].lanes_right_turn_slip_ew)
-            self._lane_sets_by_tls[tls_id] = sorted({str(x) for x in lanes_all})
 
         self._downstream_links = {str(k).upper(): str(v) for k, v in config.downstream_links.items()}
         for key in self._downstream_links.keys():
@@ -269,7 +262,8 @@ class SUMOEnv(BaseEnv):
         self._lane_id_set: set[str] = set()
         self._edge_id_set: set[str] = set()
         self._prev_cycle_sec: Optional[int] = None
-        self._route_pool: List[str] = []
+        self._route_pool: List[str] = [str(p) for p in getattr(config, "route_pool", [])]
+        self._last_route_file: Optional[str] = None
 
     def set_route_file_pool(self, route_files: List[str]) -> None:
         """Set a pool of route files to randomly select from during reset.
@@ -331,16 +325,21 @@ class SUMOEnv(BaseEnv):
     def reset(self) -> Any:
         """Reset environment for new episode.
         
-        If route pool is configured, randomly selects a route file
-        before starting SUMO.
+        If route pool is configured, deterministically selects a route file
+        using the env RNG before starting SUMO.
         """
         self.close()
 
-        if hasattr(self, "_route_pool") and len(self._route_pool) > 0:
-            selected_route = random.choice(self._route_pool)
+        if not hasattr(self, "_episode_count"):
+            self._episode_count = 0
+        episode_index = int(self._episode_count) + 1
+
+        selected_route = self._select_route_from_pool(episode_index=episode_index)
+        if selected_route is not None:
             self._config.route_file = selected_route
+            self._last_route_file = selected_route
             route_name = Path(selected_route).name
-            print(f"[SUMOEnv] Episode {getattr(self, '_episode_count', 0) + 1}: Using route '{route_name}'")
+            print(f"[SUMOEnv] Episode {episode_index}: Using route '{route_name}'")
         
         self._start_sumo()
         self._validate_lanes()
@@ -350,8 +349,6 @@ class SUMOEnv(BaseEnv):
         self._prev_cycle_sec = None
         self._kpi_tracker = self._make_kpi_tracker() if self._enable_kpi_tracker else None
 
-        if not hasattr(self, '_episode_count'):
-            self._episode_count = 0
         self._episode_count += 1
 
         if self._legacy_mode:
@@ -420,13 +417,16 @@ class SUMOEnv(BaseEnv):
         if g_ns < min_green_sec or g_ew < min_green_sec:
             raise ValueError(f"Action {action_id} violates min green constraint: g_ns={g_ns}, g_ew={g_ew}, min={min_green_sec}")
 
-        include_transition = bool(self._config.include_transition_in_waiting)
-
         decision_steps = 0
 
         agg = CycleMetricsAggregator(directions=["NS", "EW"], queue_mode=self._queue_count_mode)
 
-        intervals = self._build_intervals_for_action(g_ns=g_ns, g_ew=g_ew)
+        intervals = self._build_intervals_for_tls(
+            action_def=action_def,
+            include_transition=bool(self._include_transition_in_waiting),
+            g_ns=g_ns,
+            g_ew=g_ew,
+        )
 
         for phase_index, duration_steps, accumulate_waiting in intervals:
             if duration_steps <= 0:
@@ -535,7 +535,7 @@ class SUMOEnv(BaseEnv):
             "split_rho_ew": float(rho_ew),
             "g_ns": int(g_ns),
             "g_ew": int(g_ew),
-            "green_cycle_sec": int(cycle_sec),
+            "cycle_sec": int(cycle_sec),
             "decision_cycle_sec": float(decision_cycle_sec),
             "decision_steps": int(decision_steps),
             "step_length_sec": float(self._config.step_length_sec),
@@ -578,16 +578,16 @@ class SUMOEnv(BaseEnv):
             raise ValueError(f"All TLS actions must share the same cycle_sec in multi-agent mode. Got: {cycle_set}")
         cycle_sec = cycle_set.pop()
 
-        cycle_set = {int(defn.cycle_sec) for defn in selected_actions.values()}
-        if len(cycle_set) != 1:
-            raise ValueError("All TLS actions must share the same cycle_sec in multi-agent mode")
-        cycle_sec = cycle_set.pop()
-
         intervals_by_tls: Dict[str, List[Tuple[int, int, bool]]] = {}
         g_plan: Dict[str, Tuple[int, int]] = {}
         for tls_id, defn in selected_actions.items():
             g_ns, g_ew = self._compute_green_split(defn)
-            intervals = self._build_intervals_for_action(g_ns=g_ns, g_ew=g_ew)
+            intervals = self._build_intervals_for_tls(
+                action_def=defn,
+                include_transition=bool(self._include_transition_in_waiting),
+                g_ns=g_ns,
+                g_ew=g_ew,
+            )
             intervals_by_tls[tls_id] = intervals
             g_plan[tls_id] = (g_ns, g_ew)
 
@@ -775,7 +775,13 @@ class SUMOEnv(BaseEnv):
         g_ew = int(cycle - g_ns)
         return int(g_ns), int(g_ew)
 
-    def _build_intervals_for_action(self, g_ns: int, g_ew: int) -> List[Tuple[int, int, bool]]:
+    def _build_intervals_for_tls(
+        self,
+        action_def: SumoActionDefinition,
+        include_transition: bool,
+        g_ns: Optional[int] = None,
+        g_ew: Optional[int] = None,
+    ) -> List[Tuple[int, int, bool]]:
         """
         Build TLS phase intervals for one decision cycle.
         
@@ -787,31 +793,26 @@ class SUMOEnv(BaseEnv):
             - False: Waiting during this phase is excluded from reward
             
         Rationale for the flag:
-            Yellow/all-red times are fixed and uncontrollable by the agent.
-            Including them (default) gives realistic delay metrics but penalizes
-            agent for mandatory transitions. Excluding them focuses reward on
-            controllable green time but may not reflect real-world delay.
-            
-        Config key: include_transition_in_waiting (default: true)
-        
-        Important: Queue observation (q_NS, q_EW) is ALWAYS tracked regardless
-        of this flag. Only waiting time accumulation (w_NS, w_EW) is affected.
+            Yellow/all-red phases are fixed-time safety transitions.
+            Setting include_transition_in_waiting=True counts their delay toward waiting_sums;
+            setting it False excludes them from waiting while still tracking queues.
         """
+        g_ns_val, g_ew_val = (g_ns, g_ew) if g_ns is not None and g_ew is not None else self._compute_green_split(action_def)
         intervals: List[Tuple[int, int, bool]] = []
 
-        intervals.append((int(self._phases.ns_green), self._sec_to_steps(g_ns), True))
-        
-        if self._config.yellow_sec > 0 and self._phases.ns_yellow is not None:
-            intervals.append((int(self._phases.ns_yellow), self._sec_to_steps(int(self._config.yellow_sec)), self._include_transition_in_waiting))
-        if self._config.all_red_sec > 0 and self._phases.all_red is not None:
-            intervals.append((int(self._phases.all_red), self._sec_to_steps(int(self._config.all_red_sec)), self._include_transition_in_waiting))
+        intervals.append((int(self._phases.ns_green), self._sec_to_steps(int(g_ns_val)), True))
 
-        intervals.append((int(self._phases.ew_green), self._sec_to_steps(g_ew), True))
+        if self._config.yellow_sec > 0 and self._phases.ns_yellow is not None:
+            intervals.append((int(self._phases.ns_yellow), self._sec_to_steps(int(self._config.yellow_sec)), bool(include_transition)))
+        if self._config.all_red_sec > 0 and self._phases.all_red is not None:
+            intervals.append((int(self._phases.all_red), self._sec_to_steps(int(self._config.all_red_sec)), bool(include_transition)))
+
+        intervals.append((int(self._phases.ew_green), self._sec_to_steps(int(g_ew_val)), True))
         
         if self._config.yellow_sec > 0 and self._phases.ew_yellow is not None:
-            intervals.append((int(self._phases.ew_yellow), self._sec_to_steps(int(self._config.yellow_sec)), self._include_transition_in_waiting))
+            intervals.append((int(self._phases.ew_yellow), self._sec_to_steps(int(self._config.yellow_sec)), bool(include_transition)))
         if self._config.all_red_sec > 0 and self._phases.all_red is not None:
-            intervals.append((int(self._phases.all_red), self._sec_to_steps(int(self._config.all_red_sec)), self._include_transition_in_waiting))
+            intervals.append((int(self._phases.all_red), self._sec_to_steps(int(self._config.all_red_sec)), bool(include_transition)))
 
         return intervals
 
@@ -822,41 +823,12 @@ class SUMOEnv(BaseEnv):
             raise ValueError("Multi-agent mode requires a dict of actions")
         return {self._tls_ids[0]: int(actions)}
 
-    def _run_interval_single(self, phase_index: int, duration_sec: int, w_ns: float, w_ew: float, accumulate_waiting: bool) -> Tuple[float, float, float, float, int]:
-        steps = self._sec_to_steps(duration_sec)
-        if steps <= 0:
-            q_ns = self._read_queue_ns()
-            q_ew = self._read_queue_ew()
-            return float(q_ns), float(q_ew), float(w_ns), float(w_ew), 0
-
-        self._set_phase(tls_id=str(self._config.tls_id), phase_index=phase_index, hold_steps=int(steps))
-
-        last_q_ns = 0.0
-        last_q_ew = 0.0
-
-        for _ in range(int(steps)):
-            self._traci.simulationStep()
-            q_ns_step = self._read_queue_ns()
-            q_ew_step = self._read_queue_ew()
-            last_q_ns = float(q_ns_step)
-            last_q_ew = float(q_ew_step)
-
-            if accumulate_waiting:
-                w_ns += float(q_ns_step)
-                w_ew += float(q_ew_step)
-
-            if self._kpi_tracker is not None:
-                try:
-                    self._kpi_tracker.on_simulation_step(self._traci, queue_length=float(q_ns_step + q_ew_step))
-                except Exception as exc:
-                    if not self._kpi_disabled_warned:
-                        print(f"[WARN] Disabling KPI tracker after error: {exc}")
-                        self._kpi_disabled_warned = True
-                    self._kpi_tracker = None
-
-            self._stepped_seconds += float(self._config.step_length_sec)
-
-        return float(last_q_ns), float(last_q_ew), float(w_ns), float(w_ew), int(steps)
+    def _select_route_from_pool(self, episode_index: int) -> Optional[str]:
+        if len(self._route_pool) == 0:
+            return None
+        seed_value = int(self._episode_seed) + int(episode_index)
+        self._rng.seed(seed_value)
+        return str(self._rng.choice(self._route_pool))
 
     def _set_phase(self, tls_id: str, phase_index: int, hold_steps: int) -> None:
         hold_sec = float(int(hold_steps) * float(self._config.step_length_sec))
@@ -1039,39 +1011,15 @@ class SUMOEnv(BaseEnv):
 
         if self._multi_mode:
             defs: List[SumoActionDefinition] = []
-            
-            action_table_by_cycle = {
-                30: [
-                    (0.30, 0.70),
-                    (0.50, 0.50),
-                    (0.70, 0.30),
-                ],
-                60: [
-                    (0.20, 0.80),
-                    (0.30, 0.70),
-                    (0.40, 0.60),
-                    (0.50, 0.50),
-                    (0.60, 0.40),
-                    (0.70, 0.30),
-                    (0.80, 0.20),
-                ],
-                90: [
-                    (0.30, 0.70),
-                    (0.40, 0.60),
-                    (0.50, 0.50),
-                    (0.60, 0.40),
-                    (0.70, 0.30),
-                ],
-            }
-            
             for cycle in [30, 60, 90]:
-                for rho_ns, rho_ew in action_table_by_cycle[cycle]:
-                    defs.append(SumoActionDefinition(
-                        cycle_sec=int(cycle),
-                        rho_ns=float(rho_ns),
-                        rho_ew=float(rho_ew)
-                    ))
-            
+                for rho_ns, rho_ew in splits:
+                    defs.append(
+                        SumoActionDefinition(
+                            cycle_sec=int(cycle),
+                            rho_ns=float(rho_ns),
+                            rho_ew=float(rho_ew),
+                        )
+                    )
             return defs
 
         return [

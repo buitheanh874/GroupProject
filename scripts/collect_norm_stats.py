@@ -27,7 +27,7 @@ def try_vec(x: Any, expected_dim: Optional[int]) -> Optional[List[float]]:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=str, default="configs/train_sumo.yaml")
+    parser.add_argument("--config", type=str, default="configs/train_hub_spoke_demo.yaml")
     parser.add_argument("--episodes", type=int, default=5)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--out", type=str, default="configs/norm_stats.json")

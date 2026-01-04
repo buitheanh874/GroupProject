@@ -1,25 +1,33 @@
 scenario:
-  net_file: networks/BIGMAP.net.xml
+  net_file: "networks/hanoi/hanoi.net.xml"
+  map_prefix: "hanoi_mdpspec"
 
   entry_edges:
-    - N2TL
-    - S2TL
-    - E2TL
-    - W2TL
+    - "E1_IN"
+    - "W1_IN"
+    - "N1_IN"
+    - "S1_IN"
 
   exit_edges:
-    - TL2N
-    - TL2S
-    - TL2E
-    - TL2W
+    - "E1_OUT"
+    - "W1_OUT"
+    - "N1_OUT"
+    - "S1_OUT"
 
-  vehicle_mix_mean:
-    motorcycle: 0.84
-    passenger: 0.12
-    bus: 0.03
-    other: 0.01
+  approach_order: ["N", "E", "S", "W"]
+  entry_by_dir:
+    N: "N1_IN"
+    E: "E1_IN"
+    S: "S1_IN"
+    W: "W1_IN"
+  exit_by_dir:
+    N: "N1_OUT"
+    E: "E1_OUT"
+    S: "S1_OUT"
+    W: "W1_OUT"
 
-  vehicle_mix_kappa: 50
+  target_junctions:
+    - "CENTER"
 
   pcu_weights:
     motorcycle: 0.25
@@ -34,6 +42,13 @@ scenario:
       high: 7000
     entry_dirichlet_alpha: 2.0
 
+  vehicle_mix_mean:
+    motorcycle: 0.84
+    passenger: 0.12
+    bus: 0.03
+    other: 0.01
+  vehicle_mix_kappa: 50
+
   turning:
     mean_LSR: [0.15, 0.70, 0.15]
     kappa: 30
@@ -44,7 +59,5 @@ scenario:
     enabled: false
     intervals: []
 
-  simulation:
-    step_length_sec: 1.0
-    duration_sec: 3600
-    min_total_vehicles: 100
+  min_total_vehicles: 500
+  horizon_sec: 3600
