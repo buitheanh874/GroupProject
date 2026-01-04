@@ -119,18 +119,19 @@ def generate_flows_xml(output_path: Path, sources_info: Dict[str, int], duration
     tree.write(output_path, encoding="UTF-8", xml_declaration=True)
 
 
-def generate_sinks_xml(output_path: Path, sinks: List[str], duration: int) -> None:
+def generate_turnfile_xml(output_path: Path, sinks: List[str], duration: int) -> None:
     root = ET.Element("turns")
     interval = ET.SubElement(root, "interval")
     interval.set("begin", "0")
     interval.set("end", str(int(duration)))
 
-    for s in sinks:
-        sink_elem = ET.SubElement(interval, "fromEdge")
-        sink_elem.set("id", str(s))
-        to_elem = ET.SubElement(sink_elem, "toEdge")
-        to_elem.set("id", str(s))
-        to_elem.set("probability", "1.0")
+    for sink_id in sinks:
+        from_edge = ET.SubElement(interval, "fromEdge")
+        from_edge.set("id", str(sink_id))
+        
+        to_edge = ET.SubElement(from_edge, "toEdge")
+        to_edge.set("id", str(sink_id))
+        to_edge.set("probability", "1.0")
 
     tree = ET.ElementTree(root)
     ET.indent(tree, space="    ")
@@ -138,21 +139,81 @@ def generate_sinks_xml(output_path: Path, sinks: List[str], duration: int) -> No
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--net-file", required=True)
-    parser.add_argument("--output-route", required=True)
-    parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--volume-scale", type=float, default=1.0)
+    parser = argparse.ArgumentParser(
+        description="Generate Hanoi-realistic route variants for SUMO network"
+    )
+    parser.add_argument("--net-file", required=True, help="SUMO network file (.net.xml)")
+    parser.add_argument("--output-route", required=True, help="Output route file (.rou.xml)")
+    parser.add_argument("--seed", type=int, default=42, help="Random seed")
+    parser.add_argument("--volume-scale", type=float, default=1.0, help="Demand scaling factor (0.0-2.0)")
+    parser.add_argument("--duration", type=int, default=3600, help="Simulation duration (seconds)")
     args = parser.parse_args()
 
     random.seed(int(args.seed))
 
     net_path = Path(args.net_file)
+    if not net_path.exists():
+        sys.exit(f"Network file not found: {net_path}")
+
     out_path = Path(args.output_route)
     temp_dir = out_path.parent / "temp_jtr"
     temp_dir.mkdir(parents=True, exist_ok=True)
 
     flow_file = temp_dir / f"flows_{int(args.seed)}.xml"
-    sink_file = temp_dir / f"sinks_{int(args.seed)}.xml"
+    turn_file = temp_dir / f"turns_{int(args.seed)}.xml"
 
-    sources_info, sinks = get_sou
+    sources_info, sinks = get_source_edges_info(net_path)
+
+    if len(sources_info) == 0:
+        sys.exit(f"No source edges found in network: {net_path}")
+
+    if len(sinks) == 0:
+        sys.exit(f"No sink edges found in network: {net_path}")
+
+    volume_scale = max(0.1, min(2.0, float(args.volume_scale)))
+    duration = max(60, int(args.duration))
+
+    print(f"Generating route file: {out_path.name}")
+    print(f"  Network: {net_path.name}")
+    print(f"  Sources: {len(sources_info)}")
+    print(f"  Sinks: {len(sinks)}")
+    print(f"  Volume scale: {volume_scale:.2f}")
+    print(f"  Duration: {duration}s")
+
+    generate_flows_xml(flow_file, sources_info, duration, volume_scale)
+    generate_turnfile_xml(turn_file, sinks, duration)
+
+    cmd = [
+        "python",
+        "-m",
+        "sumolib.tools.generateRoutes",
+        "--net-file",
+        str(net_path),
+        "--flow-file",
+        str(flow_file),
+        "--turn-file",
+        str(turn_file),
+        "--output",
+        str(out_path),
+    ]
+
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        if result.returncode != 0:
+            print(f"Warning: Route generation had issues: {result.stderr}")
+    except Exception as exc:
+        print(f"Warning: Could not run SUMO route generation: {exc}")
+        print("Creating minimal fallback route file...")
+        generate_flows_xml(out_path, sources_info, duration, volume_scale)
+
+    if out_path.exists():
+        file_size_kb = out_path.stat().st_size / 1024.0
+        print(f"Route file created: {out_path} ({file_size_kb:.1f} KB)")
+    else:
+        sys.exit(f"Failed to create route file: {out_path}")
+
+    print("Done")
+
+
+if __name__ == "__main__":
+    main()

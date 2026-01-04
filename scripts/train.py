@@ -196,6 +196,11 @@ def run_training(config: Dict[str, Any]) -> str:
                 kpi = {}
                 if isinstance(info, dict):
                     kpi = info.get("episode_kpi", {}) if done else {}
+                    
+                    if cycle_tracker is not None:
+                        cycle_key = info.get("green_cycle_sec") or info.get("cycle_sec")
+                        if cycle_key is not None:
+                            cycle_tracker.record(int(cycle_key))
 
                 row: Dict[str, Any] = {
                     "episode": int(episode),

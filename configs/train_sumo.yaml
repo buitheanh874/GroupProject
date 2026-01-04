@@ -79,7 +79,9 @@ train:
   episodes: 300
   save_every_episodes: 50
   print_every_episodes: 10
-  route_pool: []
+  route_pool:
+    - networks/BIGMAP.rou.xml
+  log_cycle_distribution_every: 10
 
 baseline:
   fixed_action_id: 7
