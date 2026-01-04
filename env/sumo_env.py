@@ -413,10 +413,12 @@ class SUMOEnv(BaseEnv):
         min_green_sec = int(round(float(self._config.rho_min) * float(cycle_sec)))
         min_green_sec = max(int(self._g_min_sec), min_green_sec)
 
-        g_ns = int(round(float(rho_ns) * float(cycle_sec)))
-        g_ns = max(min_green_sec, g_ns)
-        g_ns = min(g_ns, max(min_green_sec, cycle_sec - min_green_sec))
-        g_ew = int(cycle_sec - g_ns)
+        g_ns_raw = int(round(float(rho_ns) * float(cycle_sec)))
+        g_ns = max(min_green_sec, min(g_ns_raw, cycle_sec - min_green_sec))
+        g_ew = cycle_sec - g_ns
+
+        if g_ns < min_green_sec or g_ew < min_green_sec:
+            raise ValueError(f"Action {action_id} violates min green constraint: g_ns={g_ns}, g_ew={g_ew}, min={min_green_sec}")
 
         include_transition = bool(self._config.include_transition_in_waiting)
 
@@ -483,7 +485,7 @@ class SUMOEnv(BaseEnv):
         lambda_fairness = float(self._config.lambda_fairness)
         fairness_value = 0.0
         fairness_penalty = 0.0
-        if lambda_fairness > 0.0:
+        if lambda_fairness > 1e-9:
             fairness_value = float(agg.fairness_value(metric=self._fairness_metric))
             fairness_penalty = float(lambda_fairness) * float(fairness_value)
 
@@ -566,9 +568,15 @@ class SUMOEnv(BaseEnv):
 
         selected_actions: Dict[str, SumoActionDefinition] = {}
         for tls_id, action_id in action_map.items():
-            if action_id < 0 or action_id >= self.action_dim:
-                raise ValueError(f"Invalid action_id {action_id} for tls {tls_id}")
-            selected_actions[tls_id] = self._action_defs[action_id]
+            action_id_int = int(action_id)
+            if action_id_int < 0 or action_id_int >= self.action_dim:
+                raise ValueError(f"Invalid action_id {action_id_int} for tls {tls_id}")
+            selected_actions[tls_id] = self._action_defs[action_id_int]
+
+        cycle_set = {int(defn.cycle_sec) for defn in selected_actions.values()}
+        if len(cycle_set) != 1:
+            raise ValueError(f"All TLS actions must share the same cycle_sec in multi-agent mode. Got: {cycle_set}")
+        cycle_sec = cycle_set.pop()
 
         cycle_set = {int(defn.cycle_sec) for defn in selected_actions.values()}
         if len(cycle_set) != 1:

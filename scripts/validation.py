@@ -55,6 +55,8 @@ def validate_action_table(
                 raise ValueError(f"action_table[{idx}] green times must be >= g_min_sec={g_min_sec}")
             processed_action_table.append({"cycle_sec": cycle_val, "rho_ns": rho_ns_val, "rho_ew": rho_ew_val})
     elif state_dim == 12:
+        if len(allowed_cycles) == 0:
+            raise ValueError("allowed_cycles_sec must not be empty when state_dim=12 and action_table is empty")
         for cycle in allowed_cycles:
             for rho_ns, rho_ew in action_splits:
                 if rho_ns < rho_min or rho_ew < rho_min:

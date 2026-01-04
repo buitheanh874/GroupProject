@@ -152,7 +152,10 @@ def run_training(config: Dict[str, Any]) -> str:
                         step_rewards = list(rewards.values()) if isinstance(rewards, dict) else [float(rewards)]
                         step_reward = float(np.mean(step_rewards))
 
-                        gamma_value = agent.compute_gamma(info.get("t_step") if isinstance(info, dict) else None)
+                        t_step_value = None
+                        if isinstance(info, dict):
+                            t_step_value = info.get("t_step") or info.get("decision_cycle_sec")
+                        gamma_value = agent.compute_gamma(t_step_value)
 
                         for tls_id in tls_ids_sorted:
                             action_id = actions[tls_id]
