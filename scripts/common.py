@@ -68,6 +68,22 @@ def build_env(config: Dict[str, Any]) -> BaseEnv:
 
     if env_type == "sumo":
         sumo_cfg = env_config.get("sumo", {})
+        net_path = Path(sumo_cfg.get("net_file", ""))
+        route_path = Path(sumo_cfg.get("route_file", ""))
+        
+        if not net_path.exists():
+            raise FileNotFoundError(
+                f"Network file not found: {net_path}\n"
+                f"Current working directory: {Path.cwd()}\n"
+                f"Please check the path in config: env.sumo.net_file"
+            )
+        
+        if not route_path.exists():
+            raise FileNotFoundError(
+                f"Route file not found: {route_path}\n"
+                f"Current working directory: {Path.cwd()}\n"
+                f"Please check the path in config: env.sumo.route_file"
+            )
         lane_cfg = sumo_cfg.get("lane_groups", {})
         lane_cfg_by_tls = sumo_cfg.get("lane_groups_by_tls", {})
         phase_cfg = sumo_cfg.get("phase_program", {})
