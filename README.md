@@ -6,3 +6,4 @@ Multi-TLS hub-and-spoke setup with shared Dueling DQN. See `docs/README.md` for 
 - Action table schema prefers `rho_ns`; legacy `ns_ratio` is still accepted and normalized to `rho_ns` automatically.
 - Route pools support manifests/relative paths; use manifests under `train/` or `eval/` when wiring generated variants.
 - Generated Hanoi variants emit SUMO-compatible `flows_*.xml` (vTypes + leaf `<flow>` nodes) and `turns_*.xml` (edgeRelation-only, normalized to 6 decimals).
+- See `docs/HANOI_SETUP.md` for calibration/variant wiring and `docs/MDP_COMPLIANCE.md` for MDP compliance notes.

@@ -20,6 +20,8 @@ def test_turn_ratios_xml_probabilities_sum_to_one():
     assert len(relations) == 3
     assert all(el.get("from") and el.get("to") and el.get("probability") for el in relations)
     assert all("fromEdge" not in el.attrib and "toEdge" not in el.attrib for el in relations)
+    pairs = {(el.get("from"), el.get("to")) for el in relations}
+    assert len(pairs) == len(relations)
     total_prob = sum(Decimal(el.get("probability")) for el in relations if el.get("from") == "A_IN")
     assert total_prob == Decimal("1.000000")
     assert {el.get("to") for el in relations} == {"X_OUT", "Y_OUT", "Z_OUT"}

@@ -1,0 +1,35 @@
+scenario_calibration: configs/hanoi_calibration.yaml
+force_calibration_overrides: false
+
+run:
+  seed: 42
+  run_name: train_hanoi
+
+logging:
+  log_dir: logs
+  model_dir: models
+  results_dir: results
+
+train:
+  episodes: 100
+  route_pool_manifest: train/manifest.txt
+
+env:
+  sumo:
+    net_file: networks/hanoi/net.xml
+    use_pcu_weighted_wait: true
+    use_enhanced_reward: false
+    reward_exponent: 1.0
+    normalize_state: true
+
+action_table:
+  - rho_ns: 0.5
+    g_min_sec: 10
+    cycle_sec: 60
+  - rho_ns: 0.6
+    g_min_sec: 12
+    cycle_sec: 90
+
+normalization:
+  mean: [0.0, 0.0, 0.0, 0.0]
+  std: [1.0, 1.0, 1.0, 1.0]

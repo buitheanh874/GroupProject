@@ -1,9 +1,9 @@
-# MDP Compliance Map
+# MDP Compliance Cheatsheet
 
-- **Reward time-normalization (T_step)**: `env/mdp_metrics.py:compute_normalized_reward`, used in `env/sumo_env.py`.
-- **Distinct-cycle queues & waiting**: `env/mdp_metrics.py:CycleMetricsAggregator`, consumed in `env/sumo_env.py`.
-- **Fairness metrics (max/p95)**: aggregator `fairness_value`, wired via env config `fairness_metric`.
-- **Spillback & anti-flicker penalties**: helpers in `env/mdp_metrics.py`, applied in `env/sumo_env.py`.
-- **PCU/enhanced rewards**: `CycleMetricsAggregator.waiting_total` with `use_weights`/`exponent` flags in `env/sumo_env.py`.
-- **Action table validation**: `scripts/validation.py` (used by `scripts/common.py`).
-- **Time-aware gamma (SMDP)**: `rl/agent.py` and `scripts/train.py`.
+- **State spaces**: 4D/12D variants (see `env/sumo_env.py` state builders) selected via config state augmentation.
+- **Queue mode**: `distinct_cycle` enforced for MDP compliance (`env/sumo_env.py` queue counting).
+- **Slip lanes**: Excluded from control/state per lane group definitions (`env/sumo_env.py`: lane grouping).
+- **Rewards**: Base/enhanced/PCU-weighted with optional `reward_exponent` (`env/sumo_env.py` reward computation; keys `use_enhanced_reward`, `use_pcu_weighted_wait`, `reward_exponent`).
+- **Actions**: Action table normalized to `rho_ns` (`scripts/config_normalization.normalize_action_table_schema`); constraints encoded in `env/sumo_env.py` action defs.
+- **Parameter sharing**: Multi-agent parameter sharing with state augmentation driven by config (`rl/` controllers + `env/sumo_env.py`).
+- **Route pool selection**: Deterministic by seed and episode index (`env/sumo_env.py::_select_route_from_pool`).

@@ -112,7 +112,9 @@ def build_turn_ratios_xml(
         micros[-1] = max(0, 1_000_000 - sum_others)
 
         for (from_edge, exit_edge, _), micro in zip(relations, micros):
-            prob_str = f"{micro / 1_000_000:.6f}"
+            whole = micro // 1_000_000
+            frac = micro % 1_000_000
+            prob_str = f"{whole}.{frac:06d}"
             ET.SubElement(
                 interval,
                 "edgeRelation",
