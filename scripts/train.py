@@ -21,6 +21,31 @@ from scripts.scenario_config_bridge import apply_calibration_overrides
 from scripts.config_normalization import normalize_action_table_schema
 
 
+def resolve_allowed_action_ids(env: Any, target_action: Optional[int], fallback_action: Optional[int]) -> Optional[list[int]]:
+    if not hasattr(env, "cycle_to_actions"):
+        return None
+    cycle_map = getattr(env, "cycle_to_actions")
+    items = []
+    try:
+        items = list(cycle_map.items())
+    except Exception:
+        items = []
+
+    for _, ids in items:
+        if target_action is not None and target_action in ids:
+            return [int(x) for x in ids]
+    for _, ids in items:
+        if fallback_action is not None and fallback_action in ids:
+            return [int(x) for x in ids]
+
+    if hasattr(cycle_map, "keys"):
+        for cycle in sorted(cycle_map.keys()):
+            ids = cycle_map.get(cycle, [])
+            if len(ids) > 0:
+                return [int(x) for x in ids]
+    return None
+
+
 def run_training(config: Dict[str, Any]) -> str:
     config = apply_calibration_overrides(config, project_root=project_root)
     config = normalize_action_table_schema(config)
@@ -80,6 +105,7 @@ def run_training(config: Dict[str, Any]) -> str:
                 "avg_loss",
                 "episode_steps",
                 "global_step",
+                "num_tls",
                 "epsilon_end",
                 "arrived_vehicles",
                 "avg_wait_time",
@@ -137,18 +163,11 @@ def run_training(config: Dict[str, Any]) -> str:
                             center_id = tls_ids_sorted[0]
 
                         center_action = agent.select_action(state=state[center_id], epsilon=epsilon)
-                        allowed_ids = None
-                        if hasattr(env, "cycle_to_actions"):
-                            for _, ids in env.cycle_to_actions.items():
-                                if center_action in ids:
-                                    allowed_ids = [int(x) for x in ids]
-                                    break
-                        if allowed_ids is None:
-                            if hasattr(env, "cycle_to_actions"):
-                                for _, ids in env.cycle_to_actions.items():
-                                    if int(config.get("baseline", {}).get("fixed_action_id", 2)) in ids:
-                                        allowed_ids = [int(x) for x in ids]
-                                        break
+                        allowed_ids = resolve_allowed_action_ids(
+                            env=env,
+                            target_action=center_action,
+                            fallback_action=int(config.get("baseline", {}).get("fixed_action_id", 2)),
+                        )
 
                         actions: Dict[str, int] = {}
                         for tls_id in tls_ids_sorted:
@@ -226,6 +245,7 @@ def run_training(config: Dict[str, Any]) -> str:
                     "avg_loss": float(avg_loss),
                     "episode_steps": int(episode_steps),
                     "global_step": int(global_step),
+                    "num_tls": int(len(state) if isinstance(state, dict) else 1),
                     "epsilon_end": float(last_epsilon),
                     "arrived_vehicles": int(kpi.get("arrived_vehicles", 0)),
                     "avg_wait_time": float(kpi.get("avg_wait_time", 0.0)),

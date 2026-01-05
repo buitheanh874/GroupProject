@@ -1,0 +1,145 @@
+run:
+  run_name: eval_bignet_9tls
+  seed: 42
+  device: cpu
+
+env:
+  type: sumo
+  sumo:
+    sumo_binary: sumo
+    net_file: networks/BIGNET.net.xml
+    route_file: networks/BIGNET.rou.xml  # TODO: replace with evaluation routes for BIGNET
+    additional_files: []
+
+    # Set auto_tls_ids: true to read from the net_file instead of the manual list.
+    tls_ids: ["J0", "J1", "J14", "J17", "J2", "J3", "J4", "J6", "J7"]
+    center_tls_id: "J0"
+
+    downstream_links:
+      # Optional occupancy inputs (only used when enable_downstream_occupancy=true)
+      # N: ""
+      # E: ""
+      # S: ""
+      # W: ""
+
+    vehicle_weights:
+      motorcycle: 0.25
+      passenger: 1.0
+      bus: 3.0
+
+    step_length_sec: 1.0
+    green_cycle_sec: 60
+    yellow_sec: 3
+    all_red_sec: 0
+    max_cycles: 30
+    max_sim_seconds: 0
+    terminate_on_empty: true
+    rho_min: 0.1
+    lambda_fairness: 0.0
+
+    action_splits:
+      - [0.30, 0.70]
+      - [0.40, 0.60]
+      - [0.50, 0.50]
+      - [0.60, 0.40]
+      - [0.70, 0.30]
+    action_table: []
+    include_transition_in_waiting: true
+    sumo_extra_args: []
+    enable_kpi_tracker: true
+    normalize_state: true
+    return_raw_state: false
+
+    state_dim: 12
+    enable_downstream_occupancy: false
+
+    lane_groups_by_tls:
+      # Replace all placeholder lane IDs with real incoming lanes for the BIGNET junctions.
+      J0:
+        lanes_ns_ctrl:
+          - "REPLACE_J0_NS_0"
+        lanes_ew_ctrl:
+          - "REPLACE_J0_EW_0"
+        lanes_right_turn_slip_ns: []
+        lanes_right_turn_slip_ew: []
+      J1:
+        lanes_ns_ctrl:
+          - "REPLACE_J1_NS_0"
+        lanes_ew_ctrl:
+          - "REPLACE_J1_EW_0"
+        lanes_right_turn_slip_ns: []
+        lanes_right_turn_slip_ew: []
+      J14:
+        lanes_ns_ctrl:
+          - "REPLACE_J14_NS_0"
+        lanes_ew_ctrl:
+          - "REPLACE_J14_EW_0"
+        lanes_right_turn_slip_ns: []
+        lanes_right_turn_slip_ew: []
+      J17:
+        lanes_ns_ctrl:
+          - "REPLACE_J17_NS_0"
+        lanes_ew_ctrl:
+          - "REPLACE_J17_EW_0"
+        lanes_right_turn_slip_ns: []
+        lanes_right_turn_slip_ew: []
+      J2:
+        lanes_ns_ctrl:
+          - "REPLACE_J2_NS_0"
+        lanes_ew_ctrl:
+          - "REPLACE_J2_EW_0"
+        lanes_right_turn_slip_ns: []
+        lanes_right_turn_slip_ew: []
+      J3:
+        lanes_ns_ctrl:
+          - "REPLACE_J3_NS_0"
+        lanes_ew_ctrl:
+          - "REPLACE_J3_EW_0"
+        lanes_right_turn_slip_ns: []
+        lanes_right_turn_slip_ew: []
+      J4:
+        lanes_ns_ctrl:
+          - "REPLACE_J4_NS_0"
+        lanes_ew_ctrl:
+          - "REPLACE_J4_EW_0"
+        lanes_right_turn_slip_ns: []
+        lanes_right_turn_slip_ew: []
+      J6:
+        lanes_ns_ctrl:
+          - "REPLACE_J6_NS_0"
+        lanes_ew_ctrl:
+          - "REPLACE_J6_EW_0"
+        lanes_right_turn_slip_ns: []
+        lanes_right_turn_slip_ew: []
+      J7:
+        lanes_ns_ctrl:
+          - "REPLACE_J7_NS_0"
+        lanes_ew_ctrl:
+          - "REPLACE_J7_EW_0"
+        lanes_right_turn_slip_ns: []
+        lanes_right_turn_slip_ew: []
+
+    phase_program:
+      ns_green: 0
+      ew_green: 4
+      ns_yellow: 1
+      ew_yellow: 5
+      all_red: 0
+
+normalization:
+  mean: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+  std: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+
+eval:
+  model_path: models/bignet_9tls.pt  # TODO: set trained model path
+  runs: 3
+  route_pool_manifest: null
+
+baseline:
+  fixed_action_id: 2
+
+logging:
+  results_dir: results/bignet_9tls_eval
+
+scenario:
+  name: bignet_9tls

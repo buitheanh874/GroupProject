@@ -13,6 +13,7 @@ from scripts.validation import validate_action_table
 from env.toy_queue_env import ToyQueueEnv, ToyQueueEnvConfig
 from rl.agent import AgentConfig, DQNAgent
 from rl.utils import resolve_device
+from scripts.sumo_network_tools import extract_tls_ids
 
 
 def deep_merge(base: dict, override: dict) -> dict:
@@ -49,6 +50,46 @@ def _default_action_splits() -> List[Tuple[float, float]]:
         (0.60, 0.40),
         (0.70, 0.30),
     ]
+
+
+def resolve_tls_ids_from_sumo_cfg(sumo_cfg: Dict[str, Any], net_path: Path) -> Tuple[List[str], str]:
+    """Resolve tls_ids (with auto mode) and a valid center_tls_id from config."""
+    auto_tls_ids = bool(sumo_cfg.get("auto_tls_ids", False))
+    tls_ids_raw = sumo_cfg.get("tls_ids", [])
+    tls_ids: List[str] = []
+
+    if isinstance(tls_ids_raw, str):
+        if tls_ids_raw.strip().lower() == "auto":
+            auto_tls_ids = True
+        elif len(tls_ids_raw.strip()) > 0:
+            tls_ids = [tls_ids_raw.strip()]
+    elif isinstance(tls_ids_raw, (list, tuple)):
+        tls_ids = [str(x) for x in tls_ids_raw]
+
+    if auto_tls_ids:
+        tls_ids = extract_tls_ids(net_path)
+
+    if len(tls_ids) == 0:
+        fallback = str(sumo_cfg.get("tls_id", "CENTER"))
+        tls_ids = [fallback] if len(fallback) > 0 else []
+    if len(tls_ids) == 0:
+        raise ValueError("tls_ids must be non-empty; provide env.sumo.tls_ids or enable auto_tls_ids")
+
+    seen: set[str] = set()
+    duplicates = []
+    for tid in tls_ids:
+        if tid in seen:
+            duplicates.append(str(tid))
+        seen.add(str(tid))
+    if len(duplicates) > 0:
+        raise ValueError(f"tls_ids must be unique; duplicates found: {sorted(set(duplicates))}")
+
+    center_tls_id = sumo_cfg.get("center_tls_id")
+    center_tls_effective = str(center_tls_id) if center_tls_id is not None else str(tls_ids[0])
+    if center_tls_effective not in tls_ids:
+        raise ValueError(f"center_tls_id='{center_tls_effective}' must be in tls_ids={tls_ids}")
+
+    return tls_ids, center_tls_effective
 
 
 def build_env(config: Dict[str, Any]) -> BaseEnv:
@@ -115,8 +156,7 @@ def build_env(config: Dict[str, Any]) -> BaseEnv:
             all_red=phase_cfg.get("all_red"),
         )
 
-        tls_ids = [str(x) for x in sumo_cfg.get("tls_ids", [])]
-        center_tls_id = sumo_cfg.get("center_tls_id")
+        tls_ids_effective, center_tls_effective = resolve_tls_ids_from_sumo_cfg(sumo_cfg, net_path)
         downstream_links = {str(k): v for k, v in sumo_cfg.get("downstream_links", {}).items()}
         vehicle_weights_raw = sumo_cfg.get("vehicle_weights", {})
         vehicle_weights = {str(k): float(v) for k, v in vehicle_weights_raw.items()}
@@ -192,27 +232,23 @@ def build_env(config: Dict[str, Any]) -> BaseEnv:
         if len(allowed_cycles) == 0 or any(cycle <= 0 for cycle in allowed_cycles):
             raise ValueError("allowed_cycles_sec must contain positive cycle lengths")
 
-        state_dim = int(sumo_cfg.get("state_dim", 12 if len(tls_ids) > 0 or len(action_table_raw) > 0 else 4))
+        state_dim_default = 12 if (len(tls_ids_effective) > 1 or len(action_table_raw) > 0) else 4
+        state_dim = int(sumo_cfg.get("state_dim", state_dim_default))
         normalize_state = bool(sumo_cfg.get("normalize_state", True))
         occupancy_enabled = bool(sumo_cfg.get("enable_downstream_occupancy", True))
 
-        if len(tls_ids) > 1 and state_dim != 12:
+        if len(tls_ids_effective) > 1 and state_dim != 12:
             raise ValueError("When specifying multiple tls_ids, state_dim must be 12")
 
         if state_dim not in (4, 12):
             raise ValueError(f"state_dim must be 4 or 12, got {state_dim}")
 
-        tls_ids_effective = tls_ids if len(tls_ids) > 0 else [str(sumo_cfg.get("tls_id", "CENTER"))]
-        center_tls_effective = str(center_tls_id) if center_tls_id is not None else str(tls_ids_effective[0])
-
         if state_dim == 12:
-            if center_tls_effective not in tls_ids_effective:
-                raise ValueError("center_tls_id must be in tls_ids (or tls_id) when state_dim=12")
             if occupancy_enabled:
                 required_dirs = {"N", "E", "S", "W"}
                 missing_dirs = [d for d in required_dirs if d not in {k.upper() for k in downstream_links.keys()}]
                 if len(missing_dirs) > 0:
-                    raise ValueError(f"downstream_links must include N/E/S/W when state_dim=12 (missing: {missing_dirs})")
+                    print(f"[WARN] downstream_links missing {missing_dirs}; downstream occupancy will be zero-filled for those directions")
             if len(tls_ids_effective) > 1:
                 if len(lane_cfg_by_tls) == 0:
                     raise ValueError("lane_groups_by_tls must be provided for each tls_id when tls_ids has multiple entries")

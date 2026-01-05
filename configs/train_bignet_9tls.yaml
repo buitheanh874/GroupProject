@@ -1,0 +1,161 @@
+run:
+  run_name: train_bignet_9tls
+  seed: 42
+  device: cpu
+
+env:
+  type: sumo
+  sumo:
+    sumo_binary: sumo
+    net_file: networks/BIGNET.net.xml
+    route_file: networks/BIGNET.rou.xml  # TODO: replace with actual BIGNET routes
+    additional_files: []
+
+    # Optional: enable auto discovery instead of manual list below.
+    # auto_tls_ids: true
+    tls_ids: ["J0", "J1", "J14", "J17", "J2", "J3", "J4", "J6", "J7"]
+    center_tls_id: "J0"  # Change if another junction should anchor cycle masking
+
+    downstream_links:
+      # Occupancy for center TLS (N/E/S/W). Leave commented when enable_downstream_occupancy=false.
+      # N: ""
+      # E: ""
+      # S: ""
+      # W: ""
+
+    vehicle_weights:
+      motorcycle: 0.25
+      passenger: 1.0
+      bus: 3.0
+
+    step_length_sec: 1.0
+    green_cycle_sec: 60
+    yellow_sec: 3
+    all_red_sec: 0
+    max_cycles: 120
+    max_sim_seconds: null
+    terminate_on_empty: false
+    rho_min: 0.1
+    lambda_fairness: 0.0
+
+    action_splits:
+      - [0.30, 0.70]
+      - [0.40, 0.60]
+      - [0.50, 0.50]
+      - [0.60, 0.40]
+      - [0.70, 0.30]
+    action_table: []
+    include_transition_in_waiting: true
+    sumo_extra_args: []
+    enable_kpi_tracker: true
+    normalize_state: true
+    return_raw_state: false
+
+    state_dim: 12
+    enable_downstream_occupancy: false  # Set true only after filling downstream_links for the chosen center TLS
+
+    lane_groups_by_tls:
+      # Replace each placeholder with the real incoming lanes for that intersection.
+      # All lists must stay non-empty to pass validation.
+      J0:
+        lanes_ns_ctrl:
+          - "REPLACE_J0_NS_0"
+        lanes_ew_ctrl:
+          - "REPLACE_J0_EW_0"
+        lanes_right_turn_slip_ns: []
+        lanes_right_turn_slip_ew: []
+      J1:
+        lanes_ns_ctrl:
+          - "REPLACE_J1_NS_0"
+        lanes_ew_ctrl:
+          - "REPLACE_J1_EW_0"
+        lanes_right_turn_slip_ns: []
+        lanes_right_turn_slip_ew: []
+      J14:
+        lanes_ns_ctrl:
+          - "REPLACE_J14_NS_0"
+        lanes_ew_ctrl:
+          - "REPLACE_J14_EW_0"
+        lanes_right_turn_slip_ns: []
+        lanes_right_turn_slip_ew: []
+      J17:
+        lanes_ns_ctrl:
+          - "REPLACE_J17_NS_0"
+        lanes_ew_ctrl:
+          - "REPLACE_J17_EW_0"
+        lanes_right_turn_slip_ns: []
+        lanes_right_turn_slip_ew: []
+      J2:
+        lanes_ns_ctrl:
+          - "REPLACE_J2_NS_0"
+        lanes_ew_ctrl:
+          - "REPLACE_J2_EW_0"
+        lanes_right_turn_slip_ns: []
+        lanes_right_turn_slip_ew: []
+      J3:
+        lanes_ns_ctrl:
+          - "REPLACE_J3_NS_0"
+        lanes_ew_ctrl:
+          - "REPLACE_J3_EW_0"
+        lanes_right_turn_slip_ns: []
+        lanes_right_turn_slip_ew: []
+      J4:
+        lanes_ns_ctrl:
+          - "REPLACE_J4_NS_0"
+        lanes_ew_ctrl:
+          - "REPLACE_J4_EW_0"
+        lanes_right_turn_slip_ns: []
+        lanes_right_turn_slip_ew: []
+      J6:
+        lanes_ns_ctrl:
+          - "REPLACE_J6_NS_0"
+        lanes_ew_ctrl:
+          - "REPLACE_J6_EW_0"
+        lanes_right_turn_slip_ns: []
+        lanes_right_turn_slip_ew: []
+      J7:
+        lanes_ns_ctrl:
+          - "REPLACE_J7_NS_0"
+        lanes_ew_ctrl:
+          - "REPLACE_J7_EW_0"
+        lanes_right_turn_slip_ns: []
+        lanes_right_turn_slip_ew: []
+
+    phase_program:
+      ns_green: 0
+      ew_green: 4
+      ns_yellow: 1
+      ew_yellow: 5
+      all_red: 0
+
+normalization:
+  mean: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+  std: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+  file: configs/norm_stats_bignet_9tls.json  # Recompute after lane mappings are finalized
+  
+agent:
+  hidden_dims: [128, 128]
+  gamma: 0.98
+  learning_rate: 0.0001
+  batch_size: 64
+  replay_buffer_size: 100000
+  target_update_freq: 1000
+
+exploration:
+  eps_start: 1.0
+  eps_end: 0.05
+  eps_decay_steps: 50000
+
+train:
+  episodes: 300
+  save_every_episodes: 10
+  print_every_episodes: 1
+  route_pool_manifest: null  # Optional: point to a manifest if multiple route variants are available
+
+baseline:
+  fixed_action_id: 2
+
+logging:
+  log_dir: logs/bignet_9tls
+  model_dir: models/bignet_9tls
+  results_dir: results/bignet_9tls

@@ -42,6 +42,10 @@ class MaxPressureSplitController:
 
         q_ns = float(state[0])
         q_ew = float(state[1])
+        if state.shape[0] >= 3:
+            q_ns += float(state[2])
+        if state.shape[0] >= 4:
+            q_ew += float(state[3])
         total = q_ns + q_ew
 
         if total <= 1e-6 or not np.isfinite(total):
@@ -59,6 +63,59 @@ class MaxPressureSplitController:
                 best_action = idx
 
         return int(best_action)
+
+
+def select_action_from_defs(
+    state_raw: np.ndarray,
+    action_defs: Sequence,
+    allowed_action_ids: Optional[Sequence[int]] = None,
+    default_action_id: int = 0,
+) -> int:
+    """
+    Pick an action id for a multi-TLS state using rho_ns closeness.
+
+    Args:
+        state_raw: State vector (expects queue counts at indices 0-3: N,E,S,W).
+        action_defs: Sequence of objects (or dicts) with rho_ns attribute/key.
+        allowed_action_ids: Optional subset to restrict selection (e.g., a cycle bucket).
+        default_action_id: Fallback when no valid candidate is found.
+    """
+    state = np.asarray(state_raw, dtype=np.float32).reshape(-1)
+    if state.shape[0] < 2:
+        raise ValueError(f"state_raw must have at least 2 elements (q_NS, q_EW), got {state.shape}")
+
+    q_ns = float(state[0])
+    q_ew = float(state[1])
+    if state.shape[0] >= 3:
+        q_ns += float(state[2])
+    if state.shape[0] >= 4:
+        q_ew += float(state[3])
+
+    total = q_ns + q_ew
+    if total <= 1e-6 or not np.isfinite(total):
+        return int(default_action_id)
+
+    target_rho_ns = float(np.clip(q_ns / total, 0.0, 1.0))
+    candidates = list(allowed_action_ids) if allowed_action_ids is not None and len(allowed_action_ids) > 0 else list(range(len(action_defs)))
+    if len(candidates) == 0:
+        return int(default_action_id)
+
+    best_action = int(default_action_id if default_action_id in candidates else candidates[0])
+    best_diff = float("inf")
+
+    for idx in candidates:
+        action_def = action_defs[idx]
+        rho_ns = getattr(action_def, "rho_ns", None)
+        if rho_ns is None and isinstance(action_def, dict):
+            rho_ns = action_def.get("rho_ns", action_def.get("ns_ratio", None))
+        if rho_ns is None:
+            continue
+        diff = abs(float(rho_ns) - target_rho_ns)
+        if diff < best_diff:
+            best_diff = diff
+            best_action = int(idx)
+
+    return int(best_action)
 
 
 def _self_test() -> None:

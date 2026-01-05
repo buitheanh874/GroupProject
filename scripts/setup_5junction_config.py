@@ -2,22 +2,10 @@ from __future__ import annotations
 
 import argparse
 import xml.etree.ElementTree as ET
-from pathlib import Path
 
 import yaml
 
-
-def extract_tls_ids(net_file: str) -> list[str]:
-    tree = ET.parse(net_file)
-    root = tree.getroot()
-
-    tls_ids = []
-    for tl in root.findall(".//tlLogic"):
-        tls_id = tl.get("id")
-        if tls_id:
-            tls_ids.append(tls_id)
-
-    return sorted(set(tls_ids))
+from scripts.sumo_network_tools import extract_tls_ids
 
 
 def extract_junction_info(net_file: str, tls_id: str) -> dict:

@@ -29,8 +29,8 @@ env:
     green_cycle_sec: 60
     yellow_sec: 3
     all_red_sec: 0
-    max_cycles: 60
-    max_sim_seconds: 3600
+    max_cycles: 120
+    max_sim_seconds: null
     terminate_on_empty: false
     rho_min: 0.1
     lambda_fairness: 0.0
@@ -104,7 +104,8 @@ env:
 normalization:
   mean: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
   std: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
-
+  file: configs/norm_stats_production.json
+   
 agent:
   hidden_dims: [128, 128]
   gamma: 0.98
@@ -116,10 +117,10 @@ agent:
 exploration:
   eps_start: 1.0
   eps_end: 0.05
-  eps_decay_steps: 20000
+  eps_decay_steps: 50000
 
 train:
-  episodes: 50
+  episodes: 500
   save_every_episodes: 10
   print_every_episodes: 1
   route_pool_manifest: networks/variants/train/manifest.txt

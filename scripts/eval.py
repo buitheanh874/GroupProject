@@ -14,7 +14,7 @@ sys.path.insert(0, str(repo_root))
 
 from rl.utils import ensure_dir, generate_run_id, load_yaml_config, set_global_seed
 from scripts.common import build_agent, build_env
-from controllers.max_pressure import MaxPressureSplitController
+from controllers.max_pressure import MaxPressureSplitController, select_action_from_defs
 from scripts.route_pool_loader import load_route_pool_from_config
 from scripts.scenario_config_bridge import apply_calibration_overrides
 from scripts.config_normalization import normalize_action_table_schema
@@ -54,6 +54,32 @@ def build_eval_row(
         "p95_wait_time": float(kpi.get("p95_wait_time", 0.0)),
         "throughput": throughput,
     }
+
+
+def resolve_allowed_action_ids(env: Any, target_action: Optional[int], fallback_action: Optional[int]) -> Optional[List[int]]:
+    if not hasattr(env, "cycle_to_actions"):
+        return None
+
+    cycle_map = getattr(env, "cycle_to_actions")
+    items = []
+    try:
+        items = list(cycle_map.items())
+    except Exception:
+        items = []
+
+    for _, ids in items:
+        if target_action is not None and target_action in ids:
+            return [int(x) for x in ids]
+    for _, ids in items:
+        if fallback_action is not None and fallback_action in ids:
+            return [int(x) for x in ids]
+
+    if hasattr(cycle_map, "keys"):
+        for cycle in sorted(cycle_map.keys()):
+            ids = cycle_map.get(cycle, [])
+            if len(ids) > 0:
+                return [int(x) for x in ids]
+    return None
 
 
 def main(argv: Optional[List[str]] = None) -> None:
@@ -161,23 +187,30 @@ def main(argv: Optional[List[str]] = None) -> None:
                         if center_id is None:
                             center_id = tls_ids_sorted[0]
 
+                        action_defs = getattr(env, "_action_defs", [])
+                        allowed_ids: Optional[List[int]] = None
+
                         if controller == "fixed":
-                            actions = {tls: int(fixed_action_id) for tls in tls_ids_sorted}
+                            allowed_ids = resolve_allowed_action_ids(env, target_action=int(fixed_action_id), fallback_action=int(fixed_action_id))
+                            action_value = int(allowed_ids[0]) if allowed_ids not in (None, []) else int(fixed_action_id)
+                            actions = {tls: action_value for tls in tls_ids_sorted}
                         elif controller == "max_pressure":
-                            actions = {tls: int(fixed_action_id) for tls in tls_ids_sorted}
+                            allowed_ids = resolve_allowed_action_ids(env, target_action=None, fallback_action=int(fixed_action_id))
+                            default_action = int(allowed_ids[0]) if allowed_ids not in (None, []) else int(fixed_action_id)
+                            actions = {
+                                tls: int(
+                                    select_action_from_defs(
+                                        state_raw=state[tls],
+                                        action_defs=action_defs,
+                                        allowed_action_ids=allowed_ids,
+                                        default_action_id=default_action,
+                                    )
+                                )
+                                for tls in tls_ids_sorted
+                            }
                         else:
                             center_action = int(agent.select_action(state=state[center_id], epsilon=0.0))
-                            allowed_ids = None
-                            if hasattr(env, "cycle_to_actions"):
-                                for _, ids in env.cycle_to_actions.items():
-                                    if center_action in ids:
-                                        allowed_ids = [int(x) for x in ids]
-                                        break
-                                if allowed_ids is None:
-                                    for _, ids in env.cycle_to_actions.items():
-                                        if int(fixed_action_id) in ids:
-                                            allowed_ids = [int(x) for x in ids]
-                                            break
+                            allowed_ids = resolve_allowed_action_ids(env, target_action=center_action, fallback_action=int(fixed_action_id))
                             actions = {tls: int(agent.select_action(state=state[tls], epsilon=0.0, allowed_action_ids=allowed_ids)) for tls in tls_ids_sorted}
 
                         next_state, rewards, done, info = env.step(actions)

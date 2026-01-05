@@ -159,6 +159,7 @@ class SUMOEnv(BaseEnv):
                 raise ValueError(f"lane_groups must be provided for tls_id: {tls_id}")
 
         self._lanes_single = self._lanes_by_tls.get(str(config.tls_id))
+        print(f"[SUMOEnv] Initialized with {len(self._tls_ids)} TLS: {self._tls_ids}")
 
         self._state_dim = int(config.state_dim)
         if self._state_dim not in (4, 12):
@@ -199,6 +200,7 @@ class SUMOEnv(BaseEnv):
                 )
 
         self._downstream_links = {str(k).upper(): str(v) for k, v in config.downstream_links.items()}
+        self._missing_downstream_links: Set[str] = set()
         for key in self._downstream_links.keys():
             if key not in {"N", "E", "S", "W"}:
                 raise ValueError(f"Invalid downstream link key: {key}")
@@ -940,7 +942,10 @@ class SUMOEnv(BaseEnv):
                     continue
                 except Exception:
                     pass
-            raise ValueError(f"Downstream link not found in network: {link_id}")
+            if link_id not in self._missing_downstream_links:
+                print(f"[WARN] Downstream link not found in network for dir {key}: {link_id}. Using 0 occupancy.")
+                self._missing_downstream_links.add(link_id)
+            values.append(0.0)
         return np.asarray(values, dtype=np.float32)
 
     def _sec_to_steps(self, duration_sec: int) -> int:
