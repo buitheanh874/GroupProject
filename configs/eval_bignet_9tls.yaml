@@ -10,8 +10,13 @@ env:
     net_file: networks/BIGNET.net.xml
     route_file: networks/BIGNET.rou.xml
     additional_files: []
-    tls_ids: ["J0", "J1", "J2", "J3", "J4", "J6", "J7", "J14", "J17"]
+    tls_ids: ["J0", "J1", "J2", "J3", "J4", "J6", "J7", "J8", "J9"]
     center_tls_id: "J0"
+    downstream_links:
+      N: "E3"
+      E: "E0"
+      S: "E2"
+      W: "E1"
     vehicle_weights:
       motorcycle: 0.25
       passenger: 1.0
@@ -42,17 +47,30 @@ env:
     lane_groups_by_tls:
       J0:
         lanes_ns_ctrl:
-          - "-E2_0"
-          - "-E2_1"
           - "-E3_0"
           - "-E3_1"
+          - "-E2_0"
+          - "-E2_1"
         lanes_ew_ctrl:
-          - "-E0_0"
-          - "-E0_1"
-          - "-E0_2"
           - "-E1_0"
           - "-E1_1"
           - "-E1_2"
+          - "-E0_0"
+          - "-E0_1"
+          - "-E0_2"
+        lanes_right_turn_slip_ns: []
+        lanes_right_turn_slip_ew: []
+      J4:
+        lanes_ns_ctrl:
+          - "-E20_0"
+          - "-E20_1"
+          - "E3_0"
+          - "E3_1"
+        lanes_ew_ctrl:
+          - "E19_0"
+          - "E19_1"
+          - "-E21_0"
+          - "-E21_1"
         lanes_right_turn_slip_ns: []
         lanes_right_turn_slip_ew: []
       J1:
@@ -62,93 +80,91 @@ env:
           - "-E5_0"
           - "-E5_1"
         lanes_ew_ctrl:
-          - "-E4_0"
-          - "-E4_1"
-          - "-E4_2"
           - "E0_0"
           - "E0_1"
           - "E0_2"
-        lanes_right_turn_slip_ns: []
-        lanes_right_turn_slip_ew: []
-      J2:
-        lanes_ns_ctrl:
-          - "-E19_0"
-          - "-E19_1"
-          - "-E18_0"
-          - "-E18_1"
-        lanes_ew_ctrl:
-          - "E1_0"
-          - "E1_1"
-          - "E1_2"
-          - "-E17_0"
-          - "-E17_1"
-          - "-E17_2"
+          - "-E4_0"
+          - "-E4_1"
+          - "-E4_2"
         lanes_right_turn_slip_ns: []
         lanes_right_turn_slip_ew: []
       J3:
         lanes_ns_ctrl:
-          - "-E25_0"
-          - "-E25_1"
           - "E2_0"
           - "E2_1"
+          - "-E13_0"
+          - "-E13_1"
         lanes_ew_ctrl:
-          - "-E26_0"
-          - "E24_0"
+          - "E10_0"
+          - "E10_1"
+          - "-E14_0"
+          - "-E14_1"
         lanes_right_turn_slip_ns: []
         lanes_right_turn_slip_ew: []
-      J4:
+      J2:
         lanes_ns_ctrl:
-          - "E3_0"
-          - "E3_1"
-          - "-E16_0"
-          - "-E16_1"
+          - "-E8_0"
+          - "-E8_1"
+          - "-E7_0"
+          - "-E7_1"
         lanes_ew_ctrl:
-          - "E14_0"
-          - "-E15_0"
+          - "E1_0"
+          - "E1_1"
+          - "E1_2"
+          - "-E9_0"
+          - "-E9_1"
+        lanes_right_turn_slip_ns: []
+        lanes_right_turn_slip_ew: []
+      J7:
+        lanes_ns_ctrl:
+          - "-E23_0"
+          - "-E23_1"
+          - "E6_0"
+          - "E6_1"
+        lanes_ew_ctrl:
+          - "E21_0"
+          - "E21_1"
+          - "-E22_0"
+          - "-E22_1"
         lanes_right_turn_slip_ns: []
         lanes_right_turn_slip_ew: []
       J6:
         lanes_ns_ctrl:
           - "E5_0"
           - "E5_1"
-          - "-E13_0"
-          - "-E13_1"
+          - "-E16_0"
+          - "-E16_1"
         lanes_ew_ctrl:
+          - "E14_0"
+          - "E14_1"
+          - "-E15_0"
+          - "-E15_1"
+        lanes_right_turn_slip_ns: []
+        lanes_right_turn_slip_ew: []
+      J8:
+        lanes_ns_ctrl:
+          - "E7_0"
+          - "E7_1"
           - "-E12_0"
-          - "-E14_0"
+          - "-E12_1"
+        lanes_ew_ctrl:
+          - "-E11_0"
+          - "-E11_1"
+          - "-E10_0"
+          - "-E10_1"
         lanes_right_turn_slip_ns: []
         lanes_right_turn_slip_ew: []
-      J7:
+      J9:
         lanes_ns_ctrl:
-          - "-E27_0"
-          - "-E27_1"
-          - "E6_0"
-          - "E6_1"
+          - "-E17_0"
+          - "-E17_1"
+          - "E8_0"
+          - "E8_1"
         lanes_ew_ctrl:
-          - "-E28_0"
-          - "E26_0"
-        lanes_right_turn_slip_ns: []
-        lanes_right_turn_slip_ew: []
-      J14:
-        lanes_ns_ctrl:
-          - "E18_0"
-          - "E18_1"
-          - "-E21_0"
-          - "-E21_1"
-        lanes_ew_ctrl:
-          - "E15_0"
-          - "-E20_0"
-        lanes_right_turn_slip_ns: []
-        lanes_right_turn_slip_ew: []
-      J17:
-        lanes_ns_ctrl:
-          - "-E22_0"
-          - "-E22_1"
-          - "E19_0"
-          - "E19_1"
-        lanes_ew_ctrl:
-          - "-E24_0"
-          - "-E23_0"
+          - "-E18_0"
+          - "-E18_1"
+          - "-E19_0"
+          - "-E19_1"
         lanes_right_turn_slip_ns: []
         lanes_right_turn_slip_ew: []
     phase_program:
@@ -163,7 +179,7 @@ normalization:
   std: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
 
 eval:
-  model_path: models/bignet_9tls.pt
+  model_path: models/bignet_9tls/best.pt
   runs: 1
   route_pool_manifest: networks/variants/eval/manifest.txt
 
@@ -172,6 +188,3 @@ baseline:
 
 logging:
   results_dir: results/bignet_9tls_eval
-
-scenario:
-  name: bignet_9tls
