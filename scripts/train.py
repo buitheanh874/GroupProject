@@ -5,6 +5,7 @@ import csv
 import os
 import sys
 from pathlib import Path
+from collections import Counter
 from typing import Any, Dict, Optional
 
 import numpy as np
@@ -15,19 +16,27 @@ sys.path.insert(0, str(project_root))
 from rl.cycle_tracker import CycleDistributionTracker
 from rl.utils import ensure_dir, generate_run_id, linear_epsilon, load_yaml_config, save_yaml_config, set_global_seed
 from scripts.common import build_agent, build_env
+from scripts.route_pool_loader import load_route_pool_from_config
+from scripts.scenario_config_bridge import apply_calibration_overrides
+from scripts.config_normalization import normalize_action_table_schema
 
 
 def run_training(config: Dict[str, Any]) -> str:
+    config = apply_calibration_overrides(config, project_root=project_root)
+    config = normalize_action_table_schema(config)
+    train_cfg = config.get("train", {})
+    route_pool = load_route_pool_from_config(config, split="train", project_root=project_root)
+
     run_cfg = config.get("run", {})
     seed = int(run_cfg.get("seed", 0))
     set_global_seed(seed)
 
     env = build_env(config)
-
-    train_cfg = config.get("train", {})
-    route_pool = train_cfg.get("route_pool", [])
     if route_pool and hasattr(env, "set_route_file_pool"):
-        env.set_route_file_pool(list(route_pool))
+        try:
+            env.set_route_file_pool(route_pool)
+        except Exception:
+            pass
 
     agent, _ = build_agent(config, env)
     agent.to_train_mode()
@@ -57,9 +66,7 @@ def run_training(config: Dict[str, Any]) -> str:
     allowed_cycles = []
     if hasattr(env, "_action_defs"):
         allowed_cycles = sorted(set(int(a.cycle_sec) for a in env._action_defs))
-    cycle_tracker = None
-    if len(allowed_cycles) > 1:
-        cycle_tracker = CycleDistributionTracker(allowed_cycles)
+    cycle_tracker = CycleDistributionTracker(allowed_cycles) if len(allowed_cycles) > 0 else None
     log_cycle_every = int(train_cfg.get("log_cycle_distribution_every", 10))
 
     best_reward = -float("inf")
@@ -84,6 +91,9 @@ def run_training(config: Dict[str, Any]) -> str:
                 "waiting_total",
             ]
             
+            if len(allowed_cycles) > 0:
+                for cycle in allowed_cycles:
+                    fieldnames.append(f"cycle_{cycle}_count")
             if cycle_tracker is not None:
                 for cycle in allowed_cycles:
                     fieldnames.append(f"cycle_{cycle}_pct")
@@ -97,6 +107,7 @@ def run_training(config: Dict[str, Any]) -> str:
                     env.set_seed(int(seed + episode))
 
                 state = env.reset()
+                episode_cycle_counts = Counter({cycle: 0 for cycle in allowed_cycles})
 
                 done = False
                 episode_reward = 0.0
@@ -152,7 +163,10 @@ def run_training(config: Dict[str, Any]) -> str:
                         step_rewards = list(rewards.values()) if isinstance(rewards, dict) else [float(rewards)]
                         step_reward = float(np.mean(step_rewards))
 
-                        gamma_value = agent.compute_gamma(info.get("t_step") if isinstance(info, dict) else None)
+                        t_step_value = None
+                        if isinstance(info, dict):
+                            t_step_value = info.get("t_step") or info.get("decision_cycle_sec")
+                        gamma_value = agent.compute_gamma(t_step_value)
 
                         for tls_id in tls_ids_sorted:
                             action_id = actions[tls_id]
@@ -183,16 +197,28 @@ def run_training(config: Dict[str, Any]) -> str:
                         episode_steps += 1
                         global_step += 1
                     
-                    if cycle_tracker is not None and isinstance(info, dict):
-                        cycle_key = info.get("green_cycle_sec") or info.get("cycle_sec")
+                    if isinstance(info, dict):
+                        cycle_key = info.get("cycle_sec")
+                        if cycle_key is None:
+                            cycle_key = info.get("green_cycle_sec")
                         if cycle_key is not None:
-                            cycle_tracker.record(int(cycle_key))
+                            if cycle_tracker is not None:
+                                cycle_tracker.record(int(cycle_key))
+                            if cycle_key in episode_cycle_counts:
+                                episode_cycle_counts[int(cycle_key)] += 1
 
                 avg_loss = float(np.mean(losses)) if len(losses) > 0 else 0.0
 
                 kpi = {}
                 if isinstance(info, dict):
                     kpi = info.get("episode_kpi", {}) if done else {}
+                    
+                    if cycle_tracker is not None:
+                        cycle_key = info.get("cycle_sec")
+                        if cycle_key is None:
+                            cycle_key = info.get("green_cycle_sec")
+                        if cycle_key is not None:
+                            cycle_tracker.record(int(cycle_key))
 
                 row: Dict[str, Any] = {
                     "episode": int(episode),
@@ -213,6 +239,9 @@ def run_training(config: Dict[str, Any]) -> str:
                     ),
                 }
                 
+                if len(allowed_cycles) > 0:
+                    for cycle in allowed_cycles:
+                        row[f"cycle_{cycle}_count"] = int(episode_cycle_counts.get(cycle, 0))
                 if cycle_tracker is not None:
                     cycle_dist = cycle_tracker.get_distribution()
                     for cycle in allowed_cycles:
@@ -243,7 +272,6 @@ def run_training(config: Dict[str, Any]) -> str:
                     if cycle_tracker is not None and (int(episode) % int(log_cycle_every) == 0):
                         print(f"  {cycle_tracker.get_summary_str()}")
                         print(f"  Cycle entropy: {cycle_tracker.get_entropy():.3f}")
-                        cycle_tracker.reset()
     finally:
         try:
             env.close()
@@ -251,12 +279,16 @@ def run_training(config: Dict[str, Any]) -> str:
             pass
         print("Environment closed.")
 
+    if cycle_tracker is not None:
+        print(f"[Cycle summary] {cycle_tracker.get_summary_str()}")
+        print(f"[Cycle summary] entropy={cycle_tracker.get_entropy():.3f}")
+
     return metrics_path
 
 
 def main(argv: Optional[list[str]] = None) -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=str, default="configs/train_sumo.yaml")
+    parser.add_argument("--config", type=str, default="configs/train_hub_spoke_demo.yaml")
     parser.add_argument("--episodes", type=int, default=None)
     parser.add_argument("--seed", type=int, default=None)
     parser.add_argument("--run-name", type=str, default=None)

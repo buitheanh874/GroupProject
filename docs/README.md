@@ -18,37 +18,23 @@ Plot rewards:
 
 python analysis/plot_rewards.py --csv logs/<RUN_ID>_train_metrics.csv --window 20
 
-## SUMO Environment
+## SUMO Environment (Hub-and-Spoke)
 
-1. Prepare SUMO network and route files.
-2. Update configs/train_sumo.yaml:
-   - net_file, route_file
-   - tls_id
-   - lane_groups (lanes_ns_ctrl, lanes_ew_ctrl)
-   - phase_program indices
-   - normalization mean/std
+1. Provide hub-and-spoke SUMO assets under `networks/hub_spoke/` (see README there for expected TLS naming). Populate `hub_spoke.net.xml`, `hub_spoke.rou.xml`, and any additional files.
+2. Use `configs/train_hub_spoke_demo.yaml` as the template:
+   - Fill in `net_file`, `route_file`, `tls_ids/center_tls_id`, `lane_groups_by_tls`, `downstream_links`, and `phase_program`.
+   - Keep `state_dim: 12`, `action_table: []` (auto-generates multi-cycle actions), and 12D mean/std.
+3. Train: `python scripts/train.py --config configs/train_hub_spoke_demo.yaml`
+4. Smoke one episode: `python scripts/run_sumo_episode.py --config configs/eval_hub_spoke.yaml --controller fixed --max_cycles 5`
+5. Evaluate / cross-compare: `python scripts/eval.py --config configs/eval_hub_spoke.yaml --controller all --model_path models/hub_spoke_demo.pt --runs 5`
 
-Train:
-
-python scripts/train.py --config configs/train_sumo.yaml
-
-Sanity-check one episode:
-
-python scripts/run_sumo_episode.py --config configs/eval_sumo.yaml --controller fixed --max_cycles 10
-
-Evaluate:
-
-python scripts/eval.py --config configs/eval_sumo.yaml --controller both --model_path models/<MODEL>.pt --runs 10
-
-Run experiment grid (fixed vs rl, low/medium/high):
-
-python scripts/run_experiments.py --config configs/experiments.yaml --model_path models/<MODEL>.pt
+Only the multi-intersection direction is maintained; legacy single-node assets have been removed.
 
 ## Hub-and-Spoke (multi-TLS, shared policy)
-- New config keys: `tls_ids` (list), `center_tls_id`, `downstream_links` (N/E/S/W edges or lanes from center), `vehicle_weights` (PCU), `state_dim` (set to 12 for multi layout), and optional `action_table` (cycle + split). Legacy `tls_id`/`action_splits` stay supported.
+- Config keys: `tls_ids`, `center_tls_id`, `downstream_links` (N/E/S/W edges or lanes from center), `vehicle_weights` (PCU), `state_dim` (set to 12 for multi layout), and optional `action_table` (cycle + split). `tls_id`/`action_splits` remain supported for user-supplied single-TLS configs.
 - Action space default: 15 actions = 3 cycles {30,60,90}s × 5 splits; reward is `-weighted_wait/T_step` with `T_step = cycle_sec + 2*yellow_sec`.
 - State (multi mode): `[q_N,q_E,q_S,q_W,w_N,w_E,w_S,w_W,occ_N,occ_E,occ_S,occ_W]`, occupancy only for `center_tls_id`, zero for satellites.
-- Sample config: `configs/train_hub_spoke_demo.yaml` (runs on `networks/BI.net.xml`, single TLS but 12D state/action-table enabled). Multi-node layouts require SUMO files in `networks/hub_spoke/` (see README there).
+- Sample config: `configs/train_hub_spoke_demo.yaml` (points to `networks/hub_spoke/` placeholder assets).
 - Action masking: `env.cycle_to_actions` maps `cycle_sec` to action ids so you can enforce synchronized cycle choices across TLS.
 - Validation tips: if `tls_ids` has multiple entries, use `state_dim: 12` and provide `lane_groups_by_tls`. For 12D center occupancy, include `downstream_links` N/E/S/W or set `enable_downstream_occupancy: false` to skip occupancy.
 
@@ -125,16 +111,14 @@ Validation is performed by `scripts/validation.py:validate_action_table()`.
 
 | Scenario | Recommended Mode | Why |
 |----------|------------------|-----|
-| Single intersection, stable demand | Mode 1 (action_splits) | Simpler, fewer actions |
-| Single intersection, varying demand | Mode 2 (action_table) | Adaptable cycle length |
-| Multi-intersection hub-and-spoke | Mode 2 or auto-gen | Coordinate cycle across TLS |
+| Custom single-TLS (user-supplied) | Mode 1 (action_splits) | Simpler, fewer actions |
+| Multi-intersection hub-and-spoke | Mode 2 or auto-gen | Coordinate cycles across TLS |
 | Research: cycle length impact | Mode 2 (action_table) | Explicit control |
 
 ### Example Configs
 
-- Single-intersection, fixed cycle: `configs/train_sumo.yaml`
-- Multi-intersection, dynamic cycle: `configs/train_hub_spoke_demo.yaml`
-- Ultimate scenario (4-stage): `configs/train_ultimate_pure.yaml`
+- Multi-intersection sample: `configs/train_hub_spoke_demo.yaml`
+- Toy queue (no SUMO): `configs/train_toy.yaml`
 
 ## Normalization Stats Collection Protocol
 - Collect raw states with `scripts/collect_norm_stats.py` (or `collect_normalization_stats.py`) using a fixed-action baseline for at least 50 samples; the script emits warnings if sample count is low.
@@ -144,16 +128,33 @@ Validation is performed by `scripts/validation.py:validate_action_table()`.
 ## Route Randomization Workflow
 - Generate demand variants without SUMO by scaling an existing `.rou.xml`:
   ```
-  python scripts/generate_randomized_routes.py --input networks/BIGMAP.rou.xml --output-dir networks/randomized --variants 5 --seed 42 --global-range 0.7 1.3 --per-flow-noise 0.1
+  python scripts/generate_randomized_routes.py --input networks/hub_spoke/hub_spoke.rou.xml --output-dir networks/randomized --variants 5 --seed 42 --global-range 0.7 1.3 --per-flow-noise 0.1
   ```
 - The script scales all flow demand fields (probability/vehsPerHour/number) with a deterministic global factor and per-flow noise, preserving begin/end windows.
 
 ## Cross-Eval Protocol
 - Compare pure vs fairness checkpoints across lambda values:
   ```
-  python scripts/cross_eval_fairness.py --config configs/eval_sumo.yaml --pure_ckpt models/pure.pt --fair_ckpt models/fair.pt --lambda_values 0 0.12 --output-dir results/cross_eval
+  python scripts/cross_eval_fairness.py --config configs/eval_hub_spoke.yaml --pure_ckpt models/pure.pt --fair_ckpt models/fair.pt --lambda_values 0 0.12 --output-dir results/cross_eval
   ```
 - Wrapper invokes `scripts/eval.py` per lambda/policy combination and writes logs plus a summary CSV.
 
 ## MDP Compliance Map
-- See `docs/MDP_COMPLIANCE.md` for key spec→code pointers (reward normalization, queue counting, fairness, spillback/anti-flicker, PCU/enhanced rewards, validation, time-aware gamma).
+- See `docs/MDP_COMPLIANCE.md` for key spec/code pointers (reward normalization, queue counting, fairness, spillback/anti-flicker, PCU/enhanced rewards, validation, time-aware gamma).
+
+## Hanoi Scenario Pipeline (MDP style)
+1. Inspect boundaries  
+   `python scripts/inspect_net_boundaries.py --net networks/hanoi/hanoi.net.xml --out configs/scenario_hanoi_candidates.json`
+2. Calibrate (edit `configs/scenario_hanoi_calibration.yaml`): entry/exit edges, PCU weights, demand levels, vehicle mix, turning ratios, optional staged intervals.
+3. Generate variants  
+   - Train: `python scripts/generate_hanoi_route_variants.py --calib configs/scenario_hanoi_calibration.yaml --out-dir networks/variants --split train --n 50 --seed 42 --skip-router`  
+   - Eval (all profiles): `python scripts/generate_hanoi_route_variants.py --calib configs/scenario_hanoi_calibration.yaml --out-dir networks/variants --split eval --n 10 --seed 42 --skip-router`
+4. Wire manifests (no YAML globbing)  
+   - Train config: `train.route_pool_manifest: networks/variants/train/manifest.txt`  
+   - Eval config: `eval.route_pool_manifest: networks/variants/eval/manifest_low.txt` (or other profile manifests)
+5. Run  
+   - Train: `python scripts/train.py --config configs/train_hub_spoke_demo.yaml`  
+   - Eval: `python scripts/eval.py --config configs/eval_hub_spoke.yaml --controller all --runs 3`
+6. Optional calibration injection  
+   - Set `scenario_calibration: configs/scenario_hanoi_calibration.yaml` to auto-populate `env.sumo.vehicle_weights` (PCU) for `use_pcu_weighted_wait` / `use_enhanced_reward` (with `reward_exponent`).  
+   - User-supplied `vehicle_weights` stay unless `force_calibration_overrides: true`.

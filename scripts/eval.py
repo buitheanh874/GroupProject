@@ -15,22 +15,63 @@ sys.path.insert(0, str(repo_root))
 from rl.utils import ensure_dir, generate_run_id, load_yaml_config, set_global_seed
 from scripts.common import build_agent, build_env
 from controllers.max_pressure import MaxPressureSplitController
+from scripts.route_pool_loader import load_route_pool_from_config
+from scripts.scenario_config_bridge import apply_calibration_overrides
+from scripts.config_normalization import normalize_action_table_schema
 
 
-def main() -> None:
+def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str, required=True)
     parser.add_argument("--controller", type=str, choices=["fixed", "rl", "max_pressure", "all"], default="all")
     parser.add_argument("--model_path", type=str, default="")
     parser.add_argument("--runs", type=int, default=10)
-    args = parser.parse_args()
+    return parser.parse_args(argv)
 
+
+def build_eval_row(
+    controller: str,
+    scenario: str,
+    run_id: int,
+    total_reward: float,
+    episode_steps: int,
+    kpi: Dict[str, Any],
+) -> Dict[str, Any]:
+    arrived = int(kpi.get("arrived_vehicles", 0))
+    throughput = float(arrived) / float(max(1, episode_steps))
+    return {
+        "controller": str(controller),
+        "scenario": str(scenario),
+        "run_id": int(run_id),
+        "total_reward": float(total_reward),
+        "episode_steps": int(episode_steps),
+        "arrived_vehicles": arrived,
+        "avg_wait_time": float(kpi.get("avg_wait_time", 0.0)),
+        "avg_travel_time": float(kpi.get("avg_travel_time", 0.0)),
+        "avg_stops": float(kpi.get("avg_stops", 0.0)),
+        "avg_queue": float(kpi.get("avg_queue", 0.0)),
+        "max_wait_time": float(kpi.get("max_wait_time", 0.0)),
+        "p95_wait_time": float(kpi.get("p95_wait_time", 0.0)),
+        "throughput": throughput,
+    }
+
+
+def main(argv: Optional[List[str]] = None) -> None:
+    args = parse_args(argv)
     config = load_yaml_config(args.config)
+    config = apply_calibration_overrides(config, project_root=repo_root)
+    config = normalize_action_table_schema(config)
+    route_pool = load_route_pool_from_config(config, split="eval", project_root=repo_root)
     run_cfg = config.get("run", {})
     seed = int(run_cfg.get("seed", 0))
     set_global_seed(seed)
 
     env = build_env(config)
+    if route_pool and hasattr(env, "set_route_file_pool"):
+        try:
+            env.set_route_file_pool(route_pool)
+        except Exception:
+            pass
 
     controller_arg = str(args.controller).lower().strip()
     if controller_arg == "all":
@@ -93,6 +134,7 @@ def main() -> None:
                 "avg_queue",
                 "max_wait_time",
                 "p95_wait_time",
+                "throughput",
             ],
         )
         writer.writeheader()
@@ -171,20 +213,14 @@ def main() -> None:
                 if hasattr(env, "episode_kpi") and len(kpi) <= 0:
                     kpi = env.episode_kpi()
 
-                row = {
-                    "controller": str(controller),
-                    "scenario": str(scenario_name),
-                    "run_id": int(run_index),
-                    "total_reward": float(total_reward),
-                    "episode_steps": int(step_count),
-                    "arrived_vehicles": int(kpi.get("arrived_vehicles", 0)),
-                    "avg_wait_time": float(kpi.get("avg_wait_time", 0.0)),
-                    "avg_travel_time": float(kpi.get("avg_travel_time", 0.0)),
-                    "avg_stops": float(kpi.get("avg_stops", 0.0)),
-                    "avg_queue": float(kpi.get("avg_queue", 0.0)),
-                    "max_wait_time": float(kpi.get("max_wait_time", 0.0)),
-                    "p95_wait_time": float(kpi.get("p95_wait_time", 0.0)),
-                }
+                row = build_eval_row(
+                    controller=controller,
+                    scenario=scenario_name,
+                    run_id=run_index,
+                    total_reward=total_reward,
+                    episode_steps=step_count,
+                    kpi=kpi,
+                )
                 writer.writerow(row)
                 csv_file.flush()
 
@@ -192,7 +228,7 @@ def main() -> None:
                     f"Controller={controller} | Run={run_index} | "
                     f"Reward={total_reward:.3f} | AvgWait={kpi.get('avg_wait_time', 0):.3f} | "
                     f"MaxWait={kpi.get('max_wait_time', 0):.3f} | "
-                    f"Arrived={kpi.get('arrived_vehicles', 0)}"
+                    f"Arrived={kpi.get('arrived_vehicles', 0)} | Throughput={row['throughput']:.3f}"
                 )
 
     env.close()

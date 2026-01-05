@@ -123,17 +123,19 @@ class CycleMetricsAggregator:
         metric_key = str(metric).lower()
         if metric_key not in {"max", "p95"}:
             raise ValueError("fairness_metric must be max or p95")
-        values = []
+        
+        waits_all = []
         for waits in self._waiting.values():
-            if len(waits) == 0:
-                values.append(0.0)
-                continue
-            waits_arr = np.asarray(list(waits.values()), dtype=np.float32)
-            if metric_key == "p95":
-                values.append(float(np.percentile(waits_arr, 95)))
-            else:
-                values.append(float(np.max(waits_arr)))
-        return float(max(values) if len(values) > 0 else 0.0)
+            waits_all.extend(float(w) for w in waits.values())
+
+        if len(waits_all) == 0:
+            return 0.0
+
+        if metric_key == "p95":
+            waits_arr = np.asarray(waits_all, dtype=np.float32)
+            return float(np.percentile(waits_arr, 95))
+        else:
+            return float(max(waits_all))
 
 
 def compute_normalized_reward(

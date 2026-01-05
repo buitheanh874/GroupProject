@@ -34,14 +34,28 @@ def test_snapshot_mode_uses_last_step_only():
     assert math.isclose(agg.waiting_total(), 2.0)
 
 
+def test_waiting_sums_ignore_non_accumulated_steps():
+    agg = CycleMetricsAggregator(directions=["E"], queue_mode="distinct_cycle")
+    agg.observe("E", ["v1"], step_sec=1.0, accumulate_waiting=True)
+    agg.observe("E", ["v1", "v2"], step_sec=2.0, accumulate_waiting=False)
+
+    waiting = agg.waiting_sums(order=["E"])
+    snapshot_counts = agg.snapshot_counts(order=["E"])
+
+    assert math.isclose(float(waiting[0]), 1.0)  # only the accumulated step counts
+    assert snapshot_counts.tolist() == [2.0]
+
+
 def test_fairness_p95_and_weighted_wait():
     agg = CycleMetricsAggregator(directions=["E"], queue_mode="distinct_cycle")
     agg.observe("E", ["x1", "x2", "x3"], step_sec=2.0, accumulate_waiting=True)
     agg.observe("E", ["x1", "x2"], step_sec=1.0, accumulate_waiting=True)
 
     waits = [3.0, 3.0, 2.0]
-    assert math.isclose(agg.fairness_value(metric="max"), 3.0)
-    assert math.isclose(agg.fairness_value(metric="p95"), float(np.percentile(waits, 95)))
+    fairness_max = agg.fairness_value(metric="max")
+    fairness_p95 = agg.fairness_value(metric="p95")
+    assert math.isclose(fairness_max, max(waits))
+    assert math.isclose(fairness_p95, float(np.percentile(np.asarray(waits, dtype=np.float32), 95)))
 
     weights = {"x1": 2.0, "x2": 1.0, "x3": 1.0}
     agg_weighted = CycleMetricsAggregator(directions=["E"], queue_mode="distinct_cycle")
@@ -61,10 +75,3 @@ def test_waiting_sums_and_transition_exclusion():
     # N: v1 waited 1.0s, v2 waited 0.5s
     assert math.isclose(float(sums[0]), 1.5)
     assert math.isclose(float(sums[1]), 0.0)
-
-
-if __name__ == "__main__":
-    test_distinct_queue_counts_and_snapshot()
-    test_snapshot_mode_uses_last_step_only()
-    test_fairness_p95_and_weighted_wait()
-    print("test_distinct_queue_aggregator passed")

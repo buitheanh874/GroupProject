@@ -24,6 +24,28 @@ def test_compute_normalized_reward_time_scaling():
     assert math.isclose(reward, -(120.0 + 30.0) / 150.0)
 
 
+def test_compute_normalized_reward_with_variable_cycle():
+    reward_short = compute_normalized_reward(
+        wait_total=30.0,
+        fairness_penalty=0.0,
+        spill_penalty=0.0,
+        anti_flicker_penalty=0.0,
+        t_step=30.0,
+        decision_cycle_sec=30.0,
+    )
+    reward_long = compute_normalized_reward(
+        wait_total=30.0,
+        fairness_penalty=0.0,
+        spill_penalty=0.0,
+        anti_flicker_penalty=0.0,
+        t_step=90.0,
+        decision_cycle_sec=90.0,
+    )
+    assert reward_short < reward_long  # same W, shorter cycle => more negative
+    assert math.isclose(reward_short, -1.0)
+    assert math.isclose(reward_long, -(30.0 / 90.0))
+
+
 def test_compute_normalized_reward_with_penalties():
     reward = compute_normalized_reward(
         wait_total=50.0,
@@ -66,6 +88,32 @@ def test_time_aware_gamma_computation():
 
     gamma_default = agent.compute_gamma(t_step=None)
     assert math.isclose(gamma_default, agent.gamma)
+
+
+def test_reward_monotonic_with_weights_and_exponent():
+    from env.mdp_metrics import CycleMetricsAggregator
+
+    agg = CycleMetricsAggregator(directions=["N"], queue_mode="distinct_cycle")
+    weights = {"a": 2.0, "b": 1.0}
+    agg.observe("N", ["a", "b"], step_sec=1.0, accumulate_waiting=True, weight_lookup=weights.get)
+    wait_weighted = agg.waiting_total(use_weights=True)
+    wait_unweighted = agg.waiting_total(use_weights=False)
+    assert wait_weighted > wait_unweighted
+
+    reward_weighted = compute_normalized_reward(wait_total=wait_weighted, t_step=10.0, decision_cycle_sec=10.0)
+    reward_unweighted = compute_normalized_reward(wait_total=wait_unweighted, t_step=10.0, decision_cycle_sec=10.0)
+    assert reward_weighted < reward_unweighted  # more negative when weighted heavier vehicles
+
+    agg_exp = CycleMetricsAggregator(directions=["N"], queue_mode="distinct_cycle")
+    agg_exp.observe("N", ["a", "b"], step_sec=1.0, accumulate_waiting=True)
+    agg_exp.observe("N", ["a"], step_sec=1.0, accumulate_waiting=True)  # a waits longer
+    wait_linear = agg_exp.waiting_total(exponent=1.0)
+    wait_quad = agg_exp.waiting_total(exponent=2.0)
+    assert wait_quad > wait_linear
+
+    reward_linear = compute_normalized_reward(wait_total=wait_linear, t_step=10.0, decision_cycle_sec=10.0)
+    reward_quad = compute_normalized_reward(wait_total=wait_quad, t_step=10.0, decision_cycle_sec=10.0)
+    assert reward_quad < reward_linear
 
 
 if __name__ == "__main__":

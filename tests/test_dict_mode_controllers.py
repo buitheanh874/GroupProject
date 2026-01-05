@@ -52,7 +52,7 @@ def build_actions_rl(
 
 
 def test_fixed_controller_all_tls_same_action():
-    tls_ids = ["tls0", "tls1", "tls2"]
+    tls_ids = ["Center", "North", "East"]
     actions = build_actions_fixed(tls_ids_sorted=tls_ids, fixed_action_id=7)
     assert all(val == 7 for val in actions.values())
 
@@ -60,10 +60,10 @@ def test_fixed_controller_all_tls_same_action():
 def test_rl_masking_center_bucket():
     env = FakeEnv(
         cycle_to_actions={30: [0, 1, 2, 3, 4], 60: [5, 6, 7, 8, 9], 90: [10, 11, 12, 13, 14]},
-        center_tls_id="tls0",
+        center_tls_id="Center",
     )
     agent = FakeAgent()
-    state = {"tls0": [0.0], "tls1": [1.0], "tls2": [2.0]}
+    state = {"Center": [0.0], "North": [1.0], "East": [2.0]}
     actions, allowed = build_actions_rl(
         fake_env=env,
         fake_agent=agent,
@@ -78,10 +78,10 @@ def test_rl_masking_center_bucket():
 def test_rl_masking_fallback_to_baseline_bucket():
     env = FakeEnv(
         cycle_to_actions={30: [0, 1, 2, 3, 4], 60: [5, 6, 7, 8, 9], 90: [10, 11, 12, 13, 14]},
-        center_tls_id="tlsX",
+        center_tls_id="unknown_tls",
     )
     agent = FakeAgent()
-    state = {"tls0": [0.0], "tls1": [1.0], "tls2": [2.0]}
+    state = {"Center": [0.0], "North": [1.0], "East": [2.0]}
     actions, allowed = build_actions_rl(
         fake_env=env,
         fake_agent=agent,

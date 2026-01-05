@@ -29,8 +29,8 @@ def main() -> None:
     sys.path.insert(0, str(repo_root))
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--net-file", default="networks/BI.net.xml")
-    parser.add_argument("--route-file", default="networks/BI_50_test.rou.xml")
+    parser.add_argument("--net-file", default="networks/hub_spoke/hub_spoke.net.xml")
+    parser.add_argument("--route-file", default="networks/hub_spoke/hub_spoke.rou.xml")
     parser.add_argument("--step-length", type=float, default=1.0)
     parser.add_argument("--seed", type=int, default=0)
     args = parser.parse_args()

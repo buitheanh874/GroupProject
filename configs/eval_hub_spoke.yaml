@@ -1,5 +1,5 @@
 run:
-  run_name: train_hub_spoke_demo
+  run_name: eval_hub_spoke
   seed: 42
   device: cpu
 
@@ -29,9 +29,9 @@ env:
     green_cycle_sec: 60
     yellow_sec: 3
     all_red_sec: 0
-    max_cycles: 60
-    max_sim_seconds: 3600
-    terminate_on_empty: false
+    max_cycles: 30
+    max_sim_seconds: 0
+    terminate_on_empty: true
     rho_min: 0.1
     lambda_fairness: 0.0
 
@@ -105,29 +105,16 @@ normalization:
   mean: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
   std: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
 
-agent:
-  hidden_dims: [128, 128]
-  gamma: 0.98
-  learning_rate: 0.0001
-  batch_size: 64
-  replay_buffer_size: 100000
-  target_update_freq: 1000
-
-exploration:
-  eps_start: 1.0
-  eps_end: 0.05
-  eps_decay_steps: 20000
-
-train:
-  episodes: 50
-  save_every_episodes: 10
-  print_every_episodes: 1
-  route_pool_manifest: networks/variants/train/manifest.txt
+eval:
+  model_path: models/hub_spoke_demo.pt
+  runs: 3
+  route_pool_manifest: networks/variants/eval/manifest_low.txt
 
 baseline:
   fixed_action_id: 2
 
 logging:
-  log_dir: logs/hub_spoke_demo
-  model_dir: models/hub_spoke_demo
-  results_dir: results/hub_spoke_demo
+  results_dir: results/hub_spoke_eval
+
+scenario:
+  name: hub_spoke_demo

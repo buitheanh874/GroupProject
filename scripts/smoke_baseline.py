@@ -156,7 +156,7 @@ def safe_tracker_summary(tracker: EpisodeKpiTracker) -> Dict[str, Any]:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", default="configs/train_sumo.yaml")
+    parser.add_argument("--config", default="configs/train_hub_spoke_demo.yaml")
     parser.add_argument("--cycles", type=int, default=5)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--output", default=None)
@@ -212,7 +212,7 @@ def main() -> None:
     sumo_seed = int(args.seed)
     command = build_sumo_command(sumo_cfg, net_path, route_path, sumo_seed)
 
-    tls_id = str(sumo_cfg.get("tls_id", "tls0"))
+    tls_id = str(sumo_cfg.get("tls_id", "CENTER"))
 
     fallback: Dict[str, float] = {"queue_sum": 0.0, "queue_samples": 0.0, "queue_time": 0.0, "arrived_vehicles": 0.0}
     tracker_state: Dict[str, bool] = {"enabled": bool(args.enable_vehicle_kpi), "warned": False}
