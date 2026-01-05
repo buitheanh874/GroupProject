@@ -18,10 +18,12 @@ from rl.utils import ensure_dir, generate_run_id, linear_epsilon, load_yaml_conf
 from scripts.common import build_agent, build_env
 from scripts.route_pool_loader import load_route_pool_from_config
 from scripts.scenario_config_bridge import apply_calibration_overrides
+from scripts.config_normalization import normalize_action_table_schema
 
 
 def run_training(config: Dict[str, Any]) -> str:
     config = apply_calibration_overrides(config, project_root=project_root)
+    config = normalize_action_table_schema(config)
     train_cfg = config.get("train", {})
     route_pool = load_route_pool_from_config(config, split="train", project_root=project_root)
 

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from decimal import Decimal
+
 from scripts.generate_hanoi_route_variants import (
     generate_routes,
     generate_variant,
@@ -133,9 +135,9 @@ def test_turns_xml_deterministic_and_counts(tmp_path: Path):
     assert from_edges == {"N_IN", "E_IN", "S_IN", "W_IN"}
     probs_by_from = {}
     for rel in relations:
-        probs_by_from.setdefault(rel.get("from"), 0.0)
-        probs_by_from[rel.get("from")] += float(rel.get("probability"))
-    assert all(abs(total - 1.0) < 1e-6 for total in probs_by_from.values())
+        probs_by_from.setdefault(rel.get("from"), Decimal("0"))
+        probs_by_from[rel.get("from")] += Decimal(rel.get("probability"))
+    assert all(total == Decimal("1.000000") for total in probs_by_from.values())
     turns_xml_first = turns_path.read_text(encoding="utf-8")
 
     flow_root = ET.fromstring(flows_path.read_text(encoding="utf-8"))

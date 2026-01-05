@@ -17,6 +17,7 @@ from scripts.common import build_agent, build_env
 from controllers.max_pressure import MaxPressureSplitController
 from scripts.route_pool_loader import load_route_pool_from_config
 from scripts.scenario_config_bridge import apply_calibration_overrides
+from scripts.config_normalization import normalize_action_table_schema
 
 
 def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
@@ -59,6 +60,7 @@ def main(argv: Optional[List[str]] = None) -> None:
     args = parse_args(argv)
     config = load_yaml_config(args.config)
     config = apply_calibration_overrides(config, project_root=repo_root)
+    config = normalize_action_table_schema(config)
     route_pool = load_route_pool_from_config(config, split="eval", project_root=repo_root)
     run_cfg = config.get("run", {})
     seed = int(run_cfg.get("seed", 0))
