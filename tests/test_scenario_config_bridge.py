@@ -67,3 +67,23 @@ def test_relative_path_resolves_under_project_root(tmp_path: Path):
     config = {"scenario_calibration": "calib/calib.yaml"}
     updated = apply_calibration_overrides(config, project_root=project_root)
     assert updated["env"]["sumo"]["vehicle_weights"] == {"motorcycle": 0.25, "passenger": 1.0}
+
+
+def test_relative_path_pathlib_object(tmp_path: Path):
+    project_root = tmp_path / "proj2"
+    calib_dir = project_root / "configs"
+    calib_dir.mkdir(parents=True)
+    calib_path = calib_dir / "calib.yaml"
+    calib = {
+        "scenario": {
+            "entry_edges": ["A"],
+            "exit_edges": ["X"],
+            "pcu_weights": {"motorcycle": 0.25, "passenger": 1.0},
+            "turning": {"mean_LSR": [0.2, 0.6, 0.2], "kappa": 5},
+        }
+    }
+    calib_path.write_text(yaml.safe_dump(calib), encoding="utf-8")
+
+    config = {"scenario_calibration": Path("configs") / "calib.yaml"}
+    updated = apply_calibration_overrides(config, project_root=project_root)
+    assert updated["env"]["sumo"]["vehicle_weights"] == {"motorcycle": 0.25, "passenger": 1.0}

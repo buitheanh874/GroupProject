@@ -27,6 +27,10 @@ def _load_manifest(manifest_path: Path, project_root: Path) -> List[str]:
         if stripped == "" or stripped.startswith("#"):
             continue
         route_path = _resolve_path(stripped, manifest_path.parent, project_root)
+        if not route_path.exists() and not Path(stripped).is_absolute():
+            alt_path = (project_root / stripped).resolve()
+            if alt_path.exists():
+                route_path = alt_path
         if not route_path.exists():
             raise FileNotFoundError(f"Route file from manifest missing: {route_path} (manifest: {manifest_path})")
         routes.append(str(route_path))

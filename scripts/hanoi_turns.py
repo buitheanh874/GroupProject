@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import xml.etree.ElementTree as ET
+from decimal import Decimal, ROUND_DOWN
 from typing import Dict, Iterable, List, Mapping
 
 
@@ -66,26 +67,61 @@ def build_turn_ratios_xml(
     begin: float,
     end: float,
 ) -> str:
+    def _dir_iteration_order(dir_map: Dict[str, List[str]]) -> List[str]:
+        base_order = ["L", "S", "R"]
+        ordered = [d for d in base_order if d in dir_map]
+        extras = sorted(k for k in dir_map.keys() if k not in base_order)
+        return ordered + extras
+
     root = ET.Element("turns")
     interval = ET.SubElement(root, "interval", begin=f"{float(begin):.1f}", end=f"{float(end):.1f}")
 
-    for entry, dirs in turn_map.items():
+    for entry, dirs in sorted(turn_map.items(), key=lambda kv: kv[0]):
         probs = turning_probs.get(entry, {})
-        for dir_key, exits in dirs.items():
+        ordered_dirs = _dir_iteration_order(dirs)
+
+        active_dirs = []
+        for dir_key in ordered_dirs:
+            exits = sorted(str(edge) for edge in dirs.get(dir_key, []))
             prob_dir = float(probs.get(dir_key, 0.0))
-            if prob_dir < 0.0 or len(exits) == 0:
-                continue
-            share = prob_dir / float(len(exits))
+            if prob_dir > 0.0 and len(exits) > 0:
+                active_dirs.append((dir_key, exits, prob_dir))
+
+        total_prob = sum(prob for _, _, prob in active_dirs)
+        if total_prob <= 0.0:
+            continue
+
+        relations: List[tuple[str, str, Decimal]] = []
+        for dir_key, exits, prob_dir in active_dirs:
+            share = (Decimal(str(prob_dir)) / Decimal(str(total_prob))) / Decimal(len(exits))
             for exit_edge in exits:
-                ET.SubElement(
-                    interval,
-                    "edgeRelation",
-                    attrib={
-                        "from": str(entry),
-                        "to": str(exit_edge),
-                        "probability": f"{share:.6f}",
-                    },
-                )
+                relations.append((str(entry), str(exit_edge), share))
+
+        if len(relations) == 0:
+            continue
+
+        micros: List[int] = []
+        for idx, (_, _, share) in enumerate(relations):
+            if idx < len(relations) - 1:
+                micro = int((share * Decimal("1000000")).to_integral_value(rounding=ROUND_DOWN))
+            else:
+                micro = 0
+            micros.append(micro)
+
+        sum_others = sum(micros[:-1])
+        micros[-1] = max(0, 1_000_000 - sum_others)
+
+        for (from_edge, exit_edge, _), micro in zip(relations, micros):
+            prob_str = f"{micro / 1_000_000:.6f}"
+            ET.SubElement(
+                interval,
+                "edgeRelation",
+                attrib={
+                    "from": from_edge,
+                    "to": exit_edge,
+                    "probability": prob_str,
+                },
+            )
 
     xml_str = ET.tostring(root, encoding="unicode")
     return xml_str

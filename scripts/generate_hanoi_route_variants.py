@@ -236,13 +236,14 @@ def write_flows_xml(flow_defs: List[FlowDef], output_path: Path, vehicle_types: 
     root = ET.Element("routes")
     vtypes = vehicle_types if vehicle_types is not None else DEFAULT_VTYPES
     seen_ids = set()
-    for vt in vtypes:
+    for vt in sorted(vtypes, key=lambda item: str(item.get("id", ""))):
         vt_id = str(vt.get("id"))
         if vt_id in seen_ids:
             continue
         ET.SubElement(root, "vType", **{k: str(v) for k, v in vt.items()})
         seen_ids.add(vt_id)
-    for flow in flow_defs:
+
+    for flow in sorted(flow_defs, key=lambda f: str(f.flow_id)):
         attrs = {
             "id": str(flow.flow_id),
             "from": str(flow.from_edge),
@@ -254,8 +255,7 @@ def write_flows_xml(flow_defs: List[FlowDef], output_path: Path, vehicle_types: 
             "departLane": "best",
             "departSpeed": "max",
         }
-        flow_el = ET.SubElement(root, "flow", **attrs)
-        ET.SubElement(flow_el, "route", edges=str(flow.to_edge))
+        ET.SubElement(root, "flow", **attrs)
 
     tree = ET.ElementTree(root)
     ET.indent(tree, space="    ")
@@ -304,7 +304,15 @@ def run_router(router_bin: str, net_file: Path, trips_file: Path, output_route: 
 
 def write_manifest(manifest_path: Path, routes: List[Path]) -> None:
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
-    lines = [route.as_posix() for route in routes]
+    lines = []
+    manifest_dir = manifest_path.parent.resolve()
+    for route in routes:
+        route_path = Path(route).resolve()
+        try:
+            rel_path = route_path.relative_to(manifest_dir)
+            lines.append(rel_path.as_posix())
+        except ValueError:
+            lines.append(route_path.as_posix())
     manifest_path.write_text("\n".join(lines), encoding="utf-8")
 
 

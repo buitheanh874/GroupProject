@@ -33,6 +33,8 @@ def apply_calibration_overrides(config: Dict[str, Any], project_root: Path) -> D
     force_override = bool(config.get("force_calibration_overrides", False))
 
     calib_data = yaml.safe_load(calib_path.read_text(encoding="utf-8"))
+    if not isinstance(calib_data, dict):
+        raise ValueError("scenario_calibration file must contain a mapping/object")
     calib = validate_calibration(calib_data)
     pcu_weights = calib.get("pcu_weights", {})
 

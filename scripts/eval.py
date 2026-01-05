@@ -19,6 +19,15 @@ from scripts.route_pool_loader import load_route_pool_from_config
 from scripts.scenario_config_bridge import apply_calibration_overrides
 
 
+def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", type=str, required=True)
+    parser.add_argument("--controller", type=str, choices=["fixed", "rl", "max_pressure", "all"], default="all")
+    parser.add_argument("--model_path", type=str, default="")
+    parser.add_argument("--runs", type=int, default=10)
+    return parser.parse_args(argv)
+
+
 def build_eval_row(
     controller: str,
     scenario: str,
@@ -46,14 +55,8 @@ def build_eval_row(
     }
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=str, required=True)
-    parser.add_argument("--controller", type=str, choices=["fixed", "rl", "max_pressure", "all"], default="all")
-    parser.add_argument("--model_path", type=str, default="")
-    parser.add_argument("--runs", type=int, default=10)
-    args = parser.parse_args()
-
+def main(argv: Optional[List[str]] = None) -> None:
+    args = parse_args(argv)
     config = load_yaml_config(args.config)
     config = apply_calibration_overrides(config, project_root=repo_root)
     route_pool = load_route_pool_from_config(config, split="eval", project_root=repo_root)

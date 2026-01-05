@@ -131,7 +131,29 @@ def test_turns_xml_deterministic_and_counts(tmp_path: Path):
     assert len(relations) == 12
     from_edges = {rel.get("from") for rel in relations}
     assert from_edges == {"N_IN", "E_IN", "S_IN", "W_IN"}
+    probs_by_from = {}
+    for rel in relations:
+        probs_by_from.setdefault(rel.get("from"), 0.0)
+        probs_by_from[rel.get("from")] += float(rel.get("probability"))
+    assert all(abs(total - 1.0) < 1e-6 for total in probs_by_from.values())
+    turns_xml_first = turns_path.read_text(encoding="utf-8")
 
     flow_root = ET.fromstring(flows_path.read_text(encoding="utf-8"))
     vtypes = {vt.get("id") for vt in flow_root.findall("vType")}
     assert {"motorcycle", "passenger", "bus", "other"}.issubset(vtypes)
+    flow_elements = flow_root.findall("flow")
+    assert all(len(list(flow)) == 0 for flow in flow_elements)
+    flow_ids = [flow.get("id") for flow in flow_elements]
+    assert len(flow_ids) == len(set(flow_ids))
+
+    # Determinism: rerun with same seed should produce identical turns.xml
+    generate_routes(
+        calib=calib,
+        split="train",
+        profile="auto",
+        seeds=[42],
+        out_dir=tmp_path,
+        skip_router=True,
+    )
+    turns_xml_second = turns_path.read_text(encoding="utf-8")
+    assert turns_xml_first == turns_xml_second

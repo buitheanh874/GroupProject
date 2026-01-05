@@ -16,6 +16,7 @@ def test_turn_ratios_xml_probabilities_sum_to_one():
     assert interval is not None
     relations = interval.findall("edgeRelation")
     assert len(relations) == 3
+    assert all(el.get("from") and el.get("to") and el.get("probability") for el in relations)
     total_prob = sum(float(el.get("probability")) for el in relations if el.get("from") == "A_IN")
     assert abs(total_prob - 1.0) < 1e-6
     assert {el.get("to") for el in relations} == {"X_OUT", "Y_OUT", "Z_OUT"}
