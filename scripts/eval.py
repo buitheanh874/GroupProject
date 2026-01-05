@@ -13,7 +13,7 @@ repo_root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(repo_root))
 
 from rl.utils import ensure_dir, generate_run_id, load_yaml_config, set_global_seed
-from scripts.common import build_agent, build_env
+from scripts.common import build_agent, build_env, resolve_allowed_action_ids
 from controllers.max_pressure import MaxPressureSplitController, select_action_from_defs
 from scripts.route_pool_loader import load_route_pool_from_config
 from scripts.scenario_config_bridge import apply_calibration_overrides
@@ -54,32 +54,6 @@ def build_eval_row(
         "p95_wait_time": float(kpi.get("p95_wait_time", 0.0)),
         "throughput": throughput,
     }
-
-
-def resolve_allowed_action_ids(env: Any, target_action: Optional[int], fallback_action: Optional[int]) -> Optional[List[int]]:
-    if not hasattr(env, "cycle_to_actions"):
-        return None
-
-    cycle_map = getattr(env, "cycle_to_actions")
-    items = []
-    try:
-        items = list(cycle_map.items())
-    except Exception:
-        items = []
-
-    for _, ids in items:
-        if target_action is not None and target_action in ids:
-            return [int(x) for x in ids]
-    for _, ids in items:
-        if fallback_action is not None and fallback_action in ids:
-            return [int(x) for x in ids]
-
-    if hasattr(cycle_map, "keys"):
-        for cycle in sorted(cycle_map.keys()):
-            ids = cycle_map.get(cycle, [])
-            if len(ids) > 0:
-                return [int(x) for x in ids]
-    return None
 
 
 def main(argv: Optional[List[str]] = None) -> None:
@@ -135,6 +109,7 @@ def main(argv: Optional[List[str]] = None) -> None:
             )
 
     fixed_action_id = int(config.get("baseline", {}).get("fixed_action_id", 2))
+    fixed_fallback_warned = False
 
     logging_cfg = config.get("logging", {})
     results_dir = ensure_dir(str(logging_cfg.get("results_dir", "results")))
@@ -192,7 +167,16 @@ def main(argv: Optional[List[str]] = None) -> None:
 
                         if controller == "fixed":
                             allowed_ids = resolve_allowed_action_ids(env, target_action=int(fixed_action_id), fallback_action=int(fixed_action_id))
-                            action_value = int(allowed_ids[0]) if allowed_ids not in (None, []) else int(fixed_action_id)
+                            action_value = int(fixed_action_id)
+                            if allowed_ids:
+                                if action_value not in allowed_ids:
+                                    fallback_value = int(allowed_ids[0])
+                                    if not fixed_fallback_warned:
+                                        print(
+                                            f"[WARN] fixed_action_id={action_value} not in allowed cycle bucket; using {fallback_value} instead."
+                                        )
+                                        fixed_fallback_warned = True
+                                    action_value = fallback_value
                             actions = {tls: action_value for tls in tls_ids_sorted}
                         elif controller == "max_pressure":
                             allowed_ids = resolve_allowed_action_ids(env, target_action=None, fallback_action=int(fixed_action_id))

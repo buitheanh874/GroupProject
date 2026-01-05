@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, Tuple, List
+from typing import Any, Dict, Tuple, List, Optional
 
 import numpy as np
 import torch
@@ -14,6 +14,56 @@ from env.toy_queue_env import ToyQueueEnv, ToyQueueEnvConfig
 from rl.agent import AgentConfig, DQNAgent
 from rl.utils import resolve_device
 from scripts.sumo_network_tools import extract_tls_ids
+
+
+def resolve_allowed_action_ids(env: Any, target_action: Optional[int], fallback_action: Optional[int]) -> Optional[List[int]]:
+    """
+    Resolve the allowed action ids for a given target (or fallback) based on env.cycle_to_actions.
+
+    Returns:
+        - List of action ids in the matching cycle bucket, if found.
+        - First non-empty bucket when neither target nor fallback is found.
+        - None when cycle_to_actions is missing or empty.
+    """
+    if not hasattr(env, "cycle_to_actions"):
+        return None
+
+    cycle_map = getattr(env, "cycle_to_actions")
+    items: List[Tuple[Any, Any]] = []
+    try:
+        keys = sorted(cycle_map.keys())
+        for key in keys:
+            items.append((key, cycle_map.get(key, [])))
+    except Exception:
+        try:
+            items = list(cycle_map.items())
+        except Exception:
+            items = []
+
+    def _as_int_list(values: Any) -> List[int]:
+        try:
+            return [int(x) for x in values]
+        except Exception:
+            return []
+
+    if target_action is not None:
+        for _, ids in items:
+            ids_int = _as_int_list(ids)
+            if int(target_action) in ids_int:
+                return ids_int
+
+    if fallback_action is not None:
+        for _, ids in items:
+            ids_int = _as_int_list(ids)
+            if int(fallback_action) in ids_int:
+                return ids_int
+
+    for _, ids in items:
+        ids_int = _as_int_list(ids)
+        if len(ids_int) > 0:
+            return ids_int
+
+    return None
 
 
 def deep_merge(base: dict, override: dict) -> dict:
@@ -200,9 +250,10 @@ def build_env(config: Dict[str, Any]) -> BaseEnv:
             allowed_cycles=allowed_cycles,
         )
 
+        action_table_global = config.get("action_table", [])
+        action_table_raw = action_table_global if isinstance(action_table_global, list) and len(action_table_global) > 0 else sumo_cfg.get("action_table", [])
         action_splits_raw = sumo_cfg.get("action_splits", [])
         action_splits = [(float(x[0]), float(x[1])) for x in action_splits_raw] if len(action_splits_raw) > 0 else _default_action_splits()
-        action_table_raw = sumo_cfg.get("action_table", [])
 
         if yellow_sec < 0:
             raise ValueError("yellow_sec must be >=0")

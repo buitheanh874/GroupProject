@@ -15,35 +15,10 @@ sys.path.insert(0, str(project_root))
 
 from rl.cycle_tracker import CycleDistributionTracker
 from rl.utils import ensure_dir, generate_run_id, linear_epsilon, load_yaml_config, save_yaml_config, set_global_seed
-from scripts.common import build_agent, build_env
+from scripts.common import build_agent, build_env, resolve_allowed_action_ids
 from scripts.route_pool_loader import load_route_pool_from_config
 from scripts.scenario_config_bridge import apply_calibration_overrides
 from scripts.config_normalization import normalize_action_table_schema
-
-
-def resolve_allowed_action_ids(env: Any, target_action: Optional[int], fallback_action: Optional[int]) -> Optional[list[int]]:
-    if not hasattr(env, "cycle_to_actions"):
-        return None
-    cycle_map = getattr(env, "cycle_to_actions")
-    items = []
-    try:
-        items = list(cycle_map.items())
-    except Exception:
-        items = []
-
-    for _, ids in items:
-        if target_action is not None and target_action in ids:
-            return [int(x) for x in ids]
-    for _, ids in items:
-        if fallback_action is not None and fallback_action in ids:
-            return [int(x) for x in ids]
-
-    if hasattr(cycle_map, "keys"):
-        for cycle in sorted(cycle_map.keys()):
-            ids = cycle_map.get(cycle, [])
-            if len(ids) > 0:
-                return [int(x) for x in ids]
-    return None
 
 
 def run_training(config: Dict[str, Any]) -> str:
