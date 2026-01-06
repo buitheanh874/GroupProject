@@ -247,6 +247,9 @@ def run_training(config: Dict[str, Any]) -> str:
                 writer.writerow(row)
                 csv_file.flush()
 
+                losses.clear()
+                del row
+
                 should_save_periodic = int(save_every_episodes) > 0 and (int(episode) % int(save_every_episodes) == 0)
                 is_best = float(episode_reward) > float(best_reward)
 

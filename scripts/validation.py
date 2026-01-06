@@ -3,15 +3,15 @@ from __future__ import annotations
 import math
 from typing import Any, Dict, Iterable, List, Tuple
 
-RATIO_TOL = 1e-5
-
+RATIO_ABS_TOL = 1e-6
+RATIO_REL_TOL = 1e-9
 
 def _validate_action_splits(action_splits: List[Tuple[float, float]], rho_min: float) -> None:
     for idx, (rho_ns_val, rho_ew_val) in enumerate(action_splits):
         if rho_ns_val <= 0.0 or rho_ew_val <= 0.0:
             raise ValueError(f"action_splits[{idx}] values must be >0")
-        if not math.isclose((rho_ns_val + rho_ew_val), 1.0, rel_tol=RATIO_TOL, abs_tol=RATIO_TOL):
-            raise ValueError(f"action_splits[{idx}] rho_ns+rho_ew must equal 1.0")
+        if not math.isclose((rho_ns_val + rho_ew_val), 1.0, rel_tol=RATIO_REL_TOL, abs_tol=RATIO_ABS_TOL):
+            raise ValueError(f"action_splits[{idx}] rho_ns+rho_ew must equal 1.0, got {rho_ns_val + rho_ew_val:.10f}")
         if rho_ns_val < rho_min or rho_ew_val < rho_min:
             raise ValueError(f"action_splits[{idx}] values must be >= rho_min={rho_min}")
 
@@ -46,8 +46,8 @@ def validate_action_table(
                 rho_ew_val = float(rho_ew)
             if rho_ew_val <= 0.0:
                 raise ValueError(f"action_table[{idx}] rho_ew must be >0")
-            if not math.isclose((rho_ns_val + rho_ew_val), 1.0, rel_tol=RATIO_TOL, abs_tol=RATIO_TOL):
-                raise ValueError(f"action_table[{idx}] rho_ns+rho_ew must equal 1.0")
+            if not math.isclose((rho_ns_val + rho_ew_val), 1.0, rel_tol=RATIO_REL_TOL, abs_tol=RATIO_ABS_TOL):
+                raise ValueError(f"action_table[{idx}] rho_ns+rho_ew must equal 1.0, got {rho_ns_val + rho_ew_val:.10f}")
             if cycle_val not in allowed_cycles:
                 raise ValueError(f"action_table[{idx}] cycle_sec={cycle_val} not in allowed_cycles_sec={allowed_cycles}")
             if rho_ns_val < rho_min or rho_ew_val < rho_min:

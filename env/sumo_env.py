@@ -878,12 +878,13 @@ class SUMOEnv(BaseEnv):
 
         return intervals
 
-    def _normalize_actions(self, actions: Any) -> Dict[str, int]:
-        if isinstance(actions, dict):
-            return {str(k): int(v) for k, v in actions.items()}
-        if len(self._tls_ids) != 1:
-            raise ValueError("Multi-agent mode requires a dict of actions")
-        return {self._tls_ids[0]: int(actions)}
+    def _select_route_from_pool(self, episode_index: int) -> Optional[str]:
+        if len(self._route_pool) == 0:
+            return None
+        seed_value = int(self._episode_seed) + int(episode_index)
+        local_rng = np.random.default_rng(seed_value)
+        idx = local_rng.integers(0, len(self._route_pool))
+        return str(self._route_pool[idx])
 
     def _select_route_from_pool(self, episode_index: int) -> Optional[str]:
         if len(self._route_pool) == 0:
@@ -1106,7 +1107,7 @@ class SUMOEnv(BaseEnv):
         attempts = 5
         backoff = 0.5
         last_error: Optional[Exception] = None
-        for _ in range(attempts):
+        for attempt in range(attempts):
             port = self._get_free_port()
             try:
                 command = self._build_sumo_command(seed=self._episode_seed)
