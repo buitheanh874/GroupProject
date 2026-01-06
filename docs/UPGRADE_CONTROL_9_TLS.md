@@ -5,7 +5,7 @@ This file operationalizes `docs/upgrade_9_tls_plan.md` with concrete code/config
 ## What Changed (traceable)
 - TLS discovery utility: `scripts/sumo_network_tools.py::extract_tls_ids` (order-preserving, stdlib XML).
 - Config validation + auto TLS wiring: `scripts/common.py` (`auto_tls_ids`, uniqueness, center membership, downstream warnings).
-- Env robustness: `env/sumo_env.py` (TLS count logging, tolerant downstream occupancy handling).
+- Env robustness: `env/sumo_env.py` (TLS count logging, fail-fast downstream occupancy validation).
 - Controllers & wiring for N TLS: `controllers/max_pressure.py` (12D-aware + helper), `scripts/train.py`/`scripts/eval.py` (cycle masking helper, multi-TLS baseline actions, metrics `num_tls` column).
 - 9-TLS templates: `configs/train_bignet_9tls.yaml`, `configs/eval_bignet_9tls.yaml`, placeholder routes `networks/BIGNET.rou.xml`.
 - Tests covering TLS validation/discovery/controllers: `tests/test_tls_discovery.py`.
@@ -16,7 +16,7 @@ This file operationalizes `docs/upgrade_9_tls_plan.md` with concrete code/config
   - `configs/train_bignet_9tls.yaml` and `configs/eval_bignet_9tls.yaml` load via `scripts/common.build_env` (placeholders are clearly marked).
   - `auto_tls_ids` reads from `networks/BIGNET.net.xml` (9 IDs) with stable ordering.
 - Env/Controllers
-  - `SUMOEnv` logs TLS count; downstream occupancy missing links → warning + zero-fill (no crash).
+  - `SUMOEnv` logs TLS count; downstream occupancy requires N/E/S/W links (raises ValueError if missing).
   - Baseline controllers return action dicts covering all TLS (fixed/max-pressure) in `scripts/eval.py`.
 - Tests
   - Unit tests pass: `tests/test_tls_discovery.py` (TLS validation, auto-discovery, 9-key controller actions).
@@ -39,7 +39,7 @@ This file operationalizes `docs/upgrade_9_tls_plan.md` with concrete code/config
 ## Risks & Mitigations
 - **Placeholder lanes/routes**: BIGNET templates include `REPLACE_*` lane IDs and a stub `networks/BIGNET.rou.xml`; update before running SUMO.
 - **Cycle masking**: Multi-TLS masking now centralised; if a custom controller bypasses `resolve_allowed_action_ids`, ensure it aligns with `env.cycle_to_actions`.
-- **Downstream occupancy**: Warnings indicate zero-filled directions; provide `downstream_links` only after confirming center TLS in BIGNET topology.
+- **Downstream occupancy**: Provide `downstream_links` N/E/S/W for the center TLS before enabling; missing links now raise errors (no zero-fill).
 
 ## Quick File Map
 - Plan (reference): `docs/upgrade_9_tls_plan.md`

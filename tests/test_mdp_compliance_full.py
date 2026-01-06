@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -13,8 +14,19 @@ from env.sumo_env import SumoEnvConfig, SumoLaneGroups, SumoPhaseProgram, SUMOEn
 from env.normalization import StateNormalizer
 
 
-def _make_multi_env() -> SUMOEnv:
-    cfg = SumoEnvConfig(
+def _multi_lanes() -> dict:
+    return {
+        "CENTER": SumoLaneGroups(lanes_ns_ctrl=["N2C_0"], lanes_ew_ctrl=["E2C_0"]),
+        "N1": SumoLaneGroups(lanes_ns_ctrl=["N12C_0"], lanes_ew_ctrl=["N1E2C_0"]),
+    }
+
+
+def _multi_phases() -> SumoPhaseProgram:
+    return SumoPhaseProgram(ns_green=0, ew_green=1, ns_yellow=None, ew_yellow=None, all_red=None)
+
+
+def _base_multi_config(**overrides: object) -> dict:
+    base = dict(
         sumo_binary="sumo",
         net_file="net.xml",
         route_file="route.rou.xml",
@@ -38,7 +50,7 @@ def _make_multi_env() -> SUMOEnv:
         fairness_metric="max",
         action_splits=[],
         action_table=[],
-        include_transition_in_waiting=True,
+        include_transition_in_waiting=False,
         queue_count_mode="distinct_cycle",
         use_pcu_weighted_wait=False,
         use_enhanced_reward=False,
@@ -56,11 +68,14 @@ def _make_multi_env() -> SUMOEnv:
         state_dim=12,
         enable_downstream_occupancy=False,
     )
-    lanes = {
-        "CENTER": SumoLaneGroups(lanes_ns_ctrl=["N2C_0"], lanes_ew_ctrl=["E2C_0"]),
-        "N1": SumoLaneGroups(lanes_ns_ctrl=["N12C_0"], lanes_ew_ctrl=["N1E2C_0"]),
-    }
-    phases = SumoPhaseProgram(ns_green=0, ew_green=1, ns_yellow=None, ew_yellow=None, all_red=None)
+    base.update(overrides)
+    return base
+
+
+def _make_multi_env() -> SUMOEnv:
+    cfg = SumoEnvConfig(**_base_multi_config())
+    lanes = _multi_lanes()
+    phases = _multi_phases()
     normalizer = StateNormalizer(mean=[0.0] * 12, std=[1.0] * 12, expected_dim=12)
     return SUMOEnv(config=cfg, lanes=lanes, phases=phases, normalizer=normalizer)
 
@@ -125,3 +140,12 @@ def test_fairness_p95_max_match_semantics():
         agg.fairness_value(metric="p95"),
         float(np.percentile(np.asarray(waits, dtype=np.float32), 95)),
     )
+
+
+def test_env_rejects_snapshot_last_step_mode():
+    cfg = SumoEnvConfig(**_base_multi_config(queue_count_mode="snapshot_last_step"))
+    lanes = _multi_lanes()
+    phases = _multi_phases()
+    normalizer = StateNormalizer(mean=[0.0] * 12, std=[1.0] * 12, expected_dim=12)
+    with pytest.raises(ValueError, match="snapshot_last_step"):
+        SUMOEnv(config=cfg, lanes=lanes, phases=phases, normalizer=normalizer)

@@ -54,7 +54,7 @@ PY
 - `action_splits` (list of `[rho_ns, rho_ew]`) vs `action_table` (items with `cycle_sec`, `rho_ns`/`ns_ratio`, optional `rho_ew`); `allowed_cycles_sec` defaults to `[30, 60, 90]` and cannot be empty; `g_min_sec` default 5 enforces minimum green. When `state_dim = 12` and `action_table` is empty, actions auto-generate from `action_splits` across allowed cycles.
 - `route_pool_manifest` / `route_pool` under `train` or `eval`: manifest takes priority; paths are resolved relative to the manifest and project root, globs supported when using `route_pool`. Resolved routes are injected into `env.sumo.route_pool`.
 - `normalization`: supply `mean`/`std` vectors of length `state_dim` or set `file` to a JSON containing `mean`/`std`. Required when `normalize_state: true`; disabled (`mean=[0...], std=[1...]`) when `normalize_state: false`.
-- `downstream_links` plus `enable_downstream_occupancy`: occupancy is only used for `center_tls_id`; missing N/E/S/W links are zero-filled with a warning. Set `enable_downstream_occupancy: false` to skip occupancy until links are known.
+- `downstream_links` plus `enable_downstream_occupancy`: occupancy is only used for `center_tls_id`; when enabled you must provide N/E/S/W links or the config fails fast (ValueError). Set `enable_downstream_occupancy: false` until links are confirmed.
 - `baseline.fixed_action_id`: fixed action used by baseline controllers and normalization collection.
 
 ## Recommended Workflow (Train/Eval)
@@ -96,7 +96,7 @@ python scripts/generate_jtr_data.py --net-file networks/BIGNET.net.xml --output-
 - SUMO file errors (`Network file not found`, `Route file not found`): keep paths relative to repo root and create missing assets (`networks/hub_spoke/hub_spoke.*`, `networks/BIGNET.rou.xml`).
 - Simulation ends immediately or no vehicles: route file is empty or `terminate_on_empty: true`; provide real routes or disable terminate_on_empty while debugging.
 - Eval RL failure: `model_path is required for RL evaluation` appears when using `--controller rl/all` without a checkpoint.
-- Downstream occupancy warnings: provide N/E/S/W edges in `downstream_links` for `center_tls_id` or set `enable_downstream_occupancy: false`.
+- Downstream occupancy validation: provide N/E/S/W edges in `downstream_links` for `center_tls_id` or set `enable_downstream_occupancy: false`; missing links now raise ValueError (no zero-fill fallback).
 
 ## Appendix: Claude Audit Notes (kept for traceability)
 - Artifacts noted as ready: `scripts/sumo_network_tools.py` (TLS discovery helper), `tests/test_tls_discovery.py`, `configs/train_bignet_9tls.yaml`, `configs/eval_bignet_9tls.yaml`, placeholder `networks/BIGNET.rou.xml`; earlier draft suggested extra helpers in `scripts/common.py` (current code already handles auto TLS via `resolve_tls_ids_from_sumo_cfg` plus `extract_tls_ids`).

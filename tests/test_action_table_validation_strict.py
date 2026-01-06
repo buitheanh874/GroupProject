@@ -5,6 +5,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+import pytest
+
 from scripts.validation import validate_action_table, validate_scalar_params
 
 
@@ -116,6 +118,28 @@ def test_anti_flicker_requires_nonnegative_kappa():
         assert False, "Expected ValueError for negative kappa"
     except ValueError:
         pass
+
+
+def test_snapshot_last_step_rejected():
+    with pytest.raises(ValueError, match="snapshot_last_step"):
+        validate_scalar_params(
+            yellow_sec=0,
+            all_red_sec=0,
+            rho_min=0.1,
+            g_min_sec=5,
+            lambda_fairness=0.12,
+            fairness_metric="max",
+            queue_count_mode="snapshot_last_step",
+            halt_speed_threshold=0.1,
+            use_enhanced_reward=False,
+            reward_exponent=1.0,
+            enable_anti_flicker=False,
+            kappa=0.0,
+            enable_spillback_penalty=False,
+            beta=0.0,
+            occ_threshold=0.0,
+            allowed_cycles=[30],
+        )
 
 
 if __name__ == "__main__":

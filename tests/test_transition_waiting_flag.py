@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 import numpy as np
 
@@ -12,8 +12,8 @@ from env.sumo_env import SumoEnvConfig, SumoLaneGroups, SumoPhaseProgram, SUMOEn
 from env.normalization import StateNormalizer
 
 
-def _make_env(include_transition: bool) -> SUMOEnv:
-    config = SumoEnvConfig(
+def _make_env(include_transition: Optional[bool]) -> SUMOEnv:
+    config_kwargs = dict(
         sumo_binary="sumo",
         net_file="net.xml",
         route_file="route.rou.xml",
@@ -37,7 +37,6 @@ def _make_env(include_transition: bool) -> SUMOEnv:
         fairness_metric="max",
         action_splits=[(0.5, 0.5)],
         action_table=[],
-        include_transition_in_waiting=include_transition,
         queue_count_mode="distinct_cycle",
         use_pcu_weighted_wait=False,
         use_enhanced_reward=False,
@@ -55,6 +54,11 @@ def _make_env(include_transition: bool) -> SUMOEnv:
         state_dim=4,
         enable_downstream_occupancy=False,
     )
+
+    if include_transition is not None:
+        config_kwargs["include_transition_in_waiting"] = include_transition
+
+    config = SumoEnvConfig(**config_kwargs)
 
     lanes = SumoLaneGroups(
         lanes_ns_ctrl=["N2C_0"],
@@ -89,3 +93,8 @@ def test_transition_waiting_included_when_flag_true():
     flags = _non_green_flags(env, intervals)
     assert len(flags) > 0
     assert all(flag is True for flag in flags)
+
+
+def test_transition_waiting_defaults_to_false():
+    env = _make_env(include_transition=None)
+    assert env._include_transition_in_waiting is False

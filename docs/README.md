@@ -36,7 +36,7 @@ Only the multi-intersection direction is maintained; legacy single-node assets h
 - State (multi mode): `[q_N,q_E,q_S,q_W,w_N,w_E,w_S,w_W,occ_N,occ_E,occ_S,occ_W]`, occupancy only for `center_tls_id`, zero for satellites.
 - Sample config: `configs/train_hub_spoke_demo.yaml` (points to `networks/hub_spoke/` placeholder assets).
 - Action masking: `env.cycle_to_actions` maps `cycle_sec` to action ids so you can enforce synchronized cycle choices across TLS.
-- Validation tips: if `tls_ids` has multiple entries, use `state_dim: 12` and provide `lane_groups_by_tls`. For 12D center occupancy, include `downstream_links` N/E/S/W or set `enable_downstream_occupancy: false` to skip occupancy.
+- Validation tips: if `tls_ids` has multiple entries, use `state_dim: 12` and provide `lane_groups_by_tls`. For 12D center occupancy, include `downstream_links` N/E/S/W (missing links now raise ValueError) or set `enable_downstream_occupancy: false` to skip occupancy.
 
 ## Action Space Configuration
 
@@ -138,6 +138,11 @@ Validation is performed by `scripts/validation.py:validate_action_table()`.
   python scripts/cross_eval_fairness.py --config configs/eval_hub_spoke.yaml --pure_ckpt models/pure.pt --fair_ckpt models/fair.pt --lambda_values 0 0.12 --output-dir results/cross_eval
   ```
 - Wrapper invokes `scripts/eval.py` per lambda/policy combination and writes logs plus a summary CSV.
+
+## Migration Notes (Audit 2026-01)
+- `queue_count_mode` supports only `distinct_cycle`; `snapshot_last_step` now raises a ValueError with guidance.
+- Default `include_transition_in_waiting` is `false`; set to `true` explicitly if you need transition phases to contribute to waiting rewards.
+- Downstream occupancy is fail-fast: when `enable_downstream_occupancy` is true (12D state), `downstream_links` must provide N/E/S/W IDs, otherwise initialization fails.
 
 ## MDP Compliance Map
 - See `docs/MDP_COMPLIANCE.md` for key spec/code pointers (reward normalization, queue counting, fairness, spillback/anti-flicker, PCU/enhanced rewards, validation, time-aware gamma).

@@ -12,6 +12,45 @@ from env.kpi import EpisodeKpiTracker
 from env.normalization import StateNormalizer
 from env.mdp_metrics import CycleMetricsAggregator, compute_normalized_reward
 
+
+def validate_downstream_links_config(
+    downstream_links: Dict[str, str],
+    lane_id_set: Iterable[str],
+    edge_id_set: Iterable[str],
+    center_tls_id: str,
+) -> None:
+    """Fail-fast validation for downstream occupancy links."""
+    links_raw = downstream_links or {}
+    links: Dict[str, Optional[str]] = {}
+    for k, v in links_raw.items():
+        key = str(k).upper()
+        if v is None:
+            links[key] = None
+        else:
+            val = str(v).strip()
+            links[key] = val if len(val) > 0 else None
+
+    required_dirs = ["N", "E", "S", "W"]
+    missing = [d for d in required_dirs if d not in links or links[d] in {None, ""}]
+
+    if len(links) == 0 or len(missing) > 0:
+        raise ValueError(
+            "downstream_links must include N/E/S/W when enable_downstream_occupancy is True.\n"
+            f"TLS '{center_tls_id}' missing directions: {sorted(missing) if len(missing) > 0 else required_dirs}\n"
+            "Provide lane/edge IDs for each direction or set enable_downstream_occupancy: false."
+        )
+
+    lane_ids = {str(l) for l in lane_id_set}
+    edge_ids = {str(e) for e in edge_id_set}
+
+    invalid = [(dir_key, link_id) for dir_key, link_id in links.items() if link_id not in lane_ids and link_id not in edge_ids]
+
+    if len(invalid) > 0:
+        raise ValueError(
+            "downstream_links entries not found in SUMO network.\n"
+            f"TLS '{center_tls_id}' invalid mappings: {invalid}\n"
+            "Fix the IDs or disable downstream occupancy."
+        )
 @dataclass
 class SumoLaneGroups:
     lanes_ns_ctrl: List[str]
@@ -113,7 +152,7 @@ class SumoEnvConfig:
     fairness_metric: str = "max"
     action_splits: List[Tuple[float, float]] = field(default_factory=list)
     action_table: List[Dict[str, Any]] = field(default_factory=list)
-    include_transition_in_waiting: bool = True
+    include_transition_in_waiting: bool = False
     queue_count_mode: str = "distinct_cycle"
     use_pcu_weighted_wait: Optional[bool] = None
     use_enhanced_reward: bool = False
@@ -199,8 +238,7 @@ class SUMOEnv(BaseEnv):
                     f"  {sorted(slip_lanes)}"
                 )
 
-        self._downstream_links = {str(k).upper(): str(v) for k, v in config.downstream_links.items()}
-        self._missing_downstream_links: Set[str] = set()
+        self._downstream_links = {str(k).upper(): v for k, v in config.downstream_links.items()}
         for key in self._downstream_links.keys():
             if key not in {"N", "E", "S", "W"}:
                 raise ValueError(f"Invalid downstream link key: {key}")
@@ -220,7 +258,6 @@ class SUMOEnv(BaseEnv):
             ]
 
         self._action_defs = self._build_action_definitions()
-        self._validate_action_defs()
         self._validate_config_consistency()
 
         self._cycle_to_actions: Dict[int, List[int]] = {}
@@ -233,8 +270,14 @@ class SUMOEnv(BaseEnv):
         self._include_transition_in_waiting = bool(self._config.include_transition_in_waiting)
         self._enable_downstream_occupancy = bool(self._config.enable_downstream_occupancy)
         self._queue_count_mode = str(self._config.queue_count_mode or "distinct_cycle").lower()
-        if self._queue_count_mode not in {"distinct_cycle", "snapshot_last_step"}:
-            raise ValueError("queue_count_mode must be distinct_cycle or snapshot_last_step")
+        if self._queue_count_mode == "snapshot_last_step":
+            raise ValueError(
+                "queue_count_mode='snapshot_last_step' is no longer supported.\n"
+                "MDP compliance requires 'distinct_cycle' mode.\n"
+                "This mode tracks distinct vehicles queued at least once per cycle."
+            )
+        if self._queue_count_mode not in {"distinct_cycle"}:
+            raise ValueError(f"queue_count_mode must be 'distinct_cycle', got '{self._queue_count_mode}'")
         self._halt_speed_threshold = float(self._config.halt_speed_threshold)
         self._fairness_metric = str(self._config.fairness_metric or "max").lower()
         if self._fairness_metric not in {"max", "p95"}:
@@ -345,6 +388,7 @@ class SUMOEnv(BaseEnv):
         
         self._start_sumo()
         self._validate_lanes()
+        self._validate_downstream_links()
         self._cycle_index = 0
         self._stepped_seconds = 0.0
         self._kpi_disabled_warned = False
@@ -922,30 +966,30 @@ class SUMOEnv(BaseEnv):
     def _read_downstream_occupancy(self) -> np.ndarray:
         values = []
         for key in ["N", "E", "S", "W"]:
+            if key not in self._downstream_links:
+                raise ValueError(
+                    f"downstream_links missing direction '{key}' while downstream occupancy is enabled."
+                )
             link_id = self._downstream_links.get(key)
-            if link_id is None:
-                values.append(0.0)
+            if link_id is None or str(link_id).strip() == "":
+                raise ValueError(
+                    f"downstream_links entry for direction '{key}' is empty while downstream occupancy is enabled."
+                )
+            link_id_str = str(link_id)
+            if link_id_str in self._lane_id_set:
+                raw = float(self._traci.lane.getLastStepOccupancy(link_id_str))
+                occ = float(raw / 100.0) if raw > 1.0 else float(raw)
+                values.append(float(np.clip(occ, 0.0, 1.0)))
                 continue
-            if link_id in self._lane_id_set:
-                try:
-                    raw = float(self._traci.lane.getLastStepOccupancy(str(link_id)))
-                    occ = float(raw / 100.0) if raw > 1.0 else float(raw)
-                    values.append(float(np.clip(occ, 0.0, 1.0)))
-                    continue
-                except Exception:
-                    pass
-            if link_id in self._edge_id_set:
-                try:
-                    raw = float(self._traci.edge.getLastStepOccupancy(str(link_id)))
-                    occ = float(raw / 100.0) if raw > 1.0 else float(raw)
-                    values.append(float(np.clip(occ, 0.0, 1.0)))
-                    continue
-                except Exception:
-                    pass
-            if link_id not in self._missing_downstream_links:
-                print(f"[WARN] Downstream link not found in network for dir {key}: {link_id}. Using 0 occupancy.")
-                self._missing_downstream_links.add(link_id)
-            values.append(0.0)
+            if link_id_str in self._edge_id_set:
+                raw = float(self._traci.edge.getLastStepOccupancy(link_id_str))
+                occ = float(raw / 100.0) if raw > 1.0 else float(raw)
+                values.append(float(np.clip(occ, 0.0, 1.0)))
+                continue
+            raise ValueError(
+                f"downstream_links entry '{link_id_str}' for direction '{key}' not found in SUMO network; "
+                "downstream occupancy cannot be computed."
+            )
         return np.asarray(values, dtype=np.float32)
 
     def _sec_to_steps(self, duration_sec: int) -> int:
@@ -970,27 +1014,22 @@ class SUMOEnv(BaseEnv):
             if len(missing) > 0:
                 raise ValueError(f"Missing lanes in SUMO network for tls {tls_id}: {missing}")
 
+    def _validate_downstream_links(self) -> None:
+        if not self._enable_downstream_occupancy or int(self._state_dim) != 12:
+            return
+
+        validate_downstream_links_config(
+            downstream_links=self._downstream_links,
+            lane_id_set=self._lane_id_set,
+            edge_id_set=self._edge_id_set,
+            center_tls_id=self._center_tls_id,
+        )
+
     def _make_kpi_tracker(self) -> Optional[EpisodeKpiTracker]:
         try:
             return EpisodeKpiTracker(stop_speed_threshold=0.1)
         except Exception:
             return None
-
-    def _validate_action_defs(self) -> None:
-        for index, action in enumerate(self._action_defs):
-            if float(action.rho_ns) < 0.0 or float(action.rho_ew) < 0.0:
-                raise ValueError(f"Invalid action split at index {index}: rho must be non-negative")
-            if abs((float(action.rho_ns) + float(action.rho_ew)) - 1.0) > 1e-6:
-                raise ValueError(f"Invalid action split at index {index}: rho_ns + rho_ew must be 1.0")
-            if int(action.cycle_sec) <= 0:
-                raise ValueError(f"cycle_sec must be > 0 for action index {index}")
-            if float(action.rho_ns) < float(self._config.rho_min) or float(action.rho_ew) < float(self._config.rho_min):
-                raise ValueError(f"Invalid action split at index {index}: rho must be >= rho_min={self._config.rho_min}")
-            min_green_sec = max(int(round(float(self._config.rho_min) * float(action.cycle_sec))), int(self._g_min_sec))
-            g_ns = int(round(float(action.rho_ns) * float(action.cycle_sec)))
-            g_ew = int(round(float(action.rho_ew) * float(action.cycle_sec)))
-            if g_ns < min_green_sec or g_ew < min_green_sec:
-                raise ValueError(f"Invalid action split at index {index}: green phases must be >= g_min_sec={self._g_min_sec}")
 
     def _build_action_definitions(self) -> List[SumoActionDefinition]:
         if len(self._config.action_table) > 0:

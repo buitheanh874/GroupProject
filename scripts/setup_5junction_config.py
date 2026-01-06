@@ -94,7 +94,7 @@ def generate_config(
                     [0.70, 0.30],
                 ],
                 "action_table": [],
-                "include_transition_in_waiting": True,
+                "include_transition_in_waiting": False,
                 "normalize_state": True,
                 "return_raw_state": False,
                 "enable_kpi_tracker": True,

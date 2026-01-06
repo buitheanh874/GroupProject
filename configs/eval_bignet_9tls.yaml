@@ -37,7 +37,7 @@ env:
       - [0.60, 0.40]
       - [0.70, 0.30]
     action_table: []
-    include_transition_in_waiting: true
+    include_transition_in_waiting: false
     sumo_extra_args:
       - "--ignore-junction-blocker"
       - "1"
@@ -171,7 +171,7 @@ normalization:
 
 eval:
   model_path: models/bignet_9tls/train_bignet_9tls_20260105_200511_best.pt
-  runs: 12
+  runs: 10
   route_pool_manifest: networks/variants/eval/manifest_mixed_all.txt
 
 baseline:

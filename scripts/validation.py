@@ -88,6 +88,8 @@ def validate_scalar_params(
     occ_threshold: float,
     allowed_cycles: List[int],
 ) -> None:
+    mode = str(queue_count_mode).lower()
+
     if yellow_sec < 0:
         raise ValueError("yellow_sec must be >=0")
     if all_red_sec < 0:
@@ -100,22 +102,14 @@ def validate_scalar_params(
         raise ValueError("lambda_fairness must be >=0")
     if fairness_metric not in {"max", "p95"}:
         raise ValueError("fairness_metric must be max or p95")
-    if queue_count_mode not in {"distinct_cycle", "snapshot_last_step"}:
+    if mode == "snapshot_last_step":
         raise ValueError(
-            f"queue_count_mode must be 'distinct_cycle' or 'snapshot_last_step', got '{queue_count_mode}'\n"
-            f"Note: 'snapshot_last_step' is deprecated (not MDP-compliant).\n"
-            f"Recommended: Use 'distinct_cycle' (MDP requirement)."
+            "queue_count_mode='snapshot_last_step' is no longer supported.\n"
+            "MDP compliance requires 'distinct_cycle' mode.\n"
+            "This mode tracks distinct vehicles queued at least once per cycle."
         )
-
-    if queue_count_mode == "snapshot_last_step":
-        import warnings
-        warnings.warn(
-            "queue_count_mode='snapshot_last_step' is deprecated.\n"
-            "This mode does not comply with MDP specification.\n"
-            "Please use 'distinct_cycle' instead.",
-            DeprecationWarning,
-            stacklevel=2
-        )
+    if mode not in {"distinct_cycle"}:
+        raise ValueError(f"queue_count_mode must be 'distinct_cycle', got '{mode}'")
     if halt_speed_threshold < 0.0:
         raise ValueError("halt_speed_threshold must be >=0")
     if use_enhanced_reward and reward_exponent < 1.0:

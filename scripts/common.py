@@ -207,7 +207,7 @@ def build_env(config: Dict[str, Any]) -> BaseEnv:
         )
 
         tls_ids_effective, center_tls_effective = resolve_tls_ids_from_sumo_cfg(sumo_cfg, net_path)
-        downstream_links = {str(k): v for k, v in sumo_cfg.get("downstream_links", {}).items()}
+        downstream_links = {str(k).upper(): v for k, v in sumo_cfg.get("downstream_links", {}).items()}
         vehicle_weights_raw = sumo_cfg.get("vehicle_weights", {})
         vehicle_weights = {str(k): float(v) for k, v in vehicle_weights_raw.items()}
         yellow_sec = int(sumo_cfg.get("yellow_sec", 0))
@@ -249,39 +249,10 @@ def build_env(config: Dict[str, Any]) -> BaseEnv:
             occ_threshold=occ_threshold,
             allowed_cycles=allowed_cycles,
         )
-
         action_table_global = config.get("action_table", [])
         action_table_raw = action_table_global if isinstance(action_table_global, list) and len(action_table_global) > 0 else sumo_cfg.get("action_table", [])
         action_splits_raw = sumo_cfg.get("action_splits", [])
         action_splits = [(float(x[0]), float(x[1])) for x in action_splits_raw] if len(action_splits_raw) > 0 else _default_action_splits()
-
-        if yellow_sec < 0:
-            raise ValueError("yellow_sec must be >=0")
-        if all_red_sec < 0:
-            raise ValueError("all_red_sec must be >=0")
-        if rho_min <= 0.0 or rho_min > 0.5:
-            raise ValueError("rho_min must be in (0, 0.5]")
-        if g_min_sec < 0:
-            raise ValueError("g_min_sec must be >=0")
-        if lambda_fairness < 0.0:
-            raise ValueError("lambda_fairness must be >=0")
-        if fairness_metric not in {"max", "p95"}:
-            raise ValueError("fairness_metric must be max or p95")
-        if queue_count_mode not in {"distinct_cycle", "snapshot_last_step"}:
-            raise ValueError("queue_count_mode must be distinct_cycle or snapshot_last_step")
-        if halt_speed_threshold < 0.0:
-            raise ValueError("halt_speed_threshold must be >=0")
-        if use_enhanced_reward and reward_exponent < 1.0:
-            raise ValueError("reward_exponent must be >=1 when use_enhanced_reward is True")
-        if enable_anti_flicker and kappa < 0.0:
-            raise ValueError("kappa must be >=0 when enable_anti_flicker is True")
-        if enable_spillback_penalty:
-            if beta < 0.0:
-                raise ValueError("beta must be >=0 when enable_spillback_penalty is True")
-            if occ_threshold < 0.0 or occ_threshold > 1.0:
-                raise ValueError("occ_threshold must be in [0,1] when enable_spillback_penalty is True")
-        if len(allowed_cycles) == 0 or any(cycle <= 0 for cycle in allowed_cycles):
-            raise ValueError("allowed_cycles_sec must contain positive cycle lengths")
 
         state_dim_default = 12 if (len(tls_ids_effective) > 1 or len(action_table_raw) > 0) else 4
         state_dim = int(sumo_cfg.get("state_dim", state_dim_default))
@@ -297,9 +268,16 @@ def build_env(config: Dict[str, Any]) -> BaseEnv:
         if state_dim == 12:
             if occupancy_enabled:
                 required_dirs = {"N", "E", "S", "W"}
-                missing_dirs = [d for d in required_dirs if d not in {k.upper() for k in downstream_links.keys()}]
-                if len(missing_dirs) > 0:
-                    print(f"[WARN] downstream_links missing {missing_dirs}; downstream occupancy will be zero-filled for those directions")
+                missing_dirs = [
+                    d for d in required_dirs
+                    if d not in downstream_links or downstream_links.get(d) in {None, ""}
+                ]
+                if len(downstream_links) == 0 or len(missing_dirs) > 0:
+                    raise ValueError(
+                        "downstream_links must include N/E/S/W when enable_downstream_occupancy is True.\n"
+                        f"TLS '{center_tls_effective}' missing directions: {sorted(missing_dirs) if len(missing_dirs) > 0 else sorted(required_dirs)}\n"
+                        "Provide lane/edge IDs for each direction or set enable_downstream_occupancy: false."
+                    )
             if len(tls_ids_effective) > 1:
                 if len(lane_cfg_by_tls) == 0:
                     raise ValueError("lane_groups_by_tls must be provided for each tls_id when tls_ids has multiple entries")
@@ -346,7 +324,7 @@ def build_env(config: Dict[str, Any]) -> BaseEnv:
             action_splits=action_splits,
             action_table=processed_action_table,
             queue_count_mode=queue_count_mode,
-            include_transition_in_waiting=bool(sumo_cfg.get("include_transition_in_waiting", True)),
+            include_transition_in_waiting=bool(sumo_cfg.get("include_transition_in_waiting", False)),
             use_pcu_weighted_wait=use_pcu_weighted_wait,
             use_enhanced_reward=use_enhanced_reward,
             reward_exponent=reward_exponent,
