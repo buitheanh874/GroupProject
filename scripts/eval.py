@@ -4,13 +4,12 @@ import argparse
 import csv
 import os
 import sys
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import numpy as np
 
-from scripts.repo_root import find_repo_root
-
-repo_root = find_repo_root(__file__)
+repo_root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(repo_root))
 
 from rl.utils import ensure_dir, generate_run_id, load_yaml_config, set_global_seed
