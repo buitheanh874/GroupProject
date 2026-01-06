@@ -174,6 +174,8 @@ def run_training(config: Dict[str, Any]) -> str:
                         loss_value = agent.update()
                         if loss_value is not None:
                             losses.append(float(loss_value))
+                            if len(losses) > 500:
+                                losses.pop(0)
 
                         state = next_state
                         episode_reward += float(step_reward)
@@ -205,9 +207,6 @@ def run_training(config: Dict[str, Any]) -> str:
                                 episode_cycle_counts[int(cycle_key)] += 1
 
                 avg_loss = float(np.mean(losses)) if len(losses) > 0 else 0.0
-
-                if len(losses) > 1000:
-                    losses = losses[-500:] 
 
                 kpi = {}
                 if isinstance(info, dict):

@@ -385,21 +385,14 @@ class SUMOEnv(BaseEnv):
         return self._last_state_raw
 
     def reset(self) -> Any:
-        """Reset environment for new episode.
-        
-        If route pool is configured, deterministically selects a route file
-        using the env RNG before starting SUMO.
-        """
         self.close()
 
-        episode_index = int(self._episode_count) + 1
-
-        selected_route = self._select_route_from_pool(episode_index=episode_index)
+        selected_route = self._select_route_from_pool(episode_index=int(self._episode_count))
         if selected_route is not None:
             self._config.route_file = selected_route
             self._last_route_file = selected_route
             route_name = Path(selected_route).name
-            print(f"[SUMOEnv] Episode {episode_index}: Using route '{route_name}'")
+            print(f"[SUMOEnv] Episode {self._episode_count}: Using route '{route_name}'")
         
         self._start_sumo()
         self._validate_lanes()
@@ -743,19 +736,19 @@ class SUMOEnv(BaseEnv):
             w_dir[tls_id] = agg.waiting_sums(order=["N", "E", "S", "W"])
 
         lambda_fairness = float(self._config.lambda_fairness)
-        fairness_penalty = 0.0
-        if lambda_fairness > 0.0 and len(fairness_values) > 0:
-            fairness_penalty = float(lambda_fairness) * float(max(fairness_values.values()))
-
         spill_penalty = self._compute_spillback_penalty()
         anti_flicker_penalty = self._compute_anti_flicker_penalty(cycle_sec=cycle_sec)
 
         for tls_id in self._tls_ids:
+            fairness_penalty_tls = 0.0
+            if lambda_fairness > 0.0:
+                fairness_penalty_tls = float(lambda_fairness) * float(fairness_values.get(tls_id, 0.0))
+            
             rewards[tls_id] = compute_normalized_reward(
                 wait_total=float(wait_totals[tls_id]),
                 t_step=float(t_step_value),
                 decision_cycle_sec=float(decision_cycle_sec),
-                fairness_penalty=float(fairness_penalty),
+                fairness_penalty=float(fairness_penalty_tls),
                 spill_penalty=float(spill_penalty),
                 anti_flicker_penalty=float(anti_flicker_penalty),
             )

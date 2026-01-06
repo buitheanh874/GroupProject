@@ -94,7 +94,17 @@ def _resolve_action_space(env: Any, config: Dict[str, Any]) -> List[Any]:
 
     action_table_root = config.get("action_table", [])
     if isinstance(action_table_root, list) and len(action_table_root) > 0:
-        return action_table_root
+        normalized = []
+        for entry in action_table_root:
+            if hasattr(entry, 'rho_ns'):
+                normalized.append(entry)
+            elif isinstance(entry, dict) and ('rho_ns' in entry or 'ns_ratio' in entry):
+                normalized.append(entry)
+            elif isinstance(entry, (list, tuple)) and len(entry) >= 2:
+                normalized.append(entry)
+            else:
+                raise ValueError(f"Invalid action entry format: {entry}")
+        return normalized
 
     sumo_cfg = config.get("env", {}).get("sumo", {})
     action_table = sumo_cfg.get("action_table", [])
