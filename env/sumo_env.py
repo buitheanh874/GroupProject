@@ -325,6 +325,7 @@ class SUMOEnv(BaseEnv):
         self._prev_cycle_sec: Optional[int] = None
         self._route_pool: List[str] = [str(p) for p in getattr(config, "route_pool", [])]
         self._last_route_file: Optional[str] = None
+        self._episode_count = 0
 
     def set_route_file_pool(self, route_files: List[str]) -> None:
         """Set a pool of route files to randomly select from during reset.
@@ -391,8 +392,6 @@ class SUMOEnv(BaseEnv):
         """
         self.close()
 
-        if not hasattr(self, "_episode_count"):
-            self._episode_count = 0
         episode_index = int(self._episode_count) + 1
 
         selected_route = self._select_route_from_pool(episode_index=episode_index)
@@ -436,7 +435,17 @@ class SUMOEnv(BaseEnv):
             state_norm = self._normalizer.normalize(state_raw) if self._normalize_state else state_raw
             state_map[tls_id] = state_raw if self._return_raw_state else state_norm
         return state_map
-
+    
+    def _normalize_actions(self, actions: Any) -> Dict[str, int]:
+        if isinstance(actions, dict):
+            return {str(k): int(v) for k, v in actions.items()}
+        elif isinstance(actions, int):
+            return {self._tls_ids[0]: int(actions)}
+        elif isinstance(actions, (list, tuple)):
+            return {tls: int(a) for tls, a in zip(self._tls_ids, actions)}
+        else:
+            raise ValueError(f"Unsupported actions type: {type(actions)}")
+    
     def step(self, actions: Any) -> Tuple[Any, Any, bool, Dict[str, Any]]:
         if not self._connected or self._traci is None:
             raise RuntimeError("SUMOEnv is not connected. Call reset() before step().")
@@ -531,9 +540,8 @@ class SUMOEnv(BaseEnv):
                 decision_steps += 1
 
         queue_counts = agg.queue_counts(order=["NS", "EW"])
-        if queue_counts.size >= 2:
-            last_q_ns = float(queue_counts[0])
-            last_q_ew = float(queue_counts[1])
+        last_q_ns = float(queue_counts[0]) if queue_counts.size >= 1 else 0.0
+        last_q_ew = float(queue_counts[1]) if queue_counts.size >= 2 else 0.0
         waiting_sums = agg.waiting_sums(order=["NS", "EW"])
         w_ns = float(waiting_sums[0]) if waiting_sums.size >= 1 else 0.0
         w_ew = float(waiting_sums[1]) if waiting_sums.size >= 2 else 0.0
@@ -809,7 +817,20 @@ class SUMOEnv(BaseEnv):
             info["episode_kpi"] = self._kpi_tracker.summary_dict()
 
         return states, rewards, bool(done), info
-
+    
+    def _normalize_actions(self, actions: Any) -> Dict[str, int]:
+        if isinstance(actions, dict):
+            return {str(k): int(v) for k, v in actions.items()}
+        elif isinstance(actions, int):
+            if len(self._tls_ids) == 0:
+                raise ValueError("tls_ids is empty")
+            return {str(self._tls_ids[0]): int(actions)}
+        elif isinstance(actions, (list, tuple)):
+            if len(actions) != len(self._tls_ids):
+                raise ValueError(f"actions length {len(actions)} != tls_ids length {len(self._tls_ids)}")
+            return {str(tls): int(a) for tls, a in zip(self._tls_ids, actions)}
+        else:
+            raise ValueError(f"Unsupported actions type: {type(actions)}, expected dict, int, or list/tuple")
     def _build_state_vector(self, tls_id: str, last_q_dir: np.ndarray, w_dir: np.ndarray) -> np.ndarray:
         if tls_id not in self._direction_lanes_by_tls:
             raise ValueError(f"Unknown tls_id: {tls_id}")

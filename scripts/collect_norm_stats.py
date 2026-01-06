@@ -65,13 +65,25 @@ def main() -> None:
             state = env.reset()
             expected_dim = int(getattr(env, "state_dim", len(state))) if expected_dim is None else expected_dim
 
-            if isinstance(state, dict):
-                for obs in state.values():
+            if isinstance(info, dict) and "state_raw" in info:
+                raw_info = info["state_raw"]
+                if isinstance(raw_info, dict):
+                    for val in raw_info.values():
+                        vec = try_vec(val, expected_dim)
+                        if vec is not None:
+                            raw_states.append(vec)
+                elif isinstance(raw_info, list):
+                    vec = try_vec(raw_info, expected_dim)
+                    if vec is not None:
+                        raw_states.append(vec)
+
+            if isinstance(next_state, dict):
+                for obs in next_state.values():
                     vec = try_vec(obs, expected_dim)
                     if vec is not None:
                         raw_states.append(vec)
             else:
-                vec = try_vec(state, expected_dim)
+                vec = try_vec(next_state, expected_dim)
                 if vec is not None:
                     raw_states.append(vec)
 
