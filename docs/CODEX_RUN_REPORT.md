@@ -109,3 +109,33 @@
 
 ### Commit
 - Commit: 315325fa41709c88154a9eb97ff40c14b16f7218
+
+## Run 4 — 2026-01-06 19:44
+### Audit reference
+- Source: C:\Users\Dell\GroupProject\docs\audit.md
+- Section used: Opponent/Baseline strengthening (Hanoi fixed-time)
+
+### Goal
+- Eval wiring cleanup + traceability; ensure fixed-time auto-match not overridden and add smoke coverage.
+
+### Changes made
+- File: scripts/eval.py
+  - Change: Cleaned duplicate wiring, ensured RL model load resolves args/config once, fixed-time auto-match only when controller includes fixed, and error when action space missing.
+  - Reason: Prevent merge-artifact regressions and enforce correct baseline selection.
+- File: tests/test_eval_wiring_smoke.py
+  - Change: Added smoke tests for config resolution and action space extraction without running main.
+  - Reason: Guard wiring/traceability behaviors.
+
+### Tests
+- Command(s):
+  - python -m compileall .
+  - pytest -q
+- Result:
+  - pass (95 tests)
+
+### Notes / Risks
+- Action space resolution now raises when empty; configs without actions will fail fast.
+- Working tree: clean after commit.
+
+### Commit
+- Commit: HEAD

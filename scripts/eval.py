@@ -106,7 +106,7 @@ def _resolve_action_space(env: Any, config: Dict[str, Any]) -> List[Any]:
     if isinstance(action_splits, list) and len(action_splits) > 0:
         return action_splits
 
-    return []
+    raise ValueError("Action space is empty; provide action_table/action_splits or ensure env exposes _action_defs")
 
 
 def main(argv: Optional[List[str]] = None) -> None:
@@ -144,17 +144,17 @@ def main(argv: Optional[List[str]] = None) -> None:
         model_path = str(args.model_path).strip()
         if model_path == "":
             model_path = str(config.get("eval", {}).get("model_path", "")).strip()
-            if model_path == "":
-                raise ValueError("model_path is required for RL evaluation")
-            agent.load_model(model_path)
-            agent.to_eval_mode()
+        if model_path == "":
+            raise ValueError("model_path is required for RL evaluation")
+        agent.load_model(model_path)
+        agent.to_eval_mode()
 
     baseline_cfg = config.get("baseline", {})
     use_legacy_fixed = "fixed_action_id" in baseline_cfg
     fixed_action_id = int(baseline_cfg.get("fixed_action_id")) if use_legacy_fixed else None
     fixed_fallback_warned = False
 
-    needs_fixed_baseline = any(ctrl in controllers for ctrl in ["fixed", "max_pressure"])
+    needs_fixed_baseline = "fixed" in controllers
     fixed_time_controller = None
     fixed_target_config = _resolve_fixed_time_config(args.config, scenario_name)
     if not use_legacy_fixed and needs_fixed_baseline:
