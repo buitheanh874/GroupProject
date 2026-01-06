@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import types
+import pytest
 
 from scripts import eval as eval_mod
 
@@ -26,3 +26,11 @@ def test_resolve_action_space_prefers_env_defs():
     env = _DummyEnv()
     action_space = eval_mod._resolve_action_space(env, {"env": {"sumo": {}}})
     assert action_space == [(0.5, 0.5, 90)]
+
+
+def test_resolve_action_space_raises_when_empty():
+    class _EmptyEnv:
+        pass
+
+    with pytest.raises(ValueError, match="Action space is empty"):
+        eval_mod._resolve_action_space(_EmptyEnv(), {"env": {"sumo": {}}})

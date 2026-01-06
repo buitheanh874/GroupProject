@@ -138,4 +138,39 @@
 - Working tree: clean after commit.
 
 ### Commit
-- Commit: HEAD
+- Commit: f97dbf3d425bf6f24a5497d1528bb230c3364f66
+
+*Correction note:* Run 2 reused the same commit SHA as Run 1; no additional code changes occurred between those runs.
+
+## Run 5 — 2026-01-06 20:10
+### Audit reference
+- Source: C:\Users\Dell\GroupProject\docs\audit.md
+- Section used: Opponent/Baseline strengthening (Hanoi fixed-time)
+
+### Goal
+- Eval wiring leftovers + traceability; enforce empty action-space fail-fast and smoke coverage.
+
+### Changes made
+- File: scripts/eval.py
+  - Change: Enforced action-space resolution to raise on empty results and kept single RL model load path.
+  - Reason: Prevent silent fallback/duplication in eval wiring.
+- File: tests/test_eval_wiring_smoke.py
+  - Change: Added empty-action-space failure case to smoke coverage.
+  - Reason: Guard fail-fast behavior.
+- File: docs/CODEX_RUN_REPORT.md
+  - Change: Updated Run 4 with actual SHA and correction note; added this run entry.
+  - Reason: Traceability and audit trail accuracy.
+
+### Tests
+- Command(s):
+  - python -m compileall .
+  - pytest -q
+- Result:
+  - pass (96 tests)
+
+### Notes / Risks
+- Action-space absence now hard-fails at eval startup; configs must supply action definitions.
+- Working tree: clean after commit.
+
+### Commit
+- Commit: 1fa9ad7d425bf6f24a5497d1528bb230c3364f66
