@@ -73,3 +73,39 @@
 
 ### Commit
 - Commit: b59d76f6d834ba90052798c585fcb1cda1880df9
+
+## Run 3 — 2026-01-06 19:28
+### Audit reference
+- Source: C:\Users\Dell\GroupProject\docs\audit.md
+- Section used: Opponent/Baseline strengthening (Hanoi fixed-time)
+
+### Goal
+- Strengthen fixed-time opponent by matching split+cycle (Hanoi-style) and wire into simulation entrypoint with tests and docs.
+
+### Changes made
+- File: controllers/fixed_time.py
+  - Change: Rebuilt FixedTimeController to parse tuple/dict/object actions, match target split+cycle with penalties, and expose selected split/cycle.
+  - Reason: Baseline opponent must pick closest action by split/cycle instead of static id.
+- File: scripts/eval.py
+  - Change: Wired fixed-time baseline to auto-select action based on scenario (70/30 unbalanced, 50/50 otherwise, cycle 90s) using env action space; legacy fixed_action_id remains respected.
+  - Reason: Apply strengthened opponent in live simulation while keeping backward compatibility.
+- File: tests/test_fixed_time_controller.py
+  - Change: Added unit tests for tuple, dict/object parsing, cycle-aware selection, and empty-space rejection.
+  - Reason: Guard the new selection logic across input shapes.
+- File: docs/audit.md
+  - Change: Documented strengthened Hanoi fixed-time baseline and wiring point.
+  - Reason: Keep audit/backlog aware of new baseline behavior.
+
+### Tests
+- Command(s):
+  - python -m compileall .
+  - pytest -q
+- Result:
+  - pass (92 tests)
+
+### Notes / Risks
+- Fixed-time selection requires a non-empty action space; legacy fixed_action_id still overrides if provided in config.baseline.
+- Cycle penalty only applies when actions expose cycle_sec; otherwise split-only selection is used.
+
+### Commit
+- Commit: 315325fa41709c88154a9eb97ff40c14b16f7218
