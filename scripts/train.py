@@ -206,6 +206,9 @@ def run_training(config: Dict[str, Any]) -> str:
 
                 avg_loss = float(np.mean(losses)) if len(losses) > 0 else 0.0
 
+                if len(losses) > 1000:
+                    losses = losses[-500:] 
+
                 kpi = {}
                 if isinstance(info, dict):
                     kpi = info.get("episode_kpi", {}) if done else {}

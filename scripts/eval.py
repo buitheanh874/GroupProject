@@ -307,12 +307,19 @@ def main(argv: Optional[List[str]] = None) -> None:
                                         default_action_id=default_action,
                                     )
                                     actions[tls] = int(act)
-                            
+
                             else:
                                 if agent:
+                                    center_action = int(agent.select_action(state=state[center_id], epsilon=0.0))
+                                    allowed_ids = resolve_allowed_action_ids(
+                                        env=env,
+                                        target_action=center_action,
+                                        fallback_action=int(fixed_action_id),
+                                    )
+                                    
                                     actions = {}
                                     for tls in tls_ids_sorted:
-                                        act = int(agent.select_action(state=state[tls], epsilon=0.0))
+                                        act = int(agent.select_action(state=state[tls], epsilon=0.0, allowed_action_ids=allowed_ids))
                                         actions[tls] = act
                                 else:
                                     actions = {tls: 0 for tls in tls_ids_sorted}

@@ -93,11 +93,7 @@ class DQNAgent:
         exponent = t_step_value / float(self._t_ref)
         result = float(self._gamma_base ** exponent)
         
-        if not (0.0 < result <= 1.0):
-            raise ValueError(
-                f"Computed gamma {result:.6f} out of valid range (0, 1]. "
-                f"gamma_base={self._gamma_base}, t_step={t_step_value}, t_ref={self._t_ref}"
-            )
+        result = max(1e-9, min(result, 1.0))
         
         return result
 

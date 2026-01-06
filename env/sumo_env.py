@@ -902,7 +902,7 @@ class SUMOEnv(BaseEnv):
     def _select_route_from_pool(self, episode_index: int) -> Optional[str]:
         if len(self._route_pool) == 0:
             return None
-        seed_value = int(self._episode_seed) + int(episode_index)
+        seed_value = int(self._config.seed) + int(episode_index)
         rng_local = random.Random(seed_value)
         return str(rng_local.choice(self._route_pool))
 

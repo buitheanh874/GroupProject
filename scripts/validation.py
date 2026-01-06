@@ -68,7 +68,17 @@ def validate_action_table(
                 g_ew_check = float(rho_ew) * float(cycle)
                 if g_ns_check < g_min_sec or g_ew_check < g_min_sec:
                     raise ValueError(f"default action entry cycle {cycle} violates g_min_sec={g_min_sec}")
-                processed_action_table.append({"cycle_sec": int(cycle), "rho_ns": float(rho_ns), "rho_ew": float(rho_ew)})
+                processed_action_table.append({"cycle_sec": cycle_val, "rho_ns": rho_ns_val, "rho_ew": rho_ew_val})
+
+                seen_actions = set()
+                deduplicated = []
+                for entry in processed_action_table:
+                    key = (entry["cycle_sec"], round(entry["rho_ns"], 4), round(entry["rho_ew"], 4))
+                    if key not in seen_actions:
+                        seen_actions.add(key)
+                        deduplicated.append(entry)
+
+                processed_action_table = deduplicated
 
     return processed_action_table
 

@@ -141,8 +141,7 @@ def compute_normalized_reward(
     anti_flicker_penalty: float = 0.0,
 ) -> float:
     denom = float(t_step) if float(t_step) > 0.0 else float(decision_cycle_sec)
-    if denom <= 0.0:
-        denom = 1.0
+    denom = max(1.0, float(denom))
     return -float(wait_total + fairness_penalty + spill_penalty + anti_flicker_penalty) / float(denom)
 
 
