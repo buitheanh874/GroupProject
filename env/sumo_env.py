@@ -882,14 +882,6 @@ class SUMOEnv(BaseEnv):
         if len(self._route_pool) == 0:
             return None
         seed_value = int(self._episode_seed) + int(episode_index)
-        local_rng = np.random.default_rng(seed_value)
-        idx = local_rng.integers(0, len(self._route_pool))
-        return str(self._route_pool[idx])
-
-    def _select_route_from_pool(self, episode_index: int) -> Optional[str]:
-        if len(self._route_pool) == 0:
-            return None
-        seed_value = int(self._episode_seed) + int(episode_index)
         rng_local = random.Random(seed_value)
         return str(rng_local.choice(self._route_pool))
 

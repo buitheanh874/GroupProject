@@ -188,15 +188,29 @@ def main(argv: Optional[List[str]] = None) -> None:
             sumo_cfg = config.get("env", {}).get("sumo", {})
             lane_cfg = sumo_cfg.get("lane_groups_by_tls", {})
             if not lane_cfg:
-                 lane_cfg = sumo_cfg.get("lane_groups", {})
+                lane_cfg = sumo_cfg.get("lane_groups", {})
             
-            lanes_ns = []
-            lanes_ew = []
-            splits_ns = [] 
+            if not lane_cfg:
+                raise ValueError("lane_groups or lane_groups_by_tls required for max_pressure controller")
             
-            pass 
-        except Exception:
-            pass
+            first_tls = next(iter(lane_cfg.keys()))
+            lanes_ns = [str(x) for x in lane_cfg[first_tls].get("lanes_ns_ctrl", [])]
+            lanes_ew = [str(x) for x in lane_cfg[first_tls].get("lanes_ew_ctrl", [])]
+            
+            splits_raw = sumo_cfg.get("action_splits", [])
+            splits_ns = [float(x[0]) for x in splits_raw] if len(splits_raw) > 0 else [0.3, 0.4, 0.5, 0.6, 0.7]
+            
+            from controllers.max_pressure import MaxPressureSplitController
+            max_pressure_controller = MaxPressureSplitController(
+                lanes_ns=lanes_ns,
+                lanes_ew=lanes_ew,
+                splits_ns=splits_ns,
+                default_action=fixed_action_id,
+            )
+            print(f"[MaxPressure] Initialized with {len(splits_ns)} split ratios")
+        except Exception as exc:
+            print(f"[ERROR] Failed to initialize max_pressure controller: {exc}")
+            controllers = [c for c in controllers if c != "max_pressure"]
 
     logging_cfg = config.get("logging", {})
     results_dir = ensure_dir(str(logging_cfg.get("results_dir", "results")))
@@ -275,10 +289,19 @@ def main(argv: Optional[List[str]] = None) -> None:
                             elif controller == "max_pressure":
                                 allowed_ids = resolve_allowed_action_ids(env, target_action=None, fallback_action=int(fixed_action_id))
                                 default_action = int(allowed_ids[0]) if allowed_ids not in (None, []) else int(fixed_action_id)
+                                
+                                if len(action_defs) == 0:
+                                    action_defs = getattr(env, "_action_defs", [])
+                                
                                 actions = {}
                                 for tls in tls_ids_sorted:
+                                    state_raw_tls = state.get(tls)
+                                    if state_raw_tls is None:
+                                        actions[tls] = default_action
+                                        continue
+                                    
                                     act = select_action_from_defs(
-                                        state_raw=state[tls],
+                                        state_raw=state_raw_tls,
                                         action_defs=action_defs,
                                         allowed_action_ids=allowed_ids,
                                         default_action_id=default_action,
@@ -302,7 +325,10 @@ def main(argv: Optional[List[str]] = None) -> None:
                             if controller == "fixed":
                                 action_id = int(fixed_action_id)
                             elif controller == "max_pressure":
-                                action_id = int(fixed_action_id) 
+                                if max_pressure_controller is not None:
+                                    action_id = int(max_pressure_controller.select_action(state))
+                                else:
+                                    action_id = int(fixed_action_id)
                             else:
                                 action_id = int(agent.select_action(state=state, epsilon=0.0))
 
