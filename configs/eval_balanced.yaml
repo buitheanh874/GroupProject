@@ -1,0 +1,115 @@
+run:
+  run_name: eval_balanced
+  seed: 42
+  device: cpu
+
+env:
+  type: sumo
+  sumo:
+    sumo_binary: sumo
+    net_file: networks/BIGNET.net.xml
+    route_file: networks/variants/eval/bignet_high_balanced_eval_seed110042.rou.xml
+    additional_files: []
+    tls_ids: ["J0", "J1", "J2", "J3", "J4", "J6", "J7", "J14", "J17"]
+    center_tls_id: "J0"
+    downstream_links:
+      N: "E3"
+      E: "E0"
+      S: "E2"
+      W: "E1"
+    vehicle_weights:
+      motorcycle: 0.25
+      passenger: 1.0
+      bus: 3.0
+    step_length_sec: 1.0
+    green_cycle_sec: 60
+    yellow_sec: 3
+    all_red_sec: 0
+    max_cycles: 60
+    max_sim_seconds: 900
+    terminate_on_empty: false
+    rho_min: 0.1
+    lambda_fairness: 0.0
+    action_splits:
+      - [0.30, 0.70]
+      - [0.40, 0.60]
+      - [0.50, 0.50]
+      - [0.60, 0.40]
+      - [0.70, 0.30]
+    action_table: []
+    include_transition_in_waiting: false
+    sumo_extra_args:
+      - "--ignore-junction-blocker"
+      - "1"
+    enable_kpi_tracker: true
+    normalize_state: true
+    return_raw_state: false
+    state_dim: 12
+    enable_downstream_occupancy: false
+    lane_groups_by_tls:
+      J0:
+        lanes_ns_ctrl: ["-E3_0", "-E3_1", "-E2_0", "-E2_1"]
+        lanes_ew_ctrl: ["-E1_0", "-E1_1", "-E1_2", "-E0_0", "-E0_1", "-E0_2"]
+        lanes_right_turn_slip_ns: []
+        lanes_right_turn_slip_ew: []
+      J3:
+        lanes_ns_ctrl: ["-E25_0", "-E25_1", "E2_0", "E2_1"]
+        lanes_ew_ctrl: ["-E26_0", "E24_0"]
+        lanes_right_turn_slip_ns: []
+        lanes_right_turn_slip_ew: []
+      J1:
+        lanes_ns_ctrl: ["-E6_0", "-E6_1", "-E5_0", "-E5_1"]
+        lanes_ew_ctrl: ["E0_0", "E0_1", "E0_2", "-E4_0", "-E4_1", "-E4_2"]
+        lanes_right_turn_slip_ns: []
+        lanes_right_turn_slip_ew: []
+      J4:
+        lanes_ns_ctrl: ["E3_0", "E3_1", "-E16_0", "-E16_1"]
+        lanes_ew_ctrl: ["E14_0", "-E15_0"]
+        lanes_right_turn_slip_ns: []
+        lanes_right_turn_slip_ew: []
+      J2:
+        lanes_ns_ctrl: ["-E19_0", "-E19_1", "-E18_0", "-E18_1"]
+        lanes_ew_ctrl: ["E1_0", "E1_1", "E1_2", "-E17_0", "-E17_1", "-E17_2"]
+        lanes_right_turn_slip_ns: []
+        lanes_right_turn_slip_ew: []
+      J7:
+        lanes_ns_ctrl: ["-E27_0", "-E27_1", "E6_0", "E6_1"]
+        lanes_ew_ctrl: ["-E28_0", "E26_0"]
+        lanes_right_turn_slip_ns: []
+        lanes_right_turn_slip_ew: []
+      J6:
+        lanes_ns_ctrl: ["E5_0", "E5_1", "-E13_0", "-E13_1"]
+        lanes_ew_ctrl: ["-E12_0", "-E14_0"]
+        lanes_right_turn_slip_ns: []
+        lanes_right_turn_slip_ew: []
+      J14:
+        lanes_ns_ctrl: ["E18_0", "E18_1", "-E21_0", "-E21_1"]
+        lanes_ew_ctrl: ["E15_0", "-E20_0"]
+        lanes_right_turn_slip_ns: []
+        lanes_right_turn_slip_ew: []
+      J17:
+        lanes_ns_ctrl: ["-E22_0", "-E22_1", "E19_0", "E19_1"]
+        lanes_ew_ctrl: ["-E24_0", "-E23_0"]
+        lanes_right_turn_slip_ns: []
+        lanes_right_turn_slip_ew: []
+    phase_program:
+      ns_green: 0
+      ew_green: 2
+      ns_yellow: 1
+      ew_yellow: 3
+      all_red: 0
+
+normalization:
+  mean: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+  std: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+
+eval:
+  model_path: models/bignet_9tls/train_bignet_9tls_20260105_200511_best.pt
+  runs: 10
+  route_pool_manifest: networks/variants/eval/manifest_high_balanced.txt
+
+baseline:
+  fixed_action_id: 2
+
+logging:
+  results_dir: results/bignet_9tls_eval

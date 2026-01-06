@@ -8,7 +8,7 @@ import torch
 
 from env.base_env import BaseEnv
 from env.normalization import StateNormalizer
-from env.sumo_env import SUMOEnv, SumoEnvConfig, SumoLaneGroups, SumoPhaseProgram
+from env.sumo_env import SUMOEnv, SumoEnvConfig, SumoLaneGroups, SumoPhaseProgram, validate_downstream_links_config
 from scripts.validation import validate_action_table
 from env.toy_queue_env import ToyQueueEnv, ToyQueueEnvConfig
 from rl.agent import AgentConfig, DQNAgent
@@ -259,25 +259,15 @@ def build_env(config: Dict[str, Any]) -> BaseEnv:
         normalize_state = bool(sumo_cfg.get("normalize_state", True))
         occupancy_enabled = bool(sumo_cfg.get("enable_downstream_occupancy", True))
 
-        if len(tls_ids_effective) > 1 and state_dim != 12:
-            raise ValueError("When specifying multiple tls_ids, state_dim must be 12")
-
-        if state_dim not in (4, 12):
-            raise ValueError(f"state_dim must be 4 or 12, got {state_dim}")
-
         if state_dim == 12:
             if occupancy_enabled:
-                required_dirs = {"N", "E", "S", "W"}
-                missing_dirs = [
-                    d for d in required_dirs
-                    if d not in downstream_links or downstream_links.get(d) in {None, ""}
-                ]
-                if len(downstream_links) == 0 or len(missing_dirs) > 0:
-                    raise ValueError(
-                        "downstream_links must include N/E/S/W when enable_downstream_occupancy is True.\n"
-                        f"TLS '{center_tls_effective}' missing directions: {sorted(missing_dirs) if len(missing_dirs) > 0 else sorted(required_dirs)}\n"
-                        "Provide lane/edge IDs for each direction or set enable_downstream_occupancy: false."
-                    )
+                validate_downstream_links_config(
+                    downstream_links=downstream_links,
+                    lane_id_set=set(),
+                    edge_id_set=set(),
+                    center_tls_id=center_tls_effective,
+                    validate_ids=False,
+                )
             if len(tls_ids_effective) > 1:
                 if len(lane_cfg_by_tls) == 0:
                     raise ValueError("lane_groups_by_tls must be provided for each tls_id when tls_ids has multiple entries")

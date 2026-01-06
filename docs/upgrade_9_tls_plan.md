@@ -126,12 +126,11 @@ The codebase **already has generic multi-TLS support** for N traffic lights, but
 
 - [ ] **Validate occupancy vector for variable downstream links**
   - **Files**: `env/sumo_env.py` lines 1000–1040 (`_read_downstream_occupancy()`)
-  - **Description**: Ensure function handles missing/extra occupancy links gracefully (pad with 0 if missing, warn if extra)
+  - **Description**: Ensure function fails fast when downstream_links are missing/blank; no padding or warning fallback for invalid configs
   - **Risk**: Medium
   - **Acceptance**: 
     - For 4 links (5 TLS): returns 4D vector ✓
-    - For 8 links (9 TLS): returns 8D vector ✓
-    - For <4 links: pads with 0, logs warning ✓
+    - For missing/blank links: raises ValueError with clear guidance ✓
 
 - [ ] **Update state_dim validation**
   - **Files**: `env/sumo_env.py` constructor (line ~310)
@@ -388,7 +387,7 @@ For fastest time-to-demo (assuming SUMO is available), follow this order:
 | **Action space/masking incompatible with 9 TLS** | Low | Cycle-to-actions mapping should be generic; test with 9 TLS config |
 | **BIGNET lane configuration wrong** | High | Visually inspect BIGNET.net.xml in SUMO GUI; cross-check lane_groups_by_tls with actual lanes |
 | **Normalization stats misleading for 9 TLS** | Medium | Run collect_normalization_stats.py for 9 TLS separately; use dedicated norm file |
-| **Occupancy downstream links incomplete** | Medium | Provide clear error message if downstream_links has <4 entries; pad with 0 and warn |
+| **Occupancy downstream links incomplete** | Medium | Fail fast when downstream_links has <4 valid N/E/S/W entries; require explicit IDs (no padding/warning fallback) |
 | **KPI aggregation incorrect for 9 TLS** | Low | Verify KPI computation in eval loop handles all TLS; check for per-TLS vs. global aggregation |
 | **Performance degradation on 5 TLS due to changes** | Low | Run full 5-TLS baseline suite after all changes; compare metrics to baseline |
 | **Backward incompatibility in configs** | Low | Keep hub_spoke configs unchanged; new 9-TLS configs separate |

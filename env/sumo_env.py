@@ -18,6 +18,7 @@ def validate_downstream_links_config(
     lane_id_set: Iterable[str],
     edge_id_set: Iterable[str],
     center_tls_id: str,
+    validate_ids: bool = True,
 ) -> None:
     """Fail-fast validation for downstream occupancy links."""
     links_raw = downstream_links or {}
@@ -31,7 +32,7 @@ def validate_downstream_links_config(
             links[key] = val if len(val) > 0 else None
 
     required_dirs = ["N", "E", "S", "W"]
-    missing = [d for d in required_dirs if d not in links or links[d] in {None, ""}]
+    missing = [d for d in required_dirs if d not in links or links[d] is None]
 
     if len(links) == 0 or len(missing) > 0:
         raise ValueError(
@@ -40,17 +41,24 @@ def validate_downstream_links_config(
             "Provide lane/edge IDs for each direction or set enable_downstream_occupancy: false."
         )
 
-    lane_ids = {str(l) for l in lane_id_set}
-    edge_ids = {str(e) for e in edge_id_set}
+    if validate_ids:
+        lane_ids = {str(l) for l in lane_id_set}
+        edge_ids = {str(e) for e in edge_id_set}
 
-    invalid = [(dir_key, link_id) for dir_key, link_id in links.items() if link_id not in lane_ids and link_id not in edge_ids]
+        invalid = [
+            (dir_key, link_id)
+            for dir_key, link_id in links.items()
+            if link_id is not None and link_id not in lane_ids and link_id not in edge_ids
+        ]
 
-    if len(invalid) > 0:
-        raise ValueError(
-            "downstream_links entries not found in SUMO network.\n"
-            f"TLS '{center_tls_id}' invalid mappings: {invalid}\n"
-            "Fix the IDs or disable downstream occupancy."
-        )
+        if len(invalid) > 0:
+            raise ValueError(
+                "downstream_links entries not found in SUMO network.\n"
+                f"TLS '{center_tls_id}' invalid mappings: {invalid}\n"
+                "Fix the IDs or disable downstream occupancy."
+            )
+
+
 @dataclass
 class SumoLaneGroups:
     lanes_ns_ctrl: List[str]
@@ -238,10 +246,16 @@ class SUMOEnv(BaseEnv):
                     f"  {sorted(slip_lanes)}"
                 )
 
-        self._downstream_links = {str(k).upper(): v for k, v in config.downstream_links.items()}
-        for key in self._downstream_links.keys():
+        self._downstream_links = {}
+        for key_raw, value_raw in config.downstream_links.items():
+            key = str(key_raw).upper()
             if key not in {"N", "E", "S", "W"}:
                 raise ValueError(f"Invalid downstream link key: {key}")
+            if value_raw is None:
+                self._downstream_links[key] = None
+            else:
+                cleaned = str(value_raw).strip()
+                self._downstream_links[key] = cleaned if len(cleaned) > 0 else None
 
         if float(self._config.step_length_sec) <= 0.0:
             raise ValueError("step_length_sec must be > 0")
