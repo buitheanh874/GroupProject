@@ -1059,7 +1059,7 @@ class SUMOEnv(BaseEnv):
             "--no-step-log",
             "true",
             "--time-to-teleport",
-            "-1",
+            "120",
         ]
 
         if len(self._config.additional_files) > 0:

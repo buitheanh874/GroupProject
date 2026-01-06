@@ -12,6 +12,10 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 import numpy as np
 import yaml
 
+project_root = Path(__file__).resolve().parents[1]
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
 from scripts.hanoi_calibration import normalize_calibration_schema, validate_calibration
 from scripts.hanoi_turns import build_turn_ratios_xml, resolve_turn_mapping
 
@@ -353,7 +357,6 @@ def generate_variant(
         for edge in entry_edges:
             turning_probs[edge] = sample_turning(mean_lsr, kappa_turn, rng, overrides.get(edge))
 
-        # Use profile-level demand for vehicle rates per interval
         flows: List[FlowDef] = []
         for interval in level_plan:
             level = interval["level"]
@@ -439,7 +442,6 @@ def generate_routes(
             meta["router"] = Path(router).name
             meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
         else:
-            # Placeholder rou: copy flows content to keep downstream happy
             rou_path.write_text(flows_path.read_text(encoding="utf-8"), encoding="utf-8")
 
         routes.append(rou_path)
