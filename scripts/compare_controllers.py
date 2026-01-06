@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import argparse
 import sys
-from pathlib import Path
 from typing import Dict, List, Any
 
 import pandas as pd
 from scipy import stats
 
-repo_root = Path(__file__).resolve().parents[1]
+from scripts.repo_root import find_repo_root
+
+repo_root = find_repo_root(__file__)
 sys.path.insert(0, str(repo_root))
 
 

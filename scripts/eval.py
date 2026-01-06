@@ -4,13 +4,13 @@ import argparse
 import csv
 import os
 import sys
-import traceback
-from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import numpy as np
 
-repo_root = Path(__file__).resolve().parents[1]
+from scripts.repo_root import find_repo_root
+
+repo_root = find_repo_root(__file__)
 sys.path.insert(0, str(repo_root))
 
 from rl.utils import ensure_dir, generate_run_id, load_yaml_config, set_global_seed
@@ -109,6 +109,12 @@ def _resolve_action_space(env: Any, config: Dict[str, Any]) -> List[Any]:
     raise ValueError("Action space is empty; provide action_table/action_splits or ensure env exposes _action_defs")
 
 
+def _validate_fixed_action_id(action_id: int, action_space: List[Any]) -> int:
+    if action_id < 0 or action_id >= len(action_space):
+        raise ValueError(f"fixed_action_id={action_id} is out of bounds for action space size {len(action_space)}")
+    return action_id
+
+
 def main(argv: Optional[List[str]] = None) -> None:
     args = parse_args(argv)
     config = load_yaml_config(args.config)
@@ -155,12 +161,14 @@ def main(argv: Optional[List[str]] = None) -> None:
     fixed_fallback_warned = False
 
     needs_fixed_baseline = "fixed" in controllers
+    action_space: List[Any] = []
+    if needs_fixed_baseline:
+        action_space = _resolve_action_space(env, config)
     fixed_time_controller = None
     fixed_target_config = _resolve_fixed_time_config(args.config, scenario_name)
     if not use_legacy_fixed and needs_fixed_baseline:
-        action_space = _resolve_action_space(env, config)
         fixed_time_controller = FixedTimeController(action_space=action_space, config=fixed_target_config)
-        fixed_action_id = fixed_time_controller.act()
+        fixed_action_id = _validate_fixed_action_id(fixed_time_controller.act(), action_space)
         print(
             "[FixedTime] Using matched action | "
             f"target_split={fixed_target_config.target_split} "
@@ -170,6 +178,7 @@ def main(argv: Optional[List[str]] = None) -> None:
             f"selected_cycle={fixed_time_controller.selected_cycle_sec}"
         )
     elif use_legacy_fixed and needs_fixed_baseline:
+        fixed_action_id = _validate_fixed_action_id(int(fixed_action_id), action_space)
         print(f"[FixedTime] Using legacy fixed_action_id={fixed_action_id} from config.baseline")
     if fixed_action_id is None:
         fixed_action_id = 0

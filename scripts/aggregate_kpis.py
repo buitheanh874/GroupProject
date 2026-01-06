@@ -3,13 +3,14 @@ from __future__ import annotations
 import argparse
 import glob
 import sys
-from pathlib import Path
 from typing import Any, Dict, List
 
 import numpy as np
 import pandas as pd
 
-repo_root = Path(__file__).resolve().parents[1]
+from scripts.repo_root import find_repo_root
+
+repo_root = find_repo_root(__file__)
 sys.path.insert(0, str(repo_root))
 
 

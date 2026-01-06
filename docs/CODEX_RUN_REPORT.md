@@ -173,4 +173,52 @@
 - Working tree: clean after commit.
 
 ### Commit
-- Commit: 1fa9ad7d425bf6f24a5497d1528bb230c3364f66
+- Commit: 8ef04ca432c35b1305dc1e77674479422f275e1c
+
+## Run 6 — 2026-01-06 22:52
+### Audit reference
+- Source: C:\Users\Dell\GroupProject\docs\audit.md
+- Sections used: CRITICAL-1..5, HIGH-1..5
+
+### Goal
+- Address critical/high audit items (RNG determinism, SUMO start resiliency, gamma validation, float tolerance, normalization efficiency, eval action validation, repo root helper); document false positives.
+
+### Changes made
+- File: env/sumo_env.py
+  - Change: Route pool selection now uses a local RNG per episode and SUMO startup retries with backoff and free ports.
+  - Reason: CRITICAL-2 deterministic route selection; CRITICAL-3 TraCI start robustness.
+- File: env/stochastic_demand.py; scripts/validation.py
+  - Change: Replaced magic epsilon with named tolerance and math.isclose for ratio validation.
+  - Reason: CRITICAL-4 numeric safety.
+- File: rl/agent.py; tests/test_agent_gamma.py
+  - Change: Validated time-aware gamma inputs and added monotonicity/guard tests.
+  - Reason: CRITICAL-5 safer gamma computation.
+- File: env/normalization.py; tests/test_normalization_efficiency.py
+  - Change: Reduced array copies with in-place clipping and preserved dtype via tests.
+  - Reason: HIGH-1 normalization efficiency.
+- File: scripts/eval.py; tests/test_eval_wiring_smoke.py
+  - Change: Fixed-action validation bounds check against resolved action space.
+  - Reason: HIGH-2 eval action validation.
+- File: scripts/repo_root.py and multiple scripts/*
+  - Change: Added repo root resolver and replaced hardcoded Path(__file__).parents[1] usage.
+  - Reason: HIGH-5 centralized root discovery.
+- File: tests/test_route_pool_selection.py
+  - Change: Added deterministic and state-independent route pool selection coverage.
+  - Reason: CRITICAL-2 coverage.
+- File: docs/CODEX_RUN_REPORT.md
+  - Change: Corrected Run 5 commit reference and appended this run entry.
+  - Reason: Traceability.
+
+### Tests
+- Command(s):
+  - python -m compileall .
+  - pytest -q
+- Result:
+  - pass (104 tests)
+
+### Notes / Risks
+- Replay buffer bounded; waiting_total exponent already clamped; train CSV writes flush per episode (false positives).
+- TraCI retry/backoff not integration-tested with a live SUMO server; working tree clean after commit.
+
+### Commit
+- Commit: 038e5e5755fc88addc96f6236fda3c844fe10722

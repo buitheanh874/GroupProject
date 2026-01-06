@@ -34,3 +34,8 @@ def test_resolve_action_space_raises_when_empty():
 
     with pytest.raises(ValueError, match="Action space is empty"):
         eval_mod._resolve_action_space(_EmptyEnv(), {"env": {"sumo": {}}})
+
+
+def test_validate_fixed_action_id_out_of_bounds():
+    with pytest.raises(ValueError, match="out of bounds"):
+        eval_mod._validate_fixed_action_id(3, [0, 1])

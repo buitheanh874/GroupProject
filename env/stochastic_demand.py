@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import math
 import random
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
+
+TURNING_RATIO_TOL = 1e-5
 
 
 @dataclass
@@ -19,10 +22,10 @@ class IntersectionTurningConfig:
     turning_ratio_left: float
     turning_ratio_straight: float
     turning_ratio_right: float
-    
+
     def validate(self) -> None:
         total = self.turning_ratio_left + self.turning_ratio_straight + self.turning_ratio_right
-        if abs(total - 1.0) > 1e-6:
+        if not math.isclose(total, 1.0, rel_tol=TURNING_RATIO_TOL, abs_tol=TURNING_RATIO_TOL):
             raise ValueError(f"Turning ratios must sum to 1.0, got {total}")
         
         for ratio in [self.turning_ratio_left, self.turning_ratio_straight, self.turning_ratio_right]:

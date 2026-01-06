@@ -12,7 +12,9 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 import numpy as np
 import yaml
 
-project_root = Path(__file__).resolve().parents[1]
+from scripts.repo_root import find_repo_root
+
+project_root = find_repo_root(__file__)
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 

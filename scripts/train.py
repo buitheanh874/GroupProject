@@ -4,13 +4,14 @@ import argparse
 import csv
 import os
 import sys
-from pathlib import Path
 from collections import Counter
 from typing import Any, Dict, Optional
 
 import numpy as np
 
-project_root = Path(__file__).resolve().parents[1]
+from scripts.repo_root import find_repo_root
+
+project_root = find_repo_root(__file__)
 sys.path.insert(0, str(project_root))
 
 from rl.cycle_tracker import CycleDistributionTracker

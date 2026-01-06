@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import argparse
 import sys
-from pathlib import Path
+from scripts.repo_root import find_repo_root
 
-repo_root = Path(__file__).resolve().parents[1]
+repo_root = find_repo_root(__file__)
 sys.path.insert(0, str(repo_root))
 
 from rl.utils import load_yaml_config, set_global_seed

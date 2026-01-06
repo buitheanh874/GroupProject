@@ -4,6 +4,8 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union
 from pathlib import Path
 import random
+import socket
+import time
 
 import numpy as np
 
@@ -887,8 +889,8 @@ class SUMOEnv(BaseEnv):
         if len(self._route_pool) == 0:
             return None
         seed_value = int(self._episode_seed) + int(episode_index)
-        self._rng.seed(seed_value)
-        return str(self._rng.choice(self._route_pool))
+        rng_local = random.Random(seed_value)
+        return str(rng_local.choice(self._route_pool))
 
     def _set_phase(self, tls_id: str, phase_index: int, hold_steps: int) -> None:
         hold_sec = float(int(hold_steps) * float(self._config.step_length_sec))
@@ -1085,6 +1087,14 @@ class SUMOEnv(BaseEnv):
             for rho_ns, rho_ew in splits
         ]
 
+    def _get_free_port(self) -> int:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            sock.bind(("", 0))
+            return int(sock.getsockname()[1])
+        finally:
+            sock.close()
+
     def _start_sumo(self) -> None:
         try:
             import traci
@@ -1093,10 +1103,28 @@ class SUMOEnv(BaseEnv):
 
         self._traci = traci
 
-        command = self._build_sumo_command(seed=self._episode_seed)
-        self._traci.start(command)
-        self._connected = True
-        self._stepped_seconds = 0.0
+        attempts = 5
+        backoff = 0.5
+        last_error: Optional[Exception] = None
+        for _ in range(attempts):
+            port = self._get_free_port()
+            try:
+                command = self._build_sumo_command(seed=self._episode_seed)
+                self._traci.start(command, port=port)
+                self._connected = True
+                self._stepped_seconds = 0.0
+                return
+            except Exception as exc:
+                last_error = exc
+                try:
+                    if self._traci is not None:
+                        self._traci.close(False)
+                except Exception:
+                    pass
+                self._connected = False
+                time.sleep(backoff)
+                backoff *= 2
+        raise RuntimeError(f"Failed to start SUMO after {attempts} attempts: {last_error}")
 
     def _build_sumo_command(self, seed: int) -> List[str]:
         command: List[str] = [
