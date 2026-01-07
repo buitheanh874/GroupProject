@@ -1198,17 +1198,19 @@ class SUMOEnv(BaseEnv):
             str(int(seed)),
             "--no-step-log",
             "true",
-            "--time-to-teleport",
-            "120",
         ]
 
         if len(self._config.additional_files) > 0:
             additional = ",".join([str(x) for x in self._config.additional_files])
             command.extend(["-a", additional])
 
-        if len(self._config.sumo_extra_args) > 0:
-            for arg in self._config.sumo_extra_args:
+        extra_args = [str(x) for x in self._config.sumo_extra_args]
+        has_time_to_teleport = any(str(arg).startswith("--time-to-teleport") for arg in extra_args)
+        if len(extra_args) > 0:
+            for arg in extra_args:
                 command.append(str(arg))
+        if not has_time_to_teleport:
+            command.extend(["--time-to-teleport", "120"])
 
         return command
 
