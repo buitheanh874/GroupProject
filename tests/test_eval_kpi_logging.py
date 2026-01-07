@@ -39,6 +39,18 @@ def test_build_eval_row_and_csv(tmp_path: Path):
         "max_wait_time",
         "p95_wait_time",
         "throughput",
+        "teleport_started_total",
+        "teleport_unique",
+        "teleport_rate",
+        "arrived_corr",
+        "teleported_arrived",
+        "completion_rate",
+        "failed_corr",
+        "avg_wait_time_corr",
+        "avg_travel_time_corr",
+        "p95_wait_time_corr",
+        "max_wait_time_corr",
+        "throughput_corr",
     }
 
     csv_path = tmp_path / "results.csv"

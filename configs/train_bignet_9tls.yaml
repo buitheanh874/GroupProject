@@ -47,7 +47,7 @@ env:
     normalize_state: true
     return_raw_state: false
     state_dim: 12
-    enable_downstream_occupancy: false
+    enable_downstream_occupancy: true
     lane_groups_by_tls:
       J0:
         lanes_ns_ctrl:
@@ -168,9 +168,9 @@ env:
       all_red: 0
 
 normalization:
-  mean: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-  std: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
-  # file: configs/norm_stats_bignet_9tls.json
+  #mean: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+  #std: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+  file: configs/norm_stats_bignet_9tls.json
 
 agent:
   hidden_dims: [256, 256]

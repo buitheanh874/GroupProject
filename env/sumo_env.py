@@ -179,6 +179,8 @@ class SumoEnvConfig:
     enable_kpi_tracker: bool = False
     state_dim: int = 4
     enable_downstream_occupancy: bool = True
+    teleport_penalty_lambda: float = 0.0
+    teleport_time_cap_sec: Optional[float] = None
 
 
 class SUMOEnv(BaseEnv):
@@ -327,6 +329,11 @@ class SUMOEnv(BaseEnv):
         self._last_route_file: Optional[str] = None
         self._episode_count = 0
 
+        self._teleport_penalty_lambda = float(self._config.teleport_penalty_lambda)
+        self._teleport_time_cap_sec = self._config.teleport_time_cap_sec
+        self._teleport_unique_ids: Set[str] = set()
+        self._teleport_started_total: int = 0
+
     def set_route_file_pool(self, route_files: List[str]) -> None:
         """Set a pool of route files to randomly select from during reset.
         
@@ -402,6 +409,9 @@ class SUMOEnv(BaseEnv):
         self._kpi_disabled_warned = False
         self._prev_cycle_sec = None
         self._kpi_tracker = self._make_kpi_tracker() if self._enable_kpi_tracker else None
+        
+        self._teleport_unique_ids = set()
+        self._teleport_started_total = 0
 
         self._episode_count += 1
 
@@ -482,6 +492,7 @@ class SUMOEnv(BaseEnv):
             raise ValueError(f"Action {action_id} violates min green constraint: g_ns={g_ns}, g_ew={g_ew}, min={min_green_sec}")
 
         decision_steps = 0
+        decision_teleport_count = 0  
 
         agg = CycleMetricsAggregator(directions=["NS", "EW"], queue_mode=self._queue_count_mode)
 
@@ -500,6 +511,9 @@ class SUMOEnv(BaseEnv):
 
             for _ in range(int(duration_steps)):
                 self._traci.simulationStep()
+
+                step_teleport_count = self._track_teleports_step()
+                decision_teleport_count += step_teleport_count
 
                 queued_ns = self._queued_for_lanes(self._lanes_single.lanes_ns_ctrl)
                 queued_ew = self._queued_for_lanes(self._lanes_single.lanes_ew_ctrl)
@@ -554,7 +568,7 @@ class SUMOEnv(BaseEnv):
 
         spill_penalty = self._compute_spillback_penalty()
         anti_flicker_penalty = self._compute_anti_flicker_penalty(cycle_sec=cycle_sec)
-
+        
         reward = compute_normalized_reward(
             wait_total=total_wait,
             t_step=float(t_step_value),
@@ -563,6 +577,10 @@ class SUMOEnv(BaseEnv):
             spill_penalty=float(spill_penalty),
             anti_flicker_penalty=float(anti_flicker_penalty),
         )
+
+        if float(self._teleport_penalty_lambda) > 0.0:
+            teleport_penalty = float(self._teleport_penalty_lambda) * float(decision_teleport_count)
+            reward = float(reward) - float(teleport_penalty)
 
         state_raw = np.array([float(last_q_ns), float(last_q_ew), float(w_ns), float(w_ew)], dtype=np.float32)
         self._last_state_raw = state_raw.copy()
@@ -660,6 +678,7 @@ class SUMOEnv(BaseEnv):
             raise ValueError("All TLS intervals must produce the same number of steps")
         decision_steps = step_values.pop()
         decision_cycle_sec = float(decision_steps) * float(self._config.step_length_sec)
+        decision_teleport_count = 0
 
         for tls_id, intervals in intervals_by_tls.items():
             if len(intervals) == 0:
@@ -677,6 +696,8 @@ class SUMOEnv(BaseEnv):
 
         for _ in range(int(decision_steps)):
             self._traci.simulationStep()
+            step_teleport_count = self._track_teleports_step()
+            decision_teleport_count += step_teleport_count
 
             for tls_id in self._tls_ids:
                 accumulate_waiting = True
@@ -752,6 +773,9 @@ class SUMOEnv(BaseEnv):
                 spill_penalty=float(spill_penalty),
                 anti_flicker_penalty=float(anti_flicker_penalty),
             )
+            if float(self._teleport_penalty_lambda) > 0.0:
+                teleport_penalty = float(self._teleport_penalty_lambda) * float(decision_teleport_count)
+                rewards[tls_id] = float(rewards[tls_id]) - float(teleport_penalty)
             state_raw = self._build_state_vector(
                 tls_id=tls_id,
                 last_q_dir=last_q_dir[tls_id],
@@ -935,6 +959,31 @@ class SUMOEnv(BaseEnv):
                     queued.append(veh)
         return queued
 
+    def _track_teleports_step(self) -> int:
+        if self._traci is None:
+            return 0
+        sim = getattr(self._traci, "simulation", None)
+        if sim is None:
+            return 0
+        try:
+            teleport_ids = list(sim.getStartingTeleportIDList())
+        except AttributeError:
+            try:
+                count = int(sim.getStartingTeleportNumber())
+            except Exception:
+                return 0
+            self._teleport_started_total += count
+            return count
+        except Exception:
+            return 0
+        count = 0
+        for vid in teleport_ids:
+            if vid not in self._teleport_unique_ids:
+                self._teleport_unique_ids.add(vid)
+            self._teleport_started_total += 1
+            count += 1
+        return count
+
     def _queued_directions_for_tls(self, tls_id: str) -> Dict[str, List[str]]:
         dirs = self._direction_lanes_by_tls.get(tls_id, {})
         queued: Dict[str, List[str]] = {}
@@ -1053,7 +1102,7 @@ class SUMOEnv(BaseEnv):
 
     def _make_kpi_tracker(self) -> Optional[EpisodeKpiTracker]:
         try:
-            return EpisodeKpiTracker(stop_speed_threshold=0.1)
+            return EpisodeKpiTracker(stop_speed_threshold=0.1, teleport_time_cap_sec=self._teleport_time_cap_sec)
         except Exception:
             return None
 

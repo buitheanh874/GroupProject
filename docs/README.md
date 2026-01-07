@@ -78,6 +78,12 @@ env:
       - {cycle_sec: 90, rho_ns: 0.30, rho_ew: 0.70}
       - {cycle_sec: 90, rho_ns: 0.50, rho_ew: 0.50}
       - {cycle_sec: 90, rho_ns: 0.70, rho_ew: 0.30}
+
+## Teleport Handling Policy
+- departed_ids from `simulation.getDepartedIDList()`, arrived_ids from `getArrivedIDList()`, teleported_ids from `getStartingTeleportIDList()`; if only counts are available, teleport_started_total increases conservatively.
+- teleport_rate = teleport_unique / max(1, departed_unique); teleported_arrived = |arrived_ids ∩ teleported_ids|.
+- arrived_corr = |arrived_ids \ teleported_ids|; failed_corr = |departed_ids| - arrived_corr plus any unknown count-only teleports; completion_rate = |arrived_ids| / max(1, |departed_ids|).
+- cap_sec = teleport_time_cap_sec if provided, else the episode duration (at least 1s). Any teleported or not-arrived vehicle is assigned cap_sec for wait/travel; corrected averages/percentiles/max are computed on the capped list. throughput_corr reports arrived_corr per step (queue samples) using these corrected sets.
 ```
 
 Each action specifies both cycle length and split ratio.

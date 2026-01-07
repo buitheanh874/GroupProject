@@ -5,7 +5,6 @@ import json
 import sys
 from typing import Any, List, Optional
 
-from scripts.repo_root import find_repo_root
 from pathlib import Path
 repo_root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(repo_root))
