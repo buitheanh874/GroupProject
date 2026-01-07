@@ -6,6 +6,8 @@ run:
 env:
   type: sumo
   sumo:
+    teleport_penalty_lambda: 0.0
+    teleport_time_cap_sec: null
     sumo_binary: sumo
     net_file: networks/BIGNET.net.xml
     route_file: networks/variants/eval/bignet_low_eval_seed100042.rou.xml
@@ -41,11 +43,16 @@ env:
     sumo_extra_args:
       - "--ignore-junction-blocker"
       - "1"
+      - "--time-to-teleport"
+      - "1200"
     enable_kpi_tracker: true
     normalize_state: true
     return_raw_state: false
     state_dim: 12
-    enable_downstream_occupancy: false
+    enable_downstream_occupancy: true
+    enable_spillback_penalty: true
+    occ_threshold: 0.65
+    beta: 1.0
     lane_groups_by_tls:
       J0:
         lanes_ns_ctrl:
