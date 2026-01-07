@@ -4,6 +4,8 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union
 from pathlib import Path
 import random
+import socket
+import time
 
 import numpy as np
 
@@ -11,6 +13,53 @@ from env.base_env import BaseEnv
 from env.kpi import EpisodeKpiTracker
 from env.normalization import StateNormalizer
 from env.mdp_metrics import CycleMetricsAggregator, compute_normalized_reward
+
+
+def validate_downstream_links_config(
+    downstream_links: Dict[str, str],
+    lane_id_set: Iterable[str],
+    edge_id_set: Iterable[str],
+    center_tls_id: str,
+    validate_ids: bool = True,
+) -> None:
+    """Fail-fast validation for downstream occupancy links."""
+    links_raw = downstream_links or {}
+    links: Dict[str, Optional[str]] = {}
+    for k, v in links_raw.items():
+        key = str(k).upper()
+        if v is None:
+            links[key] = None
+        else:
+            val = str(v).strip()
+            links[key] = val if len(val) > 0 else None
+
+    required_dirs = ["N", "E", "S", "W"]
+    missing = [d for d in required_dirs if d not in links or links[d] is None]
+
+    if len(links) == 0 or len(missing) > 0:
+        raise ValueError(
+            "downstream_links must include N/E/S/W when enable_downstream_occupancy is True.\n"
+            f"TLS '{center_tls_id}' missing directions: {sorted(missing) if len(missing) > 0 else required_dirs}\n"
+            "Provide lane/edge IDs for each direction or set enable_downstream_occupancy: false."
+        )
+
+    if validate_ids:
+        lane_ids = {str(l) for l in lane_id_set}
+        edge_ids = {str(e) for e in edge_id_set}
+
+        invalid = [
+            (dir_key, link_id)
+            for dir_key, link_id in links.items()
+            if link_id is not None and link_id not in lane_ids and link_id not in edge_ids
+        ]
+
+        if len(invalid) > 0:
+            raise ValueError(
+                "downstream_links entries not found in SUMO network.\n"
+                f"TLS '{center_tls_id}' invalid mappings: {invalid}\n"
+                "Fix the IDs or disable downstream occupancy."
+            )
+
 
 @dataclass
 class SumoLaneGroups:
@@ -113,7 +162,7 @@ class SumoEnvConfig:
     fairness_metric: str = "max"
     action_splits: List[Tuple[float, float]] = field(default_factory=list)
     action_table: List[Dict[str, Any]] = field(default_factory=list)
-    include_transition_in_waiting: bool = True
+    include_transition_in_waiting: bool = False
     queue_count_mode: str = "distinct_cycle"
     use_pcu_weighted_wait: Optional[bool] = None
     use_enhanced_reward: bool = False
@@ -159,6 +208,7 @@ class SUMOEnv(BaseEnv):
                 raise ValueError(f"lane_groups must be provided for tls_id: {tls_id}")
 
         self._lanes_single = self._lanes_by_tls.get(str(config.tls_id))
+        print(f"[SUMOEnv] Initialized with {len(self._tls_ids)} TLS: {self._tls_ids}")
 
         self._state_dim = int(config.state_dim)
         if self._state_dim not in (4, 12):
@@ -198,10 +248,16 @@ class SUMOEnv(BaseEnv):
                     f"  {sorted(slip_lanes)}"
                 )
 
-        self._downstream_links = {str(k).upper(): str(v) for k, v in config.downstream_links.items()}
-        for key in self._downstream_links.keys():
+        self._downstream_links = {}
+        for key_raw, value_raw in config.downstream_links.items():
+            key = str(key_raw).upper()
             if key not in {"N", "E", "S", "W"}:
                 raise ValueError(f"Invalid downstream link key: {key}")
+            if value_raw is None:
+                self._downstream_links[key] = None
+            else:
+                cleaned = str(value_raw).strip()
+                self._downstream_links[key] = cleaned if len(cleaned) > 0 else None
 
         if float(self._config.step_length_sec) <= 0.0:
             raise ValueError("step_length_sec must be > 0")
@@ -218,7 +274,6 @@ class SUMOEnv(BaseEnv):
             ]
 
         self._action_defs = self._build_action_definitions()
-        self._validate_action_defs()
         self._validate_config_consistency()
 
         self._cycle_to_actions: Dict[int, List[int]] = {}
@@ -231,8 +286,14 @@ class SUMOEnv(BaseEnv):
         self._include_transition_in_waiting = bool(self._config.include_transition_in_waiting)
         self._enable_downstream_occupancy = bool(self._config.enable_downstream_occupancy)
         self._queue_count_mode = str(self._config.queue_count_mode or "distinct_cycle").lower()
-        if self._queue_count_mode not in {"distinct_cycle", "snapshot_last_step"}:
-            raise ValueError("queue_count_mode must be distinct_cycle or snapshot_last_step")
+        if self._queue_count_mode == "snapshot_last_step":
+            raise ValueError(
+                "queue_count_mode='snapshot_last_step' is no longer supported.\n"
+                "MDP compliance requires 'distinct_cycle' mode.\n"
+                "This mode tracks distinct vehicles queued at least once per cycle."
+            )
+        if self._queue_count_mode not in {"distinct_cycle"}:
+            raise ValueError(f"queue_count_mode must be 'distinct_cycle', got '{self._queue_count_mode}'")
         self._halt_speed_threshold = float(self._config.halt_speed_threshold)
         self._fairness_metric = str(self._config.fairness_metric or "max").lower()
         if self._fairness_metric not in {"max", "p95"}:
@@ -264,6 +325,7 @@ class SUMOEnv(BaseEnv):
         self._prev_cycle_sec: Optional[int] = None
         self._route_pool: List[str] = [str(p) for p in getattr(config, "route_pool", [])]
         self._last_route_file: Optional[str] = None
+        self._episode_count = 0
 
     def set_route_file_pool(self, route_files: List[str]) -> None:
         """Set a pool of route files to randomly select from during reset.
@@ -323,26 +385,18 @@ class SUMOEnv(BaseEnv):
         return self._last_state_raw
 
     def reset(self) -> Any:
-        """Reset environment for new episode.
-        
-        If route pool is configured, deterministically selects a route file
-        using the env RNG before starting SUMO.
-        """
         self.close()
 
-        if not hasattr(self, "_episode_count"):
-            self._episode_count = 0
-        episode_index = int(self._episode_count) + 1
-
-        selected_route = self._select_route_from_pool(episode_index=episode_index)
+        selected_route = self._select_route_from_pool(episode_index=int(self._episode_count))
         if selected_route is not None:
             self._config.route_file = selected_route
             self._last_route_file = selected_route
             route_name = Path(selected_route).name
-            print(f"[SUMOEnv] Episode {episode_index}: Using route '{route_name}'")
+            print(f"[SUMOEnv] Episode {self._episode_count}: Using route '{route_name}'")
         
         self._start_sumo()
         self._validate_lanes()
+        self._validate_downstream_links()
         self._cycle_index = 0
         self._stepped_seconds = 0.0
         self._kpi_disabled_warned = False
@@ -374,7 +428,17 @@ class SUMOEnv(BaseEnv):
             state_norm = self._normalizer.normalize(state_raw) if self._normalize_state else state_raw
             state_map[tls_id] = state_raw if self._return_raw_state else state_norm
         return state_map
-
+    
+    def _normalize_actions(self, actions: Any) -> Dict[str, int]:
+        if isinstance(actions, dict):
+            return {str(k): int(v) for k, v in actions.items()}
+        elif isinstance(actions, int):
+            return {self._tls_ids[0]: int(actions)}
+        elif isinstance(actions, (list, tuple)):
+            return {tls: int(a) for tls, a in zip(self._tls_ids, actions)}
+        else:
+            raise ValueError(f"Unsupported actions type: {type(actions)}")
+    
     def step(self, actions: Any) -> Tuple[Any, Any, bool, Dict[str, Any]]:
         if not self._connected or self._traci is None:
             raise RuntimeError("SUMOEnv is not connected. Call reset() before step().")
@@ -469,9 +533,8 @@ class SUMOEnv(BaseEnv):
                 decision_steps += 1
 
         queue_counts = agg.queue_counts(order=["NS", "EW"])
-        if queue_counts.size >= 2:
-            last_q_ns = float(queue_counts[0])
-            last_q_ew = float(queue_counts[1])
+        last_q_ns = float(queue_counts[0]) if queue_counts.size >= 1 else 0.0
+        last_q_ew = float(queue_counts[1]) if queue_counts.size >= 2 else 0.0
         waiting_sums = agg.waiting_sums(order=["NS", "EW"])
         w_ns = float(waiting_sums[0]) if waiting_sums.size >= 1 else 0.0
         w_ew = float(waiting_sums[1]) if waiting_sums.size >= 2 else 0.0
@@ -673,19 +736,19 @@ class SUMOEnv(BaseEnv):
             w_dir[tls_id] = agg.waiting_sums(order=["N", "E", "S", "W"])
 
         lambda_fairness = float(self._config.lambda_fairness)
-        fairness_penalty = 0.0
-        if lambda_fairness > 0.0 and len(fairness_values) > 0:
-            fairness_penalty = float(lambda_fairness) * float(max(fairness_values.values()))
-
         spill_penalty = self._compute_spillback_penalty()
         anti_flicker_penalty = self._compute_anti_flicker_penalty(cycle_sec=cycle_sec)
 
         for tls_id in self._tls_ids:
+            fairness_penalty_tls = 0.0
+            if lambda_fairness > 0.0:
+                fairness_penalty_tls = float(lambda_fairness) * float(fairness_values.get(tls_id, 0.0))
+            
             rewards[tls_id] = compute_normalized_reward(
                 wait_total=float(wait_totals[tls_id]),
                 t_step=float(t_step_value),
                 decision_cycle_sec=float(decision_cycle_sec),
-                fairness_penalty=float(fairness_penalty),
+                fairness_penalty=float(fairness_penalty_tls),
                 spill_penalty=float(spill_penalty),
                 anti_flicker_penalty=float(anti_flicker_penalty),
             )
@@ -722,6 +785,9 @@ class SUMOEnv(BaseEnv):
             except Exception:
                 pass
 
+        fairness_value_info = float(max(fairness_values.values()) if len(fairness_values) > 0 else 0.0)
+        fairness_penalty_info = float(lambda_fairness) * float(fairness_value_info) if lambda_fairness > 0.0 else 0.0
+
         info: Dict[str, Any] = {
             "cycle_index": int(self._cycle_index),
             "action_ids": {tls: int(action_map[tls]) for tls in self._tls_ids},
@@ -732,8 +798,8 @@ class SUMOEnv(BaseEnv):
             "decision_steps": int(decision_steps),
             "step_length_sec": float(self._config.step_length_sec),
             "t_step": float(t_step_value),
-            "fairness_penalty": float(fairness_penalty),
-            "fairness_value": float(max(fairness_values.values()) if len(fairness_values) > 0 else 0.0),
+            "fairness_penalty": float(fairness_penalty_info),
+            "fairness_value": float(fairness_value_info),
             "spill_penalty": float(spill_penalty),
             "anti_flicker_penalty": float(anti_flicker_penalty),
             "total_wait_reward": float(sum(wait_totals.values())),
@@ -747,7 +813,20 @@ class SUMOEnv(BaseEnv):
             info["episode_kpi"] = self._kpi_tracker.summary_dict()
 
         return states, rewards, bool(done), info
-
+    
+    def _normalize_actions(self, actions: Any) -> Dict[str, int]:
+        if isinstance(actions, dict):
+            return {str(k): int(v) for k, v in actions.items()}
+        elif isinstance(actions, int):
+            if len(self._tls_ids) == 0:
+                raise ValueError("tls_ids is empty")
+            return {str(self._tls_ids[0]): int(actions)}
+        elif isinstance(actions, (list, tuple)):
+            if len(actions) != len(self._tls_ids):
+                raise ValueError(f"actions length {len(actions)} != tls_ids length {len(self._tls_ids)}")
+            return {str(tls): int(a) for tls, a in zip(self._tls_ids, actions)}
+        else:
+            raise ValueError(f"Unsupported actions type: {type(actions)}, expected dict, int, or list/tuple")
     def _build_state_vector(self, tls_id: str, last_q_dir: np.ndarray, w_dir: np.ndarray) -> np.ndarray:
         if tls_id not in self._direction_lanes_by_tls:
             raise ValueError(f"Unknown tls_id: {tls_id}")
@@ -816,19 +895,12 @@ class SUMOEnv(BaseEnv):
 
         return intervals
 
-    def _normalize_actions(self, actions: Any) -> Dict[str, int]:
-        if isinstance(actions, dict):
-            return {str(k): int(v) for k, v in actions.items()}
-        if len(self._tls_ids) != 1:
-            raise ValueError("Multi-agent mode requires a dict of actions")
-        return {self._tls_ids[0]: int(actions)}
-
     def _select_route_from_pool(self, episode_index: int) -> Optional[str]:
         if len(self._route_pool) == 0:
             return None
-        seed_value = int(self._episode_seed) + int(episode_index)
-        self._rng.seed(seed_value)
-        return str(self._rng.choice(self._route_pool))
+        seed_value = int(self._config.seed) + int(episode_index)
+        rng_local = random.Random(seed_value)
+        return str(rng_local.choice(self._route_pool))
 
     def _set_phase(self, tls_id: str, phase_index: int, hold_steps: int) -> None:
         hold_sec = float(int(hold_steps) * float(self._config.step_length_sec))
@@ -920,27 +992,30 @@ class SUMOEnv(BaseEnv):
     def _read_downstream_occupancy(self) -> np.ndarray:
         values = []
         for key in ["N", "E", "S", "W"]:
+            if key not in self._downstream_links:
+                raise ValueError(
+                    f"downstream_links missing direction '{key}' while downstream occupancy is enabled."
+                )
             link_id = self._downstream_links.get(key)
-            if link_id is None:
-                values.append(0.0)
+            if link_id is None or str(link_id).strip() == "":
+                raise ValueError(
+                    f"downstream_links entry for direction '{key}' is empty while downstream occupancy is enabled."
+                )
+            link_id_str = str(link_id)
+            if link_id_str in self._lane_id_set:
+                raw = float(self._traci.lane.getLastStepOccupancy(link_id_str))
+                occ = float(raw / 100.0) if raw > 1.0 else float(raw)
+                values.append(float(np.clip(occ, 0.0, 1.0)))
                 continue
-            if link_id in self._lane_id_set:
-                try:
-                    raw = float(self._traci.lane.getLastStepOccupancy(str(link_id)))
-                    occ = float(raw / 100.0) if raw > 1.0 else float(raw)
-                    values.append(float(np.clip(occ, 0.0, 1.0)))
-                    continue
-                except Exception:
-                    pass
-            if link_id in self._edge_id_set:
-                try:
-                    raw = float(self._traci.edge.getLastStepOccupancy(str(link_id)))
-                    occ = float(raw / 100.0) if raw > 1.0 else float(raw)
-                    values.append(float(np.clip(occ, 0.0, 1.0)))
-                    continue
-                except Exception:
-                    pass
-            raise ValueError(f"Downstream link not found in network: {link_id}")
+            if link_id_str in self._edge_id_set:
+                raw = float(self._traci.edge.getLastStepOccupancy(link_id_str))
+                occ = float(raw / 100.0) if raw > 1.0 else float(raw)
+                values.append(float(np.clip(occ, 0.0, 1.0)))
+                continue
+            raise ValueError(
+                f"downstream_links entry '{link_id_str}' for direction '{key}' not found in SUMO network; "
+                "downstream occupancy cannot be computed."
+            )
         return np.asarray(values, dtype=np.float32)
 
     def _sec_to_steps(self, duration_sec: int) -> int:
@@ -965,27 +1040,22 @@ class SUMOEnv(BaseEnv):
             if len(missing) > 0:
                 raise ValueError(f"Missing lanes in SUMO network for tls {tls_id}: {missing}")
 
+    def _validate_downstream_links(self) -> None:
+        if not self._enable_downstream_occupancy or int(self._state_dim) != 12:
+            return
+
+        validate_downstream_links_config(
+            downstream_links=self._downstream_links,
+            lane_id_set=self._lane_id_set,
+            edge_id_set=self._edge_id_set,
+            center_tls_id=self._center_tls_id,
+        )
+
     def _make_kpi_tracker(self) -> Optional[EpisodeKpiTracker]:
         try:
             return EpisodeKpiTracker(stop_speed_threshold=0.1)
         except Exception:
             return None
-
-    def _validate_action_defs(self) -> None:
-        for index, action in enumerate(self._action_defs):
-            if float(action.rho_ns) < 0.0 or float(action.rho_ew) < 0.0:
-                raise ValueError(f"Invalid action split at index {index}: rho must be non-negative")
-            if abs((float(action.rho_ns) + float(action.rho_ew)) - 1.0) > 1e-6:
-                raise ValueError(f"Invalid action split at index {index}: rho_ns + rho_ew must be 1.0")
-            if int(action.cycle_sec) <= 0:
-                raise ValueError(f"cycle_sec must be > 0 for action index {index}")
-            if float(action.rho_ns) < float(self._config.rho_min) or float(action.rho_ew) < float(self._config.rho_min):
-                raise ValueError(f"Invalid action split at index {index}: rho must be >= rho_min={self._config.rho_min}")
-            min_green_sec = max(int(round(float(self._config.rho_min) * float(action.cycle_sec))), int(self._g_min_sec))
-            g_ns = int(round(float(action.rho_ns) * float(action.cycle_sec)))
-            g_ew = int(round(float(action.rho_ew) * float(action.cycle_sec)))
-            if g_ns < min_green_sec or g_ew < min_green_sec:
-                raise ValueError(f"Invalid action split at index {index}: green phases must be >= g_min_sec={self._g_min_sec}")
 
     def _build_action_definitions(self) -> List[SumoActionDefinition]:
         if len(self._config.action_table) > 0:
@@ -1027,6 +1097,14 @@ class SUMOEnv(BaseEnv):
             for rho_ns, rho_ew in splits
         ]
 
+    def _get_free_port(self) -> int:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            sock.bind(("", 0))
+            return int(sock.getsockname()[1])
+        finally:
+            sock.close()
+
     def _start_sumo(self) -> None:
         try:
             import traci
@@ -1035,10 +1113,28 @@ class SUMOEnv(BaseEnv):
 
         self._traci = traci
 
-        command = self._build_sumo_command(seed=self._episode_seed)
-        self._traci.start(command)
-        self._connected = True
-        self._stepped_seconds = 0.0
+        attempts = 5
+        backoff = 0.5
+        last_error: Optional[Exception] = None
+        for attempt in range(attempts):
+            port = self._get_free_port()
+            try:
+                command = self._build_sumo_command(seed=self._episode_seed)
+                self._traci.start(command, port=port)
+                self._connected = True
+                self._stepped_seconds = 0.0
+                return
+            except Exception as exc:
+                last_error = exc
+                try:
+                    if self._traci is not None:
+                        self._traci.close(False)
+                except Exception:
+                    pass
+                self._connected = False
+                time.sleep(backoff)
+                backoff *= 2
+        raise RuntimeError(f"Failed to start SUMO after {attempts} attempts: {last_error}")
 
     def _build_sumo_command(self, seed: int) -> List[str]:
         command: List[str] = [
@@ -1054,7 +1150,7 @@ class SUMOEnv(BaseEnv):
             "--no-step-log",
             "true",
             "--time-to-teleport",
-            "-1",
+            "120",
         ]
 
         if len(self._config.additional_files) > 0:

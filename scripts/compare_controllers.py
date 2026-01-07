@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import argparse
 import sys
-from pathlib import Path
 from typing import Dict, List, Any
 
 import pandas as pd
 from scipy import stats
 
-repo_root = Path(__file__).resolve().parents[1]
+from scripts.repo_root import find_repo_root
+
+repo_root = find_repo_root(__file__)
 sys.path.insert(0, str(repo_root))
 
 
@@ -229,11 +230,11 @@ def main(argv: List[str] | None = None) -> None:
 
 
 if __name__ == "__main__":
-    try:
-        from scipy import stats
-    except ImportError:
-        print("\n[ERROR] scipy is required for statistical tests")
-        print("Install: pip install scipy")
-        sys.exit(1)
+#    try:
+#        from scipy import stats
+#    except ImportError:
+#        print("\n[ERROR] scipy is required for statistical tests")
+#        print("Install: pip install scipy")
+#        sys.exit(1)
     
     main()

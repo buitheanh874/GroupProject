@@ -35,7 +35,13 @@ class DQNAgent:
         self._random_state = np.random.default_rng(int(config.seed))
         self._use_time_aware_gamma = bool(getattr(config, "use_time_aware_gamma", False))
         self._gamma_base = float(getattr(config, "gamma_0", config.gamma))
-        self._t_ref = float(max(1e-6, getattr(config, "t_ref", 60.0)))
+        self._t_ref = float(getattr(config, "t_ref", 60.0))
+        
+        if self._use_time_aware_gamma:
+            if self._t_ref <= 0.0:
+                raise ValueError(f"t_ref must be >0 when use_time_aware_gamma is True, got {self._t_ref}")
+            if not (0.0 < self._gamma_base <= 1.0):
+                raise ValueError(f"gamma_base must be in (0, 1] when use_time_aware_gamma is True, got {self._gamma_base}")
 
         self.online_net = DuelingDQN(
             state_dim=int(config.state_dim),
@@ -80,8 +86,16 @@ class DQNAgent:
     def compute_gamma(self, t_step: Optional[float]) -> float:
         if not self._use_time_aware_gamma or t_step is None:
             return float(self.gamma)
-        t_step_safe = max(1e-6, float(t_step))
-        return float(self._gamma_base ** (t_step_safe / float(self._t_ref)))
+        t_step_value = float(t_step)
+        if t_step_value <= 0.0:
+            raise ValueError(f"t_step must be >0 when use_time_aware_gamma is enabled, got {t_step_value}")
+        
+        exponent = t_step_value / float(self._t_ref)
+        result = float(self._gamma_base ** exponent)
+        
+        result = max(1e-9, min(result, 1.0))
+        
+        return result
 
     @property
     def action_dim(self) -> int:

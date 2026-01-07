@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -24,14 +25,9 @@ def test_distinct_queue_counts_and_snapshot():
     assert math.isclose(agg.waiting_total(), 2.0)
 
 
-def test_snapshot_mode_uses_last_step_only():
-    agg = CycleMetricsAggregator(directions=["N"], queue_mode="snapshot_last_step")
-    agg.observe("N", ["a"], step_sec=1.0, accumulate_waiting=True)
-    agg.observe("N", ["b"], step_sec=1.0, accumulate_waiting=True)
-
-    counts = agg.queue_counts(order=["N"])
-    assert counts.tolist() == [1.0]
-    assert math.isclose(agg.waiting_total(), 2.0)
+def test_snapshot_last_step_rejected():
+    with pytest.raises(ValueError, match="snapshot_last_step"):
+        CycleMetricsAggregator(directions=["N"], queue_mode="snapshot_last_step")
 
 
 def test_waiting_sums_ignore_non_accumulated_steps():

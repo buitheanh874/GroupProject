@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-import sys
-from pathlib import Path
 import re
+import sys
+
+from scripts.repo_root import find_repo_root
 
 
 def main() -> None:
-    repo_root = Path(__file__).resolve().parents[1]
+    repo_root = find_repo_root(__file__)
     config_dir = repo_root / "configs"
     
     print("=" * 80)

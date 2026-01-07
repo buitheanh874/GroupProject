@@ -20,20 +20,14 @@ class CycleMetricsAggregator:
         self._directions = sorted(set(dirs))
         mode = str(self.queue_mode).lower()
         
-        if mode not in {"distinct_cycle", "snapshot_last_step"}:
-            raise ValueError(
-                f"queue_mode must be 'distinct_cycle' or 'snapshot_last_step', got '{mode}'"
-            )
-        
         if mode == "snapshot_last_step":
-            import warnings
-            warnings.warn(
-                "queue_mode='snapshot_last_step' is deprecated and not MDP-compliant.\n"
-                "Use queue_mode='distinct_cycle' instead (MDP requirement).\n"
-                "This mode will be removed in future versions.",
-                DeprecationWarning,
-                stacklevel=2
+            raise ValueError(
+                "queue_count_mode='snapshot_last_step' is no longer supported.\n"
+                "MDP compliance requires 'distinct_cycle' mode.\n"
+                "This mode tracks distinct vehicles queued at least once per cycle."
             )
+        if mode not in {"distinct_cycle"}:
+            raise ValueError(f"queue_count_mode must be 'distinct_cycle', got '{mode}'")
         
         self._queue_mode = mode
         self.reset()
@@ -147,8 +141,7 @@ def compute_normalized_reward(
     anti_flicker_penalty: float = 0.0,
 ) -> float:
     denom = float(t_step) if float(t_step) > 0.0 else float(decision_cycle_sec)
-    if denom <= 0.0:
-        denom = 1.0
+    denom = max(1.0, float(denom))
     return -float(wait_total + fairness_penalty + spill_penalty + anti_flicker_penalty) / float(denom)
 
 

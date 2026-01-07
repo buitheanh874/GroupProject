@@ -1,18 +1,69 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, Tuple, List
+from typing import Any, Dict, Tuple, List, Optional
 
 import numpy as np
 import torch
 
 from env.base_env import BaseEnv
 from env.normalization import StateNormalizer
-from env.sumo_env import SUMOEnv, SumoEnvConfig, SumoLaneGroups, SumoPhaseProgram
+from env.sumo_env import SUMOEnv, SumoEnvConfig, SumoLaneGroups, SumoPhaseProgram, validate_downstream_links_config
 from scripts.validation import validate_action_table
 from env.toy_queue_env import ToyQueueEnv, ToyQueueEnvConfig
 from rl.agent import AgentConfig, DQNAgent
 from rl.utils import resolve_device
+from scripts.sumo_network_tools import extract_tls_ids
+
+
+def resolve_allowed_action_ids(env: Any, target_action: Optional[int], fallback_action: Optional[int]) -> Optional[List[int]]:
+    """
+    Resolve the allowed action ids for a given target (or fallback) based on env.cycle_to_actions.
+
+    Returns:
+        - List of action ids in the matching cycle bucket, if found.
+        - First non-empty bucket when neither target nor fallback is found.
+        - None when cycle_to_actions is missing or empty.
+    """
+    if not hasattr(env, "cycle_to_actions"):
+        return None
+
+    cycle_map = getattr(env, "cycle_to_actions")
+    items: List[Tuple[Any, Any]] = []
+    try:
+        keys = sorted(cycle_map.keys())
+        for key in keys:
+            items.append((key, cycle_map.get(key, [])))
+    except Exception:
+        try:
+            items = list(cycle_map.items())
+        except Exception:
+            items = []
+
+    def _as_int_list(values: Any) -> List[int]:
+        try:
+            return [int(x) for x in values]
+        except Exception:
+            return []
+
+    if target_action is not None:
+        for _, ids in items:
+            ids_int = _as_int_list(ids)
+            if int(target_action) in ids_int:
+                return ids_int
+
+    if fallback_action is not None:
+        for _, ids in items:
+            ids_int = _as_int_list(ids)
+            if int(fallback_action) in ids_int:
+                return ids_int
+
+    for _, ids in items:
+        ids_int = _as_int_list(ids)
+        if len(ids_int) > 0:
+            return ids_int
+
+    return None
 
 
 def deep_merge(base: dict, override: dict) -> dict:
@@ -49,6 +100,46 @@ def _default_action_splits() -> List[Tuple[float, float]]:
         (0.60, 0.40),
         (0.70, 0.30),
     ]
+
+
+def resolve_tls_ids_from_sumo_cfg(sumo_cfg: Dict[str, Any], net_path: Path) -> Tuple[List[str], str]:
+    """Resolve tls_ids (with auto mode) and a valid center_tls_id from config."""
+    auto_tls_ids = bool(sumo_cfg.get("auto_tls_ids", False))
+    tls_ids_raw = sumo_cfg.get("tls_ids", [])
+    tls_ids: List[str] = []
+
+    if isinstance(tls_ids_raw, str):
+        if tls_ids_raw.strip().lower() == "auto":
+            auto_tls_ids = True
+        elif len(tls_ids_raw.strip()) > 0:
+            tls_ids = [tls_ids_raw.strip()]
+    elif isinstance(tls_ids_raw, (list, tuple)):
+        tls_ids = [str(x) for x in tls_ids_raw]
+
+    if auto_tls_ids:
+        tls_ids = extract_tls_ids(net_path)
+
+    if len(tls_ids) == 0:
+        fallback = str(sumo_cfg.get("tls_id", "CENTER"))
+        tls_ids = [fallback] if len(fallback) > 0 else []
+    if len(tls_ids) == 0:
+        raise ValueError("tls_ids must be non-empty; provide env.sumo.tls_ids or enable auto_tls_ids")
+
+    seen: set[str] = set()
+    duplicates = []
+    for tid in tls_ids:
+        if tid in seen:
+            duplicates.append(str(tid))
+        seen.add(str(tid))
+    if len(duplicates) > 0:
+        raise ValueError(f"tls_ids must be unique; duplicates found: {sorted(set(duplicates))}")
+
+    center_tls_id = sumo_cfg.get("center_tls_id")
+    center_tls_effective = str(center_tls_id) if center_tls_id is not None else str(tls_ids[0])
+    if center_tls_effective not in tls_ids:
+        raise ValueError(f"center_tls_id='{center_tls_effective}' must be in tls_ids={tls_ids}")
+
+    return tls_ids, center_tls_effective
 
 
 def build_env(config: Dict[str, Any]) -> BaseEnv:
@@ -115,9 +206,8 @@ def build_env(config: Dict[str, Any]) -> BaseEnv:
             all_red=phase_cfg.get("all_red"),
         )
 
-        tls_ids = [str(x) for x in sumo_cfg.get("tls_ids", [])]
-        center_tls_id = sumo_cfg.get("center_tls_id")
-        downstream_links = {str(k): v for k, v in sumo_cfg.get("downstream_links", {}).items()}
+        tls_ids_effective, center_tls_effective = resolve_tls_ids_from_sumo_cfg(sumo_cfg, net_path)
+        downstream_links = {str(k).upper(): v for k, v in sumo_cfg.get("downstream_links", {}).items()}
         vehicle_weights_raw = sumo_cfg.get("vehicle_weights", {})
         vehicle_weights = {str(k): float(v) for k, v in vehicle_weights_raw.items()}
         yellow_sec = int(sumo_cfg.get("yellow_sec", 0))
@@ -159,60 +249,25 @@ def build_env(config: Dict[str, Any]) -> BaseEnv:
             occ_threshold=occ_threshold,
             allowed_cycles=allowed_cycles,
         )
-
+        action_table_global = config.get("action_table", [])
+        action_table_raw = action_table_global if isinstance(action_table_global, list) and len(action_table_global) > 0 else sumo_cfg.get("action_table", [])
         action_splits_raw = sumo_cfg.get("action_splits", [])
         action_splits = [(float(x[0]), float(x[1])) for x in action_splits_raw] if len(action_splits_raw) > 0 else _default_action_splits()
-        action_table_raw = sumo_cfg.get("action_table", [])
 
-        if yellow_sec < 0:
-            raise ValueError("yellow_sec must be >=0")
-        if all_red_sec < 0:
-            raise ValueError("all_red_sec must be >=0")
-        if rho_min <= 0.0 or rho_min > 0.5:
-            raise ValueError("rho_min must be in (0, 0.5]")
-        if g_min_sec < 0:
-            raise ValueError("g_min_sec must be >=0")
-        if lambda_fairness < 0.0:
-            raise ValueError("lambda_fairness must be >=0")
-        if fairness_metric not in {"max", "p95"}:
-            raise ValueError("fairness_metric must be max or p95")
-        if queue_count_mode not in {"distinct_cycle", "snapshot_last_step"}:
-            raise ValueError("queue_count_mode must be distinct_cycle or snapshot_last_step")
-        if halt_speed_threshold < 0.0:
-            raise ValueError("halt_speed_threshold must be >=0")
-        if use_enhanced_reward and reward_exponent < 1.0:
-            raise ValueError("reward_exponent must be >=1 when use_enhanced_reward is True")
-        if enable_anti_flicker and kappa < 0.0:
-            raise ValueError("kappa must be >=0 when enable_anti_flicker is True")
-        if enable_spillback_penalty:
-            if beta < 0.0:
-                raise ValueError("beta must be >=0 when enable_spillback_penalty is True")
-            if occ_threshold < 0.0 or occ_threshold > 1.0:
-                raise ValueError("occ_threshold must be in [0,1] when enable_spillback_penalty is True")
-        if len(allowed_cycles) == 0 or any(cycle <= 0 for cycle in allowed_cycles):
-            raise ValueError("allowed_cycles_sec must contain positive cycle lengths")
-
-        state_dim = int(sumo_cfg.get("state_dim", 12 if len(tls_ids) > 0 or len(action_table_raw) > 0 else 4))
+        state_dim_default = 12 if (len(tls_ids_effective) > 1 or len(action_table_raw) > 0) else 4
+        state_dim = int(sumo_cfg.get("state_dim", state_dim_default))
         normalize_state = bool(sumo_cfg.get("normalize_state", True))
         occupancy_enabled = bool(sumo_cfg.get("enable_downstream_occupancy", True))
 
-        if len(tls_ids) > 1 and state_dim != 12:
-            raise ValueError("When specifying multiple tls_ids, state_dim must be 12")
-
-        if state_dim not in (4, 12):
-            raise ValueError(f"state_dim must be 4 or 12, got {state_dim}")
-
-        tls_ids_effective = tls_ids if len(tls_ids) > 0 else [str(sumo_cfg.get("tls_id", "CENTER"))]
-        center_tls_effective = str(center_tls_id) if center_tls_id is not None else str(tls_ids_effective[0])
-
         if state_dim == 12:
-            if center_tls_effective not in tls_ids_effective:
-                raise ValueError("center_tls_id must be in tls_ids (or tls_id) when state_dim=12")
             if occupancy_enabled:
-                required_dirs = {"N", "E", "S", "W"}
-                missing_dirs = [d for d in required_dirs if d not in {k.upper() for k in downstream_links.keys()}]
-                if len(missing_dirs) > 0:
-                    raise ValueError(f"downstream_links must include N/E/S/W when state_dim=12 (missing: {missing_dirs})")
+                validate_downstream_links_config(
+                    downstream_links=downstream_links,
+                    lane_id_set=set(),
+                    edge_id_set=set(),
+                    center_tls_id=center_tls_effective,
+                    validate_ids=False,
+                )
             if len(tls_ids_effective) > 1:
                 if len(lane_cfg_by_tls) == 0:
                     raise ValueError("lane_groups_by_tls must be provided for each tls_id when tls_ids has multiple entries")
@@ -259,7 +314,7 @@ def build_env(config: Dict[str, Any]) -> BaseEnv:
             action_splits=action_splits,
             action_table=processed_action_table,
             queue_count_mode=queue_count_mode,
-            include_transition_in_waiting=bool(sumo_cfg.get("include_transition_in_waiting", True)),
+            include_transition_in_waiting=bool(sumo_cfg.get("include_transition_in_waiting", False)),
             use_pcu_weighted_wait=use_pcu_weighted_wait,
             use_enhanced_reward=use_enhanced_reward,
             reward_exponent=reward_exponent,

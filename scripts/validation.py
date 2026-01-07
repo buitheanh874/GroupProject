@@ -1,14 +1,17 @@
 from __future__ import annotations
 
+import math
 from typing import Any, Dict, Iterable, List, Tuple
 
+RATIO_ABS_TOL = 1e-6
+RATIO_REL_TOL = 1e-9
 
 def _validate_action_splits(action_splits: List[Tuple[float, float]], rho_min: float) -> None:
     for idx, (rho_ns_val, rho_ew_val) in enumerate(action_splits):
         if rho_ns_val <= 0.0 or rho_ew_val <= 0.0:
             raise ValueError(f"action_splits[{idx}] values must be >0")
-        if abs((rho_ns_val + rho_ew_val) - 1.0) > 1e-6:
-            raise ValueError(f"action_splits[{idx}] rho_ns+rho_ew must equal 1.0")
+        if not math.isclose((rho_ns_val + rho_ew_val), 1.0, rel_tol=RATIO_REL_TOL, abs_tol=RATIO_ABS_TOL):
+            raise ValueError(f"action_splits[{idx}] rho_ns+rho_ew must equal 1.0, got {rho_ns_val + rho_ew_val:.10f}")
         if rho_ns_val < rho_min or rho_ew_val < rho_min:
             raise ValueError(f"action_splits[{idx}] values must be >= rho_min={rho_min}")
 
@@ -43,8 +46,8 @@ def validate_action_table(
                 rho_ew_val = float(rho_ew)
             if rho_ew_val <= 0.0:
                 raise ValueError(f"action_table[{idx}] rho_ew must be >0")
-            if abs((rho_ns_val + rho_ew_val) - 1.0) > 1e-6:
-                raise ValueError(f"action_table[{idx}] rho_ns+rho_ew must equal 1.0")
+            if not math.isclose((rho_ns_val + rho_ew_val), 1.0, rel_tol=RATIO_REL_TOL, abs_tol=RATIO_ABS_TOL):
+                raise ValueError(f"action_table[{idx}] rho_ns+rho_ew must equal 1.0, got {rho_ns_val + rho_ew_val:.10f}")
             if cycle_val not in allowed_cycles:
                 raise ValueError(f"action_table[{idx}] cycle_sec={cycle_val} not in allowed_cycles_sec={allowed_cycles}")
             if rho_ns_val < rho_min or rho_ew_val < rho_min:
@@ -65,7 +68,19 @@ def validate_action_table(
                 g_ew_check = float(rho_ew) * float(cycle)
                 if g_ns_check < g_min_sec or g_ew_check < g_min_sec:
                     raise ValueError(f"default action entry cycle {cycle} violates g_min_sec={g_min_sec}")
-                processed_action_table.append({"cycle_sec": int(cycle), "rho_ns": float(rho_ns), "rho_ew": float(rho_ew)})
+                processed_action_table.append(
+                    {"cycle_sec": int(cycle), "rho_ns": float(rho_ns), "rho_ew": float(rho_ew)}
+                )
+
+        seen_actions = set()
+        deduplicated = []
+        for entry in processed_action_table:
+            key = (entry["cycle_sec"], round(entry["rho_ns"], 4), round(entry["rho_ew"], 4))
+            if key not in seen_actions:
+                seen_actions.add(key)
+                deduplicated.append(entry)
+
+        processed_action_table = deduplicated
 
     return processed_action_table
 
@@ -88,6 +103,8 @@ def validate_scalar_params(
     occ_threshold: float,
     allowed_cycles: List[int],
 ) -> None:
+    mode = str(queue_count_mode).lower()
+
     if yellow_sec < 0:
         raise ValueError("yellow_sec must be >=0")
     if all_red_sec < 0:
@@ -100,22 +117,14 @@ def validate_scalar_params(
         raise ValueError("lambda_fairness must be >=0")
     if fairness_metric not in {"max", "p95"}:
         raise ValueError("fairness_metric must be max or p95")
-    if queue_count_mode not in {"distinct_cycle", "snapshot_last_step"}:
+    if mode == "snapshot_last_step":
         raise ValueError(
-            f"queue_count_mode must be 'distinct_cycle' or 'snapshot_last_step', got '{queue_count_mode}'\n"
-            f"Note: 'snapshot_last_step' is deprecated (not MDP-compliant).\n"
-            f"Recommended: Use 'distinct_cycle' (MDP requirement)."
+            "queue_count_mode='snapshot_last_step' is no longer supported.\n"
+            "MDP compliance requires 'distinct_cycle' mode.\n"
+            "This mode tracks distinct vehicles queued at least once per cycle."
         )
-
-    if queue_count_mode == "snapshot_last_step":
-        import warnings
-        warnings.warn(
-            "queue_count_mode='snapshot_last_step' is deprecated.\n"
-            "This mode does not comply with MDP specification.\n"
-            "Please use 'distinct_cycle' instead.",
-            DeprecationWarning,
-            stacklevel=2
-        )
+    if mode not in {"distinct_cycle"}:
+        raise ValueError(f"queue_count_mode must be 'distinct_cycle', got '{mode}'")
     if halt_speed_threshold < 0.0:
         raise ValueError("halt_speed_threshold must be >=0")
     if use_enhanced_reward and reward_exponent < 1.0:

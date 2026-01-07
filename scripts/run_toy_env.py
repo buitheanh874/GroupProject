@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import argparse
 import sys
-from pathlib import Path
+from scripts.repo_root import find_repo_root
 
-project_root = Path(__file__).resolve().parents[1]
+project_root = find_repo_root(__file__)
 sys.path.insert(0, str(project_root))
 
 from scripts.train import main as train_main

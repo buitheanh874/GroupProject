@@ -4,18 +4,29 @@ import argparse
 import csv
 import os
 import sys
-from pathlib import Path
 from collections import Counter
+from pathlib import Path
 from typing import Any, Dict, Optional
 
 import numpy as np
 
-project_root = Path(__file__).resolve().parents[1]
+
+if __package__ in (None, ""):
+    script_dir = Path(__file__).resolve().parent
+    project_root_hint = script_dir.parent
+    if str(project_root_hint) not in sys.path:
+        sys.path.insert(0, str(project_root_hint))
+    if str(script_dir) not in sys.path:
+        sys.path.insert(0, str(script_dir))
+
+from scripts.repo_root import find_repo_root
+
+project_root = find_repo_root(__file__)
 sys.path.insert(0, str(project_root))
 
 from rl.cycle_tracker import CycleDistributionTracker
 from rl.utils import ensure_dir, generate_run_id, linear_epsilon, load_yaml_config, save_yaml_config, set_global_seed
-from scripts.common import build_agent, build_env
+from scripts.common import build_agent, build_env, resolve_allowed_action_ids
 from scripts.route_pool_loader import load_route_pool_from_config
 from scripts.scenario_config_bridge import apply_calibration_overrides
 from scripts.config_normalization import normalize_action_table_schema
@@ -80,6 +91,7 @@ def run_training(config: Dict[str, Any]) -> str:
                 "avg_loss",
                 "episode_steps",
                 "global_step",
+                "num_tls",
                 "epsilon_end",
                 "arrived_vehicles",
                 "avg_wait_time",
@@ -137,18 +149,11 @@ def run_training(config: Dict[str, Any]) -> str:
                             center_id = tls_ids_sorted[0]
 
                         center_action = agent.select_action(state=state[center_id], epsilon=epsilon)
-                        allowed_ids = None
-                        if hasattr(env, "cycle_to_actions"):
-                            for _, ids in env.cycle_to_actions.items():
-                                if center_action in ids:
-                                    allowed_ids = [int(x) for x in ids]
-                                    break
-                        if allowed_ids is None:
-                            if hasattr(env, "cycle_to_actions"):
-                                for _, ids in env.cycle_to_actions.items():
-                                    if int(config.get("baseline", {}).get("fixed_action_id", 2)) in ids:
-                                        allowed_ids = [int(x) for x in ids]
-                                        break
+                        allowed_ids = resolve_allowed_action_ids(
+                            env=env,
+                            target_action=center_action,
+                            fallback_action=int(config.get("baseline", {}).get("fixed_action_id", 2)),
+                        )
 
                         actions: Dict[str, int] = {}
                         for tls_id in tls_ids_sorted:
@@ -166,6 +171,8 @@ def run_training(config: Dict[str, Any]) -> str:
                         t_step_value = None
                         if isinstance(info, dict):
                             t_step_value = info.get("t_step") or info.get("decision_cycle_sec")
+                            if t_step_value is not None:
+                                t_step_value = float(t_step_value)
                         gamma_value = agent.compute_gamma(t_step_value)
 
                         for tls_id in tls_ids_sorted:
@@ -177,6 +184,8 @@ def run_training(config: Dict[str, Any]) -> str:
                         loss_value = agent.update()
                         if loss_value is not None:
                             losses.append(float(loss_value))
+                            if len(losses) > 500:
+                                losses.pop(0)
 
                         state = next_state
                         episode_reward += float(step_reward)
@@ -226,6 +235,7 @@ def run_training(config: Dict[str, Any]) -> str:
                     "avg_loss": float(avg_loss),
                     "episode_steps": int(episode_steps),
                     "global_step": int(global_step),
+                    "num_tls": int(len(state) if isinstance(state, dict) else 1),
                     "epsilon_end": float(last_epsilon),
                     "arrived_vehicles": int(kpi.get("arrived_vehicles", 0)),
                     "avg_wait_time": float(kpi.get("avg_wait_time", 0.0)),
@@ -250,6 +260,9 @@ def run_training(config: Dict[str, Any]) -> str:
 
                 writer.writerow(row)
                 csv_file.flush()
+
+                losses.clear()
+                del row
 
                 should_save_periodic = int(save_every_episodes) > 0 and (int(episode) % int(save_every_episodes) == 0)
                 is_best = float(episode_reward) > float(best_reward)

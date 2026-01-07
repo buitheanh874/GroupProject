@@ -67,3 +67,22 @@ def test_route_pool_selection_deterministic_and_varied():
 
     assert picks_a == picks_b  # deterministic by seed
     assert len(set(picks_a)) > 1  # not always the same route
+
+
+def test_route_pool_selection_does_not_mutate_rng_state():
+    env = _build_env_with_pool(seed=321)
+    control = _build_env_with_pool(seed=321)
+    pick_first = env._select_route_from_pool(episode_index=1)
+    control_rand = control._rng.random()
+    rand_after = env._rng.random()
+    assert rand_after == control_rand
+    pick_repeat = env._select_route_from_pool(episode_index=1)
+    assert pick_first == pick_repeat
+
+
+def test_route_pool_selection_stable_per_episode_index():
+    env = _build_env_with_pool(seed=11)
+    pick_one = env._select_route_from_pool(episode_index=1)
+    env._select_route_from_pool(episode_index=3)
+    pick_one_again = env._select_route_from_pool(episode_index=1)
+    assert pick_one == pick_one_again

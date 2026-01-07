@@ -7,6 +7,8 @@ import sys
 from pathlib import Path
 from typing import Optional
 
+from scripts.repo_root import find_repo_root
+
 
 def find_binary(name: str, sumo_home: Optional[str]) -> Optional[str]:
     if sumo_home:
@@ -25,7 +27,7 @@ def require_path(path: Path, label: str) -> None:
 
 
 def main() -> None:
-    repo_root = Path(__file__).resolve().parents[1]
+    repo_root = find_repo_root(__file__)
     sys.path.insert(0, str(repo_root))
 
     parser = argparse.ArgumentParser()

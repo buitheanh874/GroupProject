@@ -1,0 +1,224 @@
+# CODEX Run Report
+
+## Run 1 — 2026-01-06 17:47
+### Audit reference
+- Source: C:\Users\Dell\GroupProject\docs\Code_Audit_Cross_Check_Report_2026-01-06.md
+- Sections used: C1, C2, C4, H4
+
+### Goal
+- Audit-fix pass for C1 queue counting, C2 transition waiting default, C4 validation deduplication, H4 downstream occupancy fail-fast.
+
+### Changes made
+- File: env/sumo_env.py
+  - Change: Added optional ID check flag to downstream link validator to share logic across call sites.
+  - Reason: H4 fail-fast validation; C4 single source of truth.
+- File: scripts/common.py
+  - Change: Reused downstream validation helper and removed duplicate state_dim checks in build_env.
+  - Reason: C4 validation deduplication; H4 fail-fast direction checks.
+- File: tests/test_downstream_links_validation.py
+  - Change: Added whitespace/None downstream link case to ensure missing direction errors.
+  - Reason: H4 downstream links must reject empty values.
+- File: docs/upgrade_9_tls_plan.md
+  - Change: Updated downstream occupancy mitigation and acceptance to describe fail-fast (no padding fallback).
+  - Reason: H4 documentation alignment.
+
+### Tests
+- Command(s):
+  - pytest -q
+- Result:
+  - pass (87 tests)
+
+### Notes / Risks
+- Downstream occupancy now fails during config build when enabled with missing or blank N/E/S/W links; ensure configs provide valid IDs before enabling.
+
+### Next recommended actions
+- Run a SUMO-backed smoke test for a 12D occupancy config to confirm network ID validation in practice.
+- Consider refactoring duplicate logic between _step_legacy and _step_multi (audit H1).
+- Review configs to ensure any occupancy-enabled scenarios supply downstream_links.
+
+### Commit
+- Commit: b59d76f6d834ba90052798c585fcb1cda1880df9
+
+## Run 2 — 2026-01-06 18:09
+### Audit reference
+- Source: C:\Users\Dell\GroupProject\docs\Code_Audit_Cross_Check_Report_2026-01-06.md
+- Sections used: C1, C2, C4, H4
+
+### Goal
+- Align downstream occupancy validation with audit (fail-fast, no drift), ensuring build-time and runtime share the same helper.
+
+### Changes made
+- File: env/sumo_env.py
+  - Change: Tightened downstream link sanitizer (upper keys, stripped values), missing check uses None semantics, invalid mapping skips None, and runtime validation delegates to the helper.
+  - Reason: H4 fail-fast validation; avoid duplicate/ drifting logic.
+- File: scripts/common.py
+  - Change: Continue to reuse validate_downstream_links_config at build time with validate_ids=False (structure-only) instead of bespoke checks.
+  - Reason: C4 single source of truth; H4 structural enforcement.
+- File: tests/test_downstream_links_validation.py
+  - Change: Added coverage for validate_ids=False structure-only path and ensured whitespace/None values raise missing directions.
+  - Reason: H4 test alignment with new validation rules.
+
+### Tests
+- Command(s):
+  - pytest -q
+- Result:
+  - pass (88 tests)
+
+### Notes / Risks
+- Runtime still requires valid SUMO lane/edge IDs when occupancy enabled; configs must provide real IDs before running SUMO.
+
+### Next recommended actions
+- Consider normalizing downstream_links at config load time for YAML templates to prevent user whitespace errors.
+- Run a SUMO-backed smoke test with occupancy enabled to verify network ID validation in practice.
+
+### Commit
+- Commit: b59d76f6d834ba90052798c585fcb1cda1880df9
+
+## Run 3 — 2026-01-06 19:28
+### Audit reference
+- Source: C:\Users\Dell\GroupProject\docs\audit.md
+- Section used: Opponent/Baseline strengthening (Hanoi fixed-time)
+
+### Goal
+- Strengthen fixed-time opponent by matching split+cycle (Hanoi-style) and wire into simulation entrypoint with tests and docs.
+
+### Changes made
+- File: controllers/fixed_time.py
+  - Change: Rebuilt FixedTimeController to parse tuple/dict/object actions, match target split+cycle with penalties, and expose selected split/cycle.
+  - Reason: Baseline opponent must pick closest action by split/cycle instead of static id.
+- File: scripts/eval.py
+  - Change: Wired fixed-time baseline to auto-select action based on scenario (70/30 unbalanced, 50/50 otherwise, cycle 90s) using env action space; legacy fixed_action_id remains respected.
+  - Reason: Apply strengthened opponent in live simulation while keeping backward compatibility.
+- File: tests/test_fixed_time_controller.py
+  - Change: Added unit tests for tuple, dict/object parsing, cycle-aware selection, and empty-space rejection.
+  - Reason: Guard the new selection logic across input shapes.
+- File: docs/audit.md
+  - Change: Documented strengthened Hanoi fixed-time baseline and wiring point.
+  - Reason: Keep audit/backlog aware of new baseline behavior.
+
+### Tests
+- Command(s):
+  - python -m compileall .
+  - pytest -q
+- Result:
+  - pass (92 tests)
+
+### Notes / Risks
+- Fixed-time selection requires a non-empty action space; legacy fixed_action_id still overrides if provided in config.baseline.
+- Cycle penalty only applies when actions expose cycle_sec; otherwise split-only selection is used.
+
+### Commit
+- Commit: 315325fa41709c88154a9eb97ff40c14b16f7218
+
+## Run 4 — 2026-01-06 19:44
+### Audit reference
+- Source: C:\Users\Dell\GroupProject\docs\audit.md
+- Section used: Opponent/Baseline strengthening (Hanoi fixed-time)
+
+### Goal
+- Eval wiring cleanup + traceability; ensure fixed-time auto-match not overridden and add smoke coverage.
+
+### Changes made
+- File: scripts/eval.py
+  - Change: Cleaned duplicate wiring, ensured RL model load resolves args/config once, fixed-time auto-match only when controller includes fixed, and error when action space missing.
+  - Reason: Prevent merge-artifact regressions and enforce correct baseline selection.
+- File: tests/test_eval_wiring_smoke.py
+  - Change: Added smoke tests for config resolution and action space extraction without running main.
+  - Reason: Guard wiring/traceability behaviors.
+
+### Tests
+- Command(s):
+  - python -m compileall .
+  - pytest -q
+- Result:
+  - pass (95 tests)
+
+### Notes / Risks
+- Action space resolution now raises when empty; configs without actions will fail fast.
+- Working tree: clean after commit.
+
+### Commit
+- Commit: f97dbf3d425bf6f24a5497d1528bb230c3364f66
+
+*Correction note:* Run 2 reused the same commit SHA as Run 1; no additional code changes occurred between those runs.
+
+## Run 5 — 2026-01-06 20:10
+### Audit reference
+- Source: C:\Users\Dell\GroupProject\docs\audit.md
+- Section used: Opponent/Baseline strengthening (Hanoi fixed-time)
+
+### Goal
+- Eval wiring leftovers + traceability; enforce empty action-space fail-fast and smoke coverage.
+
+### Changes made
+- File: scripts/eval.py
+  - Change: Enforced action-space resolution to raise on empty results and kept single RL model load path.
+  - Reason: Prevent silent fallback/duplication in eval wiring.
+- File: tests/test_eval_wiring_smoke.py
+  - Change: Added empty-action-space failure case to smoke coverage.
+  - Reason: Guard fail-fast behavior.
+- File: docs/CODEX_RUN_REPORT.md
+  - Change: Updated Run 4 with actual SHA and correction note; added this run entry.
+  - Reason: Traceability and audit trail accuracy.
+
+### Tests
+- Command(s):
+  - python -m compileall .
+  - pytest -q
+- Result:
+  - pass (96 tests)
+
+### Notes / Risks
+- Action-space absence now hard-fails at eval startup; configs must supply action definitions.
+- Working tree: clean after commit.
+
+### Commit
+- Commit: 8ef04ca432c35b1305dc1e77674479422f275e1c
+
+## Run 6 — 2026-01-06 22:52
+### Audit reference
+- Source: C:\Users\Dell\GroupProject\docs\audit.md
+- Sections used: CRITICAL-1..5, HIGH-1..5
+
+### Goal
+- Address critical/high audit items (RNG determinism, SUMO start resiliency, gamma validation, float tolerance, normalization efficiency, eval action validation, repo root helper); document false positives.
+
+### Changes made
+- File: env/sumo_env.py
+  - Change: Route pool selection now uses a local RNG per episode and SUMO startup retries with backoff and free ports.
+  - Reason: CRITICAL-2 deterministic route selection; CRITICAL-3 TraCI start robustness.
+- File: env/stochastic_demand.py; scripts/validation.py
+  - Change: Replaced magic epsilon with named tolerance and math.isclose for ratio validation.
+  - Reason: CRITICAL-4 numeric safety.
+- File: rl/agent.py; tests/test_agent_gamma.py
+  - Change: Validated time-aware gamma inputs and added monotonicity/guard tests.
+  - Reason: CRITICAL-5 safer gamma computation.
+- File: env/normalization.py; tests/test_normalization_efficiency.py
+  - Change: Reduced array copies with in-place clipping and preserved dtype via tests.
+  - Reason: HIGH-1 normalization efficiency.
+- File: scripts/eval.py; tests/test_eval_wiring_smoke.py
+  - Change: Fixed-action validation bounds check against resolved action space.
+  - Reason: HIGH-2 eval action validation.
+- File: scripts/repo_root.py and multiple scripts/*
+  - Change: Added repo root resolver and replaced hardcoded Path(__file__).parents[1] usage.
+  - Reason: HIGH-5 centralized root discovery.
+- File: tests/test_route_pool_selection.py
+  - Change: Added deterministic and state-independent route pool selection coverage.
+  - Reason: CRITICAL-2 coverage.
+- File: docs/CODEX_RUN_REPORT.md
+  - Change: Corrected Run 5 commit reference and appended this run entry.
+  - Reason: Traceability.
+
+### Tests
+- Command(s):
+  - python -m compileall .
+  - pytest -q
+- Result:
+  - pass (104 tests)
+
+### Notes / Risks
+- Replay buffer bounded; waiting_total exponent already clamped; train CSV writes flush per episode (false positives).
+- TraCI retry/backoff not integration-tested with a live SUMO server; working tree clean after commit.
+
+### Commit
+- Commit: 038e5e5755fc88addc96f6236fda3c844fe10722

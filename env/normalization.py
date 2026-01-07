@@ -41,14 +41,15 @@ class StateNormalizer:
         self._clip_max = float(clip_max)
 
     def normalize(self, state_raw: np.ndarray) -> np.ndarray:
-        state_array = np.asarray(state_raw, dtype=np.float32).reshape(-1)
+        state_array = np.array(state_raw, dtype=np.float32, copy=True).reshape(-1)
 
         if state_array.shape[0] != self._dim:
             raise ValueError(f"state_raw must have shape ({self._dim},), got {state_array.shape}")
 
-        normalized = (state_array - self._mean) / (self._std + self._eps)
-        clipped = np.clip(normalized, self._clip_min, self._clip_max)
-        return clipped.astype(np.float32)
+        state_array -= self._mean
+        state_array /= (self._std + self._eps)
+        np.clip(state_array, self._clip_min, self._clip_max, out=state_array)
+        return state_array
 
     @property
     def mean(self) -> np.ndarray:

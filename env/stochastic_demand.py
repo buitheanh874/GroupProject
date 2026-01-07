@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import math
 import random
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
+TURNING_RATIO_ABS_TOL = 1e-6
+TURNING_RATIO_REL_TOL = 1e-9
 
 @dataclass
 class LaneArrivalConfig:
@@ -19,11 +22,15 @@ class IntersectionTurningConfig:
     turning_ratio_left: float
     turning_ratio_straight: float
     turning_ratio_right: float
-    
+
     def validate(self) -> None:
         total = self.turning_ratio_left + self.turning_ratio_straight + self.turning_ratio_right
-        if abs(total - 1.0) > 1e-6:
-            raise ValueError(f"Turning ratios must sum to 1.0, got {total}")
+        if not math.isclose(total, 1.0, rel_tol=TURNING_RATIO_REL_TOL, abs_tol=TURNING_RATIO_ABS_TOL):
+            raise ValueError(f"Turning ratios must sum to 1.0, got {total:.10f}")
+        
+        for ratio in [self.turning_ratio_left, self.turning_ratio_straight, self.turning_ratio_right]:
+            if ratio < 0.0 or ratio > 1.0:
+                raise ValueError(f"Turning ratio must be in [0,1], got {ratio}")
         
         for ratio in [self.turning_ratio_left, self.turning_ratio_straight, self.turning_ratio_right]:
             if ratio < 0.0 or ratio > 1.0:

@@ -1,8 +1,8 @@
 import subprocess
 import sys
-from pathlib import Path
+from scripts.repo_root import find_repo_root
 
-repo_root = Path(__file__).resolve().parent.parent
+repo_root = find_repo_root(__file__)
 
 def main():
     print("="*80)
