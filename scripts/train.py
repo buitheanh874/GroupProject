@@ -5,9 +5,19 @@ import csv
 import os
 import sys
 from collections import Counter
+from pathlib import Path
 from typing import Any, Dict, Optional
 
 import numpy as np
+
+
+if __package__ in (None, ""):
+    script_dir = Path(__file__).resolve().parent
+    project_root_hint = script_dir.parent
+    if str(project_root_hint) not in sys.path:
+        sys.path.insert(0, str(project_root_hint))
+    if str(script_dir) not in sys.path:
+        sys.path.insert(0, str(script_dir))
 
 from scripts.repo_root import find_repo_root
 

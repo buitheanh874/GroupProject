@@ -785,6 +785,9 @@ class SUMOEnv(BaseEnv):
             except Exception:
                 pass
 
+        fairness_value_info = float(max(fairness_values.values()) if len(fairness_values) > 0 else 0.0)
+        fairness_penalty_info = float(lambda_fairness) * float(fairness_value_info) if lambda_fairness > 0.0 else 0.0
+
         info: Dict[str, Any] = {
             "cycle_index": int(self._cycle_index),
             "action_ids": {tls: int(action_map[tls]) for tls in self._tls_ids},
@@ -795,8 +798,8 @@ class SUMOEnv(BaseEnv):
             "decision_steps": int(decision_steps),
             "step_length_sec": float(self._config.step_length_sec),
             "t_step": float(t_step_value),
-            "fairness_penalty": float(fairness_penalty),
-            "fairness_value": float(max(fairness_values.values()) if len(fairness_values) > 0 else 0.0),
+            "fairness_penalty": float(fairness_penalty_info),
+            "fairness_value": float(fairness_value_info),
             "spill_penalty": float(spill_penalty),
             "anti_flicker_penalty": float(anti_flicker_penalty),
             "total_wait_reward": float(sum(wait_totals.values())),
