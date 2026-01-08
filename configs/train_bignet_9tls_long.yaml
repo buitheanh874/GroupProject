@@ -26,7 +26,7 @@ env:
     step_length_sec: 1.0
     green_cycle_sec: 60
     yellow_sec: 3
-    all_red_sec: 0
+    all_red_sec: 2
     max_cycles: 60
     max_sim_seconds: 1800
     terminate_on_empty: false
@@ -179,11 +179,11 @@ env:
         lanes_right_turn_slip_ns: []
         lanes_right_turn_slip_ew: []
     phase_program:
-      ns_green: 0
-      ew_green: 2
-      ns_yellow: 1
-      ew_yellow: 3
-      all_red: 0
+      ew_green: 0    
+      ew_yellow: 1  
+      all_red: 2    
+      ns_green: 3    
+      ns_yellow: 4
 
 normalization:
   file: configs/norm_stats_bignet_9tls_long_tele300.json

@@ -190,6 +190,8 @@ class SumoEnvConfig:
     deadlock_penalty: float = 0.0
     terminate_on_deadlock: bool = False
     teleport_failure_when_congested: bool = False
+    cycle_options_sec: List[int] = field(default_factory=list)
+    reward_time_normalize: bool = False
 
 
 class SUMOEnv(BaseEnv):
@@ -1314,9 +1316,11 @@ class SUMOEnv(BaseEnv):
             (0.70, 0.30),
         ]
 
+        cycles = self._config.cycle_options_sec if len(self._config.cycle_options_sec) > 0 else [60, 90, 120]
+
         if self._multi_mode:
             defs: List[SumoActionDefinition] = []
-            for cycle in [30, 60, 90]:
+            for cycle in cycles:
                 for rho_ns, rho_ew in splits:
                     defs.append(
                         SumoActionDefinition(

@@ -1,62 +1,79 @@
-# Antigravity Run Report - Deadlock/Teleport Policy
+# Antigravity Run Report - Action Space 5-5-5
 
-## Run Log - 2026-01-08 00:45
+## Run Log - 2026-01-08 19:25
 
 ### Executive Summary
-Implemented deadlock/gridlock shaping policy as specified in `docs/8_1.md`. The new direction focuses on training RL agents to avoid traffic deadlocks rather than optimizing for teleport avoidance. This approach is more realistic and defensible for academic presentation.
 
-Key changes:
-- Added 9 new deadlock config parameters to `SumoEnvConfig`
-- Implemented arrival tracking and deadlock detection logic in environment step methods
-- Added early-warning shaping penalty and hard deadlock trigger with termination
-- Implemented teleport-under-congestion failure rule
-- Created new train/eval configs for long-horizon (1800s) episodes with teleport timeout 300s
-- Added deadlock fields to KPI tracker and eval CSV output
+Migrated action space from [30,60,90] to [60,90,120] cycles with 5 fixed splits, resulting in 15 total actions. Added config fields for cycle_options_sec and reward_time_normalize. All 116 tests pass.
 
 ### Files Changed
-- `env/sumo_env.py` - Added deadlock config params, tracking state vars, helper methods, and penalty logic
-- `env/kpi.py` - Added deadlock fields to EpisodeKpi dataclass and EpisodeKpiTracker
-- `scripts/common.py` - Added loading of deadlock params from YAML
-- `scripts/eval.py` - Added deadlock columns to CSV output
-- `tests/test_eval_kpi_logging.py` - Updated expected keys to include deadlock columns
-- `README.md` - Added section describing new deadlock approach
 
-### Configs Added/Updated
-- `configs/train_bignet_9tls_long_tele300.yaml` (NEW) - Training config with deadlock shaping enabled
-- `configs/eval_bignet_9tls_long_tele300.yaml` (NEW) - Eval config with deadlock shaping disabled
+- env/sumo_env.py (added cycle_options_sec, reward_time_normalize fields; changed default cycles)
+- scripts/common.py (updated allowed_cycles_sec default, wired new config fields)
+- tests/test_action_space.py (updated cycles to [60,90,120])
+- tests/test_mdp_compliance_full.py (updated cycles to [60,90,120])
 
-### Deadlock Policy Implemented
-- deadlock_early_no_arrival_sec: 30.0 (train), 0.0 (eval)
-- deadlock_no_arrival_sec: 150.0 (train), 0.0 (eval)
-- deadlock_queue_threshold: 20.0 (vehicle count based, train only)
-- deadlock_downstream_occ_threshold: 0.85 (0-1 scale, train only)
-- deadlock_active_min: 30 (minimum active vehicles to trigger, train only)
-- deadlock_early_penalty_max: 5.0 (train), 0.0 (eval)
-- deadlock_penalty: 100.0 (train), 0.0 (eval)
-- terminate_on_deadlock: true (train), false (eval)
-- teleport_failure_when_congested: true (train), false (eval)
+### Files Added
 
-Queue threshold choice rationale: Set to 20 vehicles as queue metrics are vehicle count based (halting number per lane). This threshold represents moderate congestion across multiple controlled lanes.
+- configs/train_bignet_1.yaml
+- configs/eval_bignet_1.yaml
+- configs/norm_bignet_1.json
+- tests/test_action_map_1.py
+
+### Files Removed
+
+- None
+
+### Action Space
+
+- cycles: [60, 90, 120]
+- splits: [(0.30,0.70),(0.40,0.60),(0.50,0.50),(0.60,0.40),(0.70,0.30)]
+- action_count: 15
+- mapping_order: cycle_major_split_minor
+- Action 0-4: cycle=60, splits 0.30-0.70 through 0.70-0.30
+- Action 5-9: cycle=90, splits 0.30-0.70 through 0.70-0.30
+- Action 10-14: cycle=120, splits 0.30-0.70 through 0.70-0.30
+
+### Reward Normalization
+
+- reward_time_normalize: config field added (default false)
+- train_bignet_1.yaml: reward_time_normalize set to true
+- decision_duration_sec source: calculated from step count x step_length_sec
+
+### Data/Manifests
+
+- train routes: using existing networks/variants/train/manifest.txt (50 routes)
+- eval routes: using existing networks/variants/eval/manifest_mixed_all.txt
+- routes_1.py script: not created (existing route generation sufficient)
 
 ### Tests
-- Commands:
-  - pytest -q
-- pytest output:
+
+Commands:
 ```
-........................................................................ [ 64%]
-........................................                                 [100%]
-112 passed in 3.87s
+pytest -q
+python scripts/train.py --config configs/train_bignet_1.yaml --episodes 2
 ```
 
-### Verification
-- All 112 tests pass including 5 new deadlock-specific tests
-- CSV header will include: deadlock_triggered, deadlock_reason, deadlock_no_arrival_sec
-- New tests verify:
-  - Deadlock trigger with no arrivals
-  - No trigger when active vehicles below minimum
-  - Teleport-under-congestion failure rule
-  - KPI deadlock fields
-  - Eval CSV columns include deadlock fields
+pytest output:
+```
+........................................................................ [ 62%]
+............................................                             [100%]
+116 passed in 3.04s
+```
 
-### New Test File Created
-- `tests/test_deadlock_policy.py` - Tests for deadlock detection and CSV columns
+Smoke train output:
+```
+[SUMOEnv] Initialized with 9 TLS: ['J0', 'J1', 'J2', 'J3', 'J4', 'J6', 'J7', 'J14', 'J17']
+[SUMOEnv] Route pool configured with 50 files
+[SUMOEnv] Episode 0: Using route 'bignet_train_seed00082.rou.xml'
+[SUMOEnv] Episode 1: Using route 'bignet_train_seed00044.rou.xml'
+Environment closed.
+[Cycle summary] Cycle distribution (n=14): 60s: 42.9%, 90s: 28.6%, 120s: 28.6%
+[Cycle summary] entropy=1.557
+Training complete.
+Exit code: 0
+```
+
+### Cleanup
+
+No files removed. Existing configs retained for backward compatibility.

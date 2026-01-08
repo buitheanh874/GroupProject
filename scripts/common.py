@@ -226,7 +226,7 @@ def build_env(config: Dict[str, Any]) -> BaseEnv:
         enable_spillback_penalty = bool(sumo_cfg.get("enable_spillback_penalty", False))
         beta = float(sumo_cfg.get("beta", 0.0))
         occ_threshold = float(sumo_cfg.get("occ_threshold", 0.0))
-        allowed_cycles = [int(x) for x in sumo_cfg.get("allowed_cycles_sec", [30, 60, 90])]
+        allowed_cycles = [int(x) for x in sumo_cfg.get("allowed_cycles_sec", [60, 90, 120])]
 
         # Validate scalar params upfront.
         from scripts.validation import validate_scalar_params
@@ -340,6 +340,8 @@ def build_env(config: Dict[str, Any]) -> BaseEnv:
             deadlock_penalty=float(sumo_cfg.get("deadlock_penalty", 0.0)),
             terminate_on_deadlock=bool(sumo_cfg.get("terminate_on_deadlock", False)),
             teleport_failure_when_congested=bool(sumo_cfg.get("teleport_failure_when_congested", False)),
+            cycle_options_sec=[int(x) for x in sumo_cfg.get("cycle_options_sec", [])],
+            reward_time_normalize=bool(sumo_cfg.get("reward_time_normalize", False)),
         )
 
         normalization_cfg = config.get("normalization", {})
