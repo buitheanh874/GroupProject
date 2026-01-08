@@ -350,6 +350,7 @@ class SUMOEnv(BaseEnv):
         self._deadlock_reason: str = ""
         self._early_penalty_total: float = 0.0
         self._deadlock_penalty_applied: float = 0.0
+        self._reward_time_normalize: bool = bool(self._config.reward_time_normalize)
 
     def set_route_file_pool(self, route_files: List[str]) -> None:
         """Set a pool of route files to randomly select from during reset.
@@ -515,7 +516,8 @@ class SUMOEnv(BaseEnv):
             raise ValueError(f"Action {action_id} violates min green constraint: g_ns={g_ns}, g_ew={g_ew}, min={min_green_sec}")
 
         decision_steps = 0
-        decision_teleport_count = 0  
+        decision_teleport_count = 0
+        t0_sim = float(self._traci.simulation.getTime())
 
         agg = CycleMetricsAggregator(directions=["NS", "EW"], queue_mode=self._queue_count_mode)
 
@@ -613,6 +615,11 @@ class SUMOEnv(BaseEnv):
 
         deadlock_penalty_step, deadlock_terminate = self._process_deadlock_step(decision_teleport_count)
         reward = float(reward) - float(deadlock_penalty_step)
+
+        t1_sim = float(self._traci.simulation.getTime())
+        decision_duration_sec = max(1e-6, t1_sim - t0_sim)
+        if self._reward_time_normalize:
+            reward = float(reward) / float(decision_duration_sec)
 
         state_raw = np.array([float(last_q_ns), float(last_q_ew), float(w_ns), float(w_ew)], dtype=np.float32)
         self._last_state_raw = state_raw.copy()
@@ -724,6 +731,7 @@ class SUMOEnv(BaseEnv):
         decision_steps = step_values.pop()
         decision_cycle_sec = float(decision_steps) * float(self._config.step_length_sec)
         decision_teleport_count = 0
+        t0_sim = float(self._traci.simulation.getTime())
 
         for tls_id, intervals in intervals_by_tls.items():
             if len(intervals) == 0:
@@ -840,8 +848,12 @@ class SUMOEnv(BaseEnv):
             self._last_state_raw[tls_id] = state_raw.copy()
 
         deadlock_penalty_step, deadlock_terminate = self._process_deadlock_step(decision_teleport_count)
+        t1_sim = float(self._traci.simulation.getTime())
+        decision_duration_sec = max(1e-6, t1_sim - t0_sim)
         for tls_id in self._tls_ids:
             rewards[tls_id] = float(rewards[tls_id]) - float(deadlock_penalty_step)
+            if self._reward_time_normalize:
+                rewards[tls_id] = float(rewards[tls_id]) / float(decision_duration_sec)
 
         self._cycle_index += 1
         self._prev_cycle_sec = int(cycle_sec)
@@ -1319,6 +1331,26 @@ class SUMOEnv(BaseEnv):
         cycles = self._config.cycle_options_sec if len(self._config.cycle_options_sec) > 0 else [60, 90, 120]
 
         if self._multi_mode:
+            if len(splits) != 5:
+                raise ValueError(f"action_splits must have exactly 5 entries, got {len(splits)}")
+            if len(cycles) != 3:
+                raise ValueError(f"cycle_options_sec must have exactly 3 entries, got {len(cycles)}")
+
+            for idx, (rho_ns, rho_ew) in enumerate(splits):
+                if abs(float(rho_ns) + float(rho_ew) - 1.0) > 1e-6:
+                    raise ValueError(f"action_splits[{idx}] rho_ns+rho_ew must equal 1.0")
+
+            g_min = int(self._g_min_sec)
+            for cycle in cycles:
+                for idx, (rho_ns, rho_ew) in enumerate(splits):
+                    g_ns = float(rho_ns) * float(cycle)
+                    g_ew = float(rho_ew) * float(cycle)
+                    if g_ns < g_min or g_ew < g_min:
+                        raise ValueError(
+                            f"Action cycle={cycle} split[{idx}]=({rho_ns},{rho_ew}) violates min_green: "
+                            f"g_ns={g_ns:.1f} g_ew={g_ew:.1f} < g_min_sec={g_min}"
+                        )
+
             defs: List[SumoActionDefinition] = []
             for cycle in cycles:
                 for rho_ns, rho_ew in splits:

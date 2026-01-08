@@ -16,6 +16,17 @@ def _resolve_path(path_str: str, base_dir: Path, project_root: Path) -> Path:
     return path.resolve()
 
 
+def _validate_route_content(route_path: Path) -> None:
+    if route_path.stat().st_size < 100:
+        return
+    content = route_path.read_text(encoding="utf-8", errors="ignore")
+    has_vehicle = "<vehicle" in content
+    has_flow = "<flow" in content
+    has_trip = "<trip" in content
+    if not (has_vehicle or has_flow or has_trip):
+        raise ValueError(f"Route file appears empty (no vehicle/flow/trip elements): {route_path}")
+
+
 def _load_manifest(manifest_path: Path, project_root: Path) -> List[str]:
     manifest_path = _resolve_path(str(manifest_path), project_root, project_root)
     if not manifest_path.exists():
@@ -33,6 +44,7 @@ def _load_manifest(manifest_path: Path, project_root: Path) -> List[str]:
                 route_path = alt_path
         if not route_path.exists():
             raise FileNotFoundError(f"Route file from manifest missing: {route_path} (manifest: {manifest_path})")
+        _validate_route_content(route_path)
         routes.append(str(route_path))
     if len(routes) == 0:
         raise ValueError(f"Route pool manifest is empty after filtering comments/blank lines: {manifest_path}")
