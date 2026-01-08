@@ -27,6 +27,9 @@ class EpisodeKpi:
     avg_travel_time_corr: float = 0.0
     p95_wait_time_corr: float = 0.0
     max_wait_time_corr: float = 0.0
+    deadlock_triggered: int = 0
+    deadlock_reason: str = ""
+    deadlock_no_arrival_sec: float = 0.0
 
 
 class EpisodeKpiTracker:
@@ -95,6 +98,10 @@ class EpisodeKpiTracker:
         self._vehicle_teleported: Dict[str, bool] = {}
         self._all_travel_times: list[float] = []
         self._vehicle_is_teleported: Dict[str, bool] = {}
+
+        self._deadlock_triggered: int = 0
+        self._deadlock_reason: str = ""
+        self._deadlock_no_arrival_sec: float = 0.0
 
     def on_simulation_step(self, traci_module: Any, queue_length: Optional[float] = None) -> None:
         try:
@@ -304,6 +311,9 @@ class EpisodeKpiTracker:
             avg_travel_time_corr=avg_travel_time_corr,
             p95_wait_time_corr=p95_wait_time_corr,
             max_wait_time_corr=max_wait_time_corr,
+            deadlock_triggered=int(self._deadlock_triggered),
+            deadlock_reason=str(self._deadlock_reason),
+            deadlock_no_arrival_sec=float(self._deadlock_no_arrival_sec),
         )
 
     def summary_dict(self) -> Dict[str, Any]:
@@ -328,10 +338,17 @@ class EpisodeKpiTracker:
             "avg_travel_time_corr": float(result.avg_travel_time_corr),
             "p95_wait_time_corr": float(result.p95_wait_time_corr),
             "max_wait_time_corr": float(result.max_wait_time_corr),
+            "deadlock_triggered": int(result.deadlock_triggered),
+            "deadlock_reason": str(result.deadlock_reason),
+            "deadlock_no_arrival_sec": float(result.deadlock_no_arrival_sec),
         }
     
     def record_teleport(self, vehicle_id: str) -> None:
-        """Record a teleport event for the given vehicle ID."""
         self._teleported_ids.add(vehicle_id)
         self._teleport_started_total += 1
         self._vehicle_is_teleported[vehicle_id] = True
+
+    def set_deadlock_info(self, triggered: bool, reason: str, no_arrival_sec: float) -> None:
+        self._deadlock_triggered = 1 if triggered else 0
+        self._deadlock_reason = str(reason)
+        self._deadlock_no_arrival_sec = float(no_arrival_sec)

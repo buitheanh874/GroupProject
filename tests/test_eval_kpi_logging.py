@@ -51,6 +51,9 @@ def test_build_eval_row_and_csv(tmp_path: Path):
         "p95_wait_time_corr",
         "max_wait_time_corr",
         "throughput_corr",
+        "deadlock_triggered",
+        "deadlock_reason",
+        "deadlock_no_arrival_sec",
     }
 
     csv_path = tmp_path / "results.csv"

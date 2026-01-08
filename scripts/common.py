@@ -331,6 +331,15 @@ def build_env(config: Dict[str, Any]) -> BaseEnv:
             enable_kpi_tracker=bool(sumo_cfg.get("enable_kpi_tracker", False)),
             state_dim=state_dim,
             enable_downstream_occupancy=occupancy_enabled,
+            deadlock_early_no_arrival_sec=float(sumo_cfg.get("deadlock_early_no_arrival_sec", 0.0)),
+            deadlock_no_arrival_sec=float(sumo_cfg.get("deadlock_no_arrival_sec", 0.0)),
+            deadlock_queue_threshold=float(sumo_cfg.get("deadlock_queue_threshold", 0.0)),
+            deadlock_downstream_occ_threshold=float(sumo_cfg.get("deadlock_downstream_occ_threshold", 0.0)),
+            deadlock_active_min=int(sumo_cfg.get("deadlock_active_min", 0)),
+            deadlock_early_penalty_max=float(sumo_cfg.get("deadlock_early_penalty_max", 0.0)),
+            deadlock_penalty=float(sumo_cfg.get("deadlock_penalty", 0.0)),
+            terminate_on_deadlock=bool(sumo_cfg.get("terminate_on_deadlock", False)),
+            teleport_failure_when_congested=bool(sumo_cfg.get("teleport_failure_when_congested", False)),
         )
 
         normalization_cfg = config.get("normalization", {})

@@ -181,6 +181,15 @@ class SumoEnvConfig:
     enable_downstream_occupancy: bool = True
     teleport_penalty_lambda: float = 0.0
     teleport_time_cap_sec: Optional[float] = None
+    deadlock_early_no_arrival_sec: float = 0.0
+    deadlock_no_arrival_sec: float = 0.0
+    deadlock_queue_threshold: float = 0.0
+    deadlock_downstream_occ_threshold: float = 0.0
+    deadlock_active_min: int = 0
+    deadlock_early_penalty_max: float = 0.0
+    deadlock_penalty: float = 0.0
+    terminate_on_deadlock: bool = False
+    teleport_failure_when_congested: bool = False
 
 
 class SUMOEnv(BaseEnv):
@@ -334,6 +343,12 @@ class SUMOEnv(BaseEnv):
         self._teleport_unique_ids: Set[str] = set()
         self._teleport_started_total: int = 0
 
+        self._no_arrival_steps: int = 0
+        self._deadlock_triggered: bool = False
+        self._deadlock_reason: str = ""
+        self._early_penalty_total: float = 0.0
+        self._deadlock_penalty_applied: float = 0.0
+
     def set_route_file_pool(self, route_files: List[str]) -> None:
         """Set a pool of route files to randomly select from during reset.
         
@@ -412,6 +427,12 @@ class SUMOEnv(BaseEnv):
         
         self._teleport_unique_ids = set()
         self._teleport_started_total = 0
+
+        self._no_arrival_steps = 0
+        self._deadlock_triggered = False
+        self._deadlock_reason = ""
+        self._early_penalty_total = 0.0
+        self._deadlock_penalty_applied = 0.0
 
         self._episode_count += 1
 
@@ -543,6 +564,12 @@ class SUMOEnv(BaseEnv):
                             self._kpi_disabled_warned = True
                         self._kpi_tracker = None
 
+                arrived_count_step = self._get_arrived_count_step()
+                if arrived_count_step > 0:
+                    self._no_arrival_steps = 0
+                else:
+                    self._no_arrival_steps += 1
+
                 self._stepped_seconds += float(self._config.step_length_sec)
                 decision_steps += 1
 
@@ -582,6 +609,9 @@ class SUMOEnv(BaseEnv):
             teleport_penalty = float(self._teleport_penalty_lambda) * float(decision_teleport_count)
             reward = float(reward) - float(teleport_penalty)
 
+        deadlock_penalty_step, deadlock_terminate = self._process_deadlock_step(decision_teleport_count)
+        reward = float(reward) - float(deadlock_penalty_step)
+
         state_raw = np.array([float(last_q_ns), float(last_q_ew), float(w_ns), float(w_ew)], dtype=np.float32)
         self._last_state_raw = state_raw.copy()
 
@@ -593,7 +623,9 @@ class SUMOEnv(BaseEnv):
 
         done = False
 
-        if self._config.max_sim_seconds is not None and int(self._config.max_sim_seconds) > 0:
+        if deadlock_terminate:
+            done = True
+        elif self._config.max_sim_seconds is not None and int(self._config.max_sim_seconds) > 0:
             if float(self._stepped_seconds) >= float(self._config.max_sim_seconds):
                 done = True
 
@@ -635,9 +667,20 @@ class SUMOEnv(BaseEnv):
             "state_norm": state_norm.tolist(),
             "sim_time": float(self._traci.simulation.getTime()),
             "total_stepped_seconds": float(self._stepped_seconds),
+            "deadlock_triggered": bool(self._deadlock_triggered),
+            "deadlock_reason": str(self._deadlock_reason),
+            "no_arrival_steps": int(self._no_arrival_steps),
+            "no_arrival_sec": float(self._no_arrival_steps * float(self._config.step_length_sec)),
+            "early_penalty_applied": float(self._early_penalty_total),
+            "deadlock_penalty_applied": float(self._deadlock_penalty_applied),
         }
 
         if done and self._kpi_tracker is not None:
+            self._kpi_tracker.set_deadlock_info(
+                triggered=bool(self._deadlock_triggered),
+                reason=str(self._deadlock_reason),
+                no_arrival_sec=float(self._no_arrival_steps * float(self._config.step_length_sec)),
+            )
             info["episode_kpi"] = self._kpi_tracker.summary_dict()
 
         return state, float(reward), bool(done), info
@@ -730,6 +773,12 @@ class SUMOEnv(BaseEnv):
                         self._kpi_disabled_warned = True
                     self._kpi_tracker = None
 
+            arrived_count_step = self._get_arrived_count_step()
+            if arrived_count_step > 0:
+                self._no_arrival_steps = 0
+            else:
+                self._no_arrival_steps += 1
+
             self._stepped_seconds += float(self._config.step_length_sec)
 
             for tls_id in self._tls_ids:
@@ -788,12 +837,18 @@ class SUMOEnv(BaseEnv):
                 self._last_state_raw = {}
             self._last_state_raw[tls_id] = state_raw.copy()
 
+        deadlock_penalty_step, deadlock_terminate = self._process_deadlock_step(decision_teleport_count)
+        for tls_id in self._tls_ids:
+            rewards[tls_id] = float(rewards[tls_id]) - float(deadlock_penalty_step)
+
         self._cycle_index += 1
         self._prev_cycle_sec = int(cycle_sec)
 
         done = False
 
-        if self._config.max_sim_seconds is not None and int(self._config.max_sim_seconds) > 0:
+        if deadlock_terminate:
+            done = True
+        elif self._config.max_sim_seconds is not None and int(self._config.max_sim_seconds) > 0:
             if float(self._stepped_seconds) >= float(self._config.max_sim_seconds):
                 done = True
 
@@ -831,9 +886,20 @@ class SUMOEnv(BaseEnv):
             "state_raw": {tls: state.tolist() for tls, state in ((k, self._last_state_raw[k]) for k in self._tls_ids)},
             "sim_time": float(self._traci.simulation.getTime()),
             "total_stepped_seconds": float(self._stepped_seconds),
+            "deadlock_triggered": bool(self._deadlock_triggered),
+            "deadlock_reason": str(self._deadlock_reason),
+            "no_arrival_steps": int(self._no_arrival_steps),
+            "no_arrival_sec": float(self._no_arrival_steps * float(self._config.step_length_sec)),
+            "early_penalty_applied": float(self._early_penalty_total),
+            "deadlock_penalty_applied": float(self._deadlock_penalty_applied),
         }
 
         if done and self._kpi_tracker is not None:
+            self._kpi_tracker.set_deadlock_info(
+                triggered=bool(self._deadlock_triggered),
+                reason=str(self._deadlock_reason),
+                no_arrival_sec=float(self._no_arrival_steps * float(self._config.step_length_sec)),
+            )
             info["episode_kpi"] = self._kpi_tracker.summary_dict()
 
         return states, rewards, bool(done), info
@@ -983,6 +1049,126 @@ class SUMOEnv(BaseEnv):
             self._teleport_started_total += 1
             count += 1
         return count
+
+    def _get_arrived_count_step(self) -> int:
+        if self._traci is None:
+            return 0
+        sim = getattr(self._traci, "simulation", None)
+        if sim is None:
+            return 0
+        try:
+            arrived_ids = sim.getArrivedIDList()
+            return len(arrived_ids)
+        except AttributeError:
+            pass
+        try:
+            return int(sim.getArrivedNumber())
+        except Exception:
+            pass
+        return 0
+
+    def _get_queue_proxy(self) -> float:
+        if self._traci is None:
+            return 0.0
+        total_queue = 0.0
+        if self._lanes_single is not None:
+            for lane_id in self._lanes_single.lanes_ns_ctrl + self._lanes_single.lanes_ew_ctrl:
+                try:
+                    total_queue += float(self._traci.lane.getLastStepHaltingNumber(str(lane_id)))
+                except Exception:
+                    pass
+        else:
+            for tls_id, lanes_group in self._lanes_by_tls.items():
+                for lane_id in lanes_group.lanes_ns_ctrl + lanes_group.lanes_ew_ctrl:
+                    try:
+                        total_queue += float(self._traci.lane.getLastStepHaltingNumber(str(lane_id)))
+                    except Exception:
+                        pass
+        return total_queue
+
+    def _get_downstream_occ_proxy(self) -> Optional[float]:
+        if not self._enable_downstream_occupancy or len(self._downstream_links) == 0:
+            return None
+        if self._traci is None:
+            return None
+        try:
+            occ_values = self._read_downstream_occupancy()
+            return float(np.max(occ_values))
+        except Exception:
+            return None
+
+    def _get_active_vehicle_count(self) -> int:
+        if self._kpi_tracker is not None:
+            try:
+                departed = len(self._kpi_tracker._departed_ids)
+                arrived = len(self._kpi_tracker._arrived_ids)
+                return max(0, departed - arrived)
+            except Exception:
+                pass
+        if self._traci is None:
+            return 0
+        try:
+            return int(self._traci.simulation.getMinExpectedNumber())
+        except Exception:
+            return 0
+
+    def _check_congestion_evidence(self) -> bool:
+        queue_thresh = float(self._config.deadlock_queue_threshold)
+        occ_thresh = float(self._config.deadlock_downstream_occ_threshold)
+        if queue_thresh <= 0.0 and occ_thresh <= 0.0:
+            return True
+        queue_proxy = self._get_queue_proxy()
+        if queue_thresh > 0.0 and queue_proxy >= queue_thresh:
+            return True
+        occ_proxy = self._get_downstream_occ_proxy()
+        if occ_thresh > 0.0 and occ_proxy is not None and occ_proxy >= occ_thresh:
+            return True
+        return False
+
+    def _check_active_vehicles_ok(self) -> bool:
+        active_min = int(self._config.deadlock_active_min)
+        if active_min <= 0:
+            return True
+        active_count = self._get_active_vehicle_count()
+        return active_count >= active_min
+
+    def _process_deadlock_step(self, decision_teleport_count: int) -> Tuple[float, bool]:
+        penalty = 0.0
+        should_terminate = False
+        step_length = float(self._config.step_length_sec)
+        early_limit_sec = float(self._config.deadlock_early_no_arrival_sec)
+        deadlock_limit_sec = float(self._config.deadlock_no_arrival_sec)
+        early_penalty_max = float(self._config.deadlock_early_penalty_max)
+        deadlock_penalty_val = float(self._config.deadlock_penalty)
+        if deadlock_limit_sec <= 0.0:
+            return penalty, should_terminate
+        congestion_ok = self._check_congestion_evidence()
+        active_ok = self._check_active_vehicles_ok()
+        if early_limit_sec > 0.0 and early_penalty_max > 0.0:
+            early_limit_steps = int(early_limit_sec / step_length) if step_length > 0 else 0
+            if early_limit_steps > 0 and self._no_arrival_steps >= early_limit_steps and congestion_ok and active_ok:
+                early_ratio = min(1.0, float(self._no_arrival_steps) / max(1.0, float(early_limit_steps)))
+                early_pen = early_penalty_max * early_ratio
+                penalty += early_pen
+                self._early_penalty_total += early_pen
+        deadlock_limit_steps = int(deadlock_limit_sec / step_length) if step_length > 0 else 0
+        if deadlock_limit_steps > 0 and not self._deadlock_triggered:
+            if self._no_arrival_steps >= deadlock_limit_steps and congestion_ok and active_ok:
+                self._deadlock_triggered = True
+                self._deadlock_reason = "no_progress_congestion"
+                penalty += deadlock_penalty_val
+                self._deadlock_penalty_applied = deadlock_penalty_val
+                if bool(self._config.terminate_on_deadlock):
+                    should_terminate = True
+        if bool(self._config.teleport_failure_when_congested) and not self._deadlock_triggered:
+            if decision_teleport_count > 0 and congestion_ok and active_ok:
+                self._deadlock_triggered = True
+                self._deadlock_reason = "teleport_under_congestion"
+                penalty += deadlock_penalty_val
+                self._deadlock_penalty_applied = deadlock_penalty_val
+                if bool(self._config.terminate_on_deadlock):
+                    should_terminate = True
+        return penalty, should_terminate
 
     def _queued_directions_for_tls(self, tls_id: str) -> Dict[str, List[str]]:
         dirs = self._direction_lanes_by_tls.get(tls_id, {})

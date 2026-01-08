@@ -69,6 +69,9 @@ def build_eval_row(
         "p95_wait_time_corr": float(kpi.get("p95_wait_time_corr", 0.0)),
         "max_wait_time_corr": float(kpi.get("max_wait_time_corr", 0.0)),
         "throughput_corr": throughput_corr,
+        "deadlock_triggered": int(kpi.get("deadlock_triggered", 0)),
+        "deadlock_reason": str(kpi.get("deadlock_reason", "")),
+        "deadlock_no_arrival_sec": float(kpi.get("deadlock_no_arrival_sec", 0.0)),
     }
 
 
@@ -103,6 +106,9 @@ def build_failed_row(
         "p95_wait_time_corr": 9999.0,
         "max_wait_time_corr": 9999.0,
         "throughput_corr": 0.0,
+        "deadlock_triggered": 0,
+        "deadlock_reason": "",
+        "deadlock_no_arrival_sec": 0.0,
     }
 
 
@@ -285,6 +291,9 @@ def main(argv: Optional[List[str]] = None) -> None:
                 "p95_wait_time_corr",
                 "max_wait_time_corr",
                 "throughput_corr",
+                "deadlock_triggered",
+                "deadlock_reason",
+                "deadlock_no_arrival_sec",
             ],
         )
         writer.writeheader()
