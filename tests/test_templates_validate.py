@@ -23,8 +23,8 @@ def _prepare_config(cfg: dict) -> dict:
 @pytest.mark.parametrize(
     "template_path",
     [
-        Path("configs/train_hanoi_template.yaml"),
-        Path("configs/eval_hanoi_template.yaml"),
+        Path("configs/train_bignet_9tls.yaml"),
+        Path("configs/eval_bignet_9tls.yaml"),
     ],
 )
 def test_templates_validate_action_table_and_scalars(template_path: Path):

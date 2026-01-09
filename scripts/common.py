@@ -18,7 +18,6 @@ from env.sumo_env import (
     validate_downstream_links_config,
 )
 from scripts.validation import validate_action_table
-from env.toy_queue_env import ToyQueueEnv, ToyQueueEnvConfig
 from rl.agent import AgentConfig, DQNAgent
 from rl.utils import resolve_device
 from scripts.sumo_network_tools import extract_tls_ids
@@ -147,17 +146,6 @@ def resolve_tls_ids_from_sumo_cfg(sumo_cfg: Dict[str, Any], net_path: Path) -> T
 def build_env(config: Dict[str, Any]) -> BaseEnv:
     env_config = config.get("env", {})
     env_type = str(env_config.get("type", "")).strip().lower()
-
-    if env_type == "toy":
-        toy_cfg = env_config.get("toy", {})
-        toy_env_config = ToyQueueEnvConfig(
-            max_steps=int(toy_cfg.get("max_steps", 200)),
-            arrival_prob=float(toy_cfg.get("arrival_prob", 0.7)),
-            serve_slow_rate=int(toy_cfg.get("serve_slow_rate", 1)),
-            serve_fast_rate=int(toy_cfg.get("serve_fast_rate", 3)),
-            seed=int(config.get("run", {}).get("seed", 0)),
-        )
-        return ToyQueueEnv(toy_env_config)
 
     if env_type == "sumo":
         sumo_cfg = env_config.get("sumo", {})
