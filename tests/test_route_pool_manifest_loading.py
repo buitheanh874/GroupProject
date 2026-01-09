@@ -10,9 +10,10 @@ def test_manifest_loader_strips_comments_and_blanks(tmp_path: Path):
     routes_dir = tmp_path / "routes"
     routes_dir.mkdir()
     files = []
+    content = "<routes><vehicle id='v0'/></routes>"
     for name in ["a.rou.xml", "b.rou.xml", "c.rou.xml"]:
         path = routes_dir / name
-        path.write_text("", encoding="utf-8")
+        path.write_text(content, encoding="utf-8")
         files.append(path)
 
     manifest = tmp_path / "manifest.txt"

@@ -97,7 +97,7 @@ Claude described “state ordering inconsistency”; in the repo, ordering in mu
 **Where:**
 - `env/sumo_env.py` — `_build_action_definitions()`
 
-**Current behavior:** cycles are hardcoded to `[30, 60, 90]` in multi-mode in some paths, and tests assert these cycles.
+**Current behavior:** cycles default to `[60, 90, 120]` in multi-mode and must stay aligned with config-driven options.
 
 **Fix:**
 - Use `config.action_table` (already exists) as the single source of truth.

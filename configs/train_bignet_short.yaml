@@ -1,0 +1,91 @@
+run:
+  run_name: train_bignet_short_test
+  seed: 42
+  device: cpu
+
+env:
+  type: sumo
+  sumo:
+
+    sumo_binary: sumo
+    net_file: networks/BIGNET.net.xml
+    route_file: networks/variants/train/manifest.txt
+    step_length_sec: 1.0
+    green_cycle_sec: 90
+    yellow_sec: 3
+    all_red_sec: 2     
+    cycle_options_sec: [60, 90, 120]
+    phase_program:
+      ew_green: 0
+      ew_yellow: 1
+      all_red: 2
+      ns_green: 3
+      ns_yellow: 4
+    tls_ids: ["J0", "J1", "J2", "J3", "J4", "J6", "J7", "J14", "J17"]
+    center_tls_id: "J0"
+    max_sim_seconds: 1800
+    teleport_penalty_lambda: 0.0
+  
+    lane_groups_by_tls:
+      J0:
+        lanes_ns_ctrl: ["-E3_0", "-E3_1", "-E2_0", "-E2_1"]
+        lanes_ew_ctrl: ["-E1_0", "-E1_1", "-E1_2", "-E0_0", "-E0_1", "-E0_2"]
+      J3:
+        lanes_ns_ctrl: ["-E25_0", "-E25_1", "E2_0", "E2_1"]
+        lanes_ew_ctrl: ["-E26_0", "E24_0"]
+      J1:
+        lanes_ns_ctrl: ["-E6_0", "-E6_1", "-E5_0", "-E5_1"]
+        lanes_ew_ctrl: ["E0_0", "E0_1", "E0_2", "-E4_0", "-E4_1", "-E4_2"]
+      J4:
+        lanes_ns_ctrl: ["E3_0", "E3_1", "-E16_0", "-E16_1"]
+        lanes_ew_ctrl: ["E14_0", "-E15_0"]
+      J2:
+        lanes_ns_ctrl: ["-E19_0", "-E19_1", "-E18_0", "-E18_1"]
+        lanes_ew_ctrl: ["E1_0", "E1_1", "E1_2", "-E17_0", "-E17_1", "-E17_2"]
+      J7:
+        lanes_ns_ctrl: ["-E27_0", "-E27_1", "E6_0", "E6_1"]
+        lanes_ew_ctrl: ["-E28_0", "E26_0"]
+      J6:
+        lanes_ns_ctrl: ["E5_0", "E5_1", "-E13_0", "-E13_1"]
+        lanes_ew_ctrl: ["-E12_0", "-E14_0"]
+      J14:
+        lanes_ns_ctrl: ["E18_0", "E18_1", "-E21_0", "-E21_1"]
+        lanes_ew_ctrl: ["E15_0", "-E20_0"]
+      J17:
+        lanes_ns_ctrl: ["-E22_0", "-E22_1", "E19_0", "E19_1"]
+        lanes_ew_ctrl: ["-E24_0", "-E23_0"]
+
+    enable_kpi_tracker: true
+    normalize_state: true
+    state_dim: 12
+    enable_downstream_occupancy: true
+    enable_spillback_penalty: true
+    occ_threshold: 0.65
+    action_splits:
+      - [0.30, 0.70]
+      - [0.40, 0.60]
+      - [0.50, 0.50]
+      - [0.60, 0.40]
+      - [0.70, 0.30]
+
+agent:
+  hidden_dims: [256, 256]
+  learning_rate: 0.0005      
+  batch_size: 256
+  target_update_freq: 500    
+  replay_buffer_size: 50000
+
+exploration:
+  eps_start: 1.0
+  eps_end: 0.05              
+  eps_decay_steps: 10000     
+
+train:
+  episodes: 200             
+  save_every_episodes: 50
+  route_pool_manifest: networks/variants/train/manifest.txt
+
+logging:
+  log_dir: logs/bignet_short
+  model_dir: models/bignet_short
+  results_dir: results/bignet_short

@@ -16,7 +16,7 @@ from rl.utils import ensure_dir, generate_run_id, load_yaml_config, set_global_s
 from scripts.common import build_agent, build_env, resolve_allowed_action_ids
 from controllers.fixed_time import FixedTimeController, FixedTimeControllerConfig
 from controllers.max_pressure import MaxPressureSplitController, select_action_from_defs
-from scripts.route_pool_loader import load_route_pool_from_config
+from scripts.route_pool_loader import load_route_pool_from_config, validate_route_file_nonempty
 from scripts.scenario_config_bridge import apply_calibration_overrides
 from scripts.config_normalization import normalize_action_table_schema
 
@@ -163,6 +163,10 @@ def main(argv: Optional[List[str]] = None) -> None:
     config = apply_calibration_overrides(config, project_root=repo_root)
     config = normalize_action_table_schema(config)
     route_pool = load_route_pool_from_config(config, split="eval", project_root=repo_root)
+    sumo_cfg = config.get("env", {}).get("sumo", {})
+    route_file = sumo_cfg.get("route_file")
+    if not route_pool and route_file:
+        validate_route_file_nonempty(Path(route_file))
     run_cfg = config.get("run", {})
     seed = int(run_cfg.get("seed", 0))
     set_global_seed(seed)

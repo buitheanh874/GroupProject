@@ -1,5 +1,5 @@
 run:
-  run_name: train_1
+  run_name: train_bignet_deep_opt
   seed: 42
   device: cpu
 
@@ -10,7 +10,7 @@ env:
     teleport_time_cap_sec: null
     sumo_binary: sumo
     net_file: networks/BIGNET.net.xml
-    route_file: networks/variants/train/bignet_train_seed00042.rou.xml
+    route_file: networks/variants/train/bignet_train_seed00042.rou.xml 
     additional_files: []
     tls_ids: ["J0", "J1", "J2", "J3", "J4", "J6", "J7", "J14", "J17"]
     center_tls_id: "J0"
@@ -24,7 +24,7 @@ env:
       passenger: 1.0
       bus: 3.0
     step_length_sec: 1.0
-    green_cycle_sec: 60
+    green_cycle_sec: 90
     yellow_sec: 3
     all_red_sec: 2
     max_cycles: 60
@@ -33,7 +33,6 @@ env:
     rho_min: 0.1
     g_min_sec: 10
     lambda_fairness: 0.0
-    allowed_cycles_sec: [60, 90, 120]
     cycle_options_sec: [60, 90, 120]
     action_splits:
       - [0.30, 0.70]
@@ -188,6 +187,22 @@ env:
       all_red: 2
       ns_green: 3
       ns_yellow: 4
+    tls_phase_overrides:
+      J17:
+        ns_green: 0
+        ew_green: 3
+      J2:
+        ns_green: 0
+        ew_green: 3
+      J3:
+        ns_green: 0
+        ew_green: 3
+      J14:
+        ns_green: 0
+        ew_green: 3
+      J7:
+        ns_green: 0
+        ew_green: 3
 
 normalization:
   file: configs/norm_1.json
@@ -195,21 +210,21 @@ normalization:
 agent:
   hidden_dims: [256, 256]
   gamma: 0.99
-  learning_rate: 0.0003
+  learning_rate: 0.0001
   batch_size: 256
   replay_buffer_size: 200000
-  target_update_freq: 2000
+  target_update_freq: 5000
 
 exploration:
   eps_start: 1.0
   eps_end: 0.02
-  eps_decay_steps: 150000
+  eps_decay_steps: 200000
 
 train:
-  episodes: 500
-  save_every_episodes: 50
+  episodes: 3000
+  save_every_episodes: 100
   print_every_episodes: 5
-  route_pool_manifest: networks/variants/train/manifest.txt
+  route_pool_manifest: networks/variants/train/manifest.txt #thêm 400 rou
 
 baseline:
   fixed_action_id: 2

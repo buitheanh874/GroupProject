@@ -14,6 +14,15 @@ from env.kpi import EpisodeKpiTracker
 from env.normalization import StateNormalizer
 from env.mdp_metrics import CycleMetricsAggregator, compute_normalized_reward
 
+DEFAULT_ACTION_SPLITS: List[Tuple[float, float]] = [
+    (0.30, 0.70),
+    (0.40, 0.60),
+    (0.50, 0.50),
+    (0.60, 0.40),
+    (0.70, 0.30),
+]
+DEFAULT_CYCLE_OPTIONS_SEC: List[int] = [60, 90, 120]
+SPLIT_SUM_TOL = 1e-6
 
 def validate_downstream_links_config(
     downstream_links: Dict[str, str],
@@ -192,6 +201,7 @@ class SumoEnvConfig:
     teleport_failure_when_congested: bool = False
     cycle_options_sec: List[int] = field(default_factory=list)
     reward_time_normalize: bool = False
+    tls_phase_overrides: Dict[str, Dict[str, int]] = field(default_factory=dict)
 
 
 class SUMOEnv(BaseEnv):
@@ -277,15 +287,6 @@ class SUMOEnv(BaseEnv):
 
         self._g_min_sec = int(self._config.g_min_sec)
 
-        if self._legacy_mode and len(self._config.action_splits) <= 0:
-            self._config.action_splits = [
-                (0.30, 0.70),
-                (0.40, 0.60),
-                (0.50, 0.50),
-                (0.60, 0.40),
-                (0.70, 0.30),
-            ]
-
         self._action_defs = self._build_action_definitions()
         self._validate_config_consistency()
 
@@ -352,6 +353,25 @@ class SUMOEnv(BaseEnv):
         self._deadlock_penalty_applied: float = 0.0
         self._reward_time_normalize: bool = bool(self._config.reward_time_normalize)
 
+        self._tls_phase_overrides: Dict[str, Dict[str, int]] = {}
+        for tls_id_key, override_dict in self._config.tls_phase_overrides.items():
+            tls_key = str(tls_id_key)
+            if tls_key not in self._tls_ids:
+                raise RuntimeError(
+                    f"tls_phase_overrides: TLS '{tls_key}' not in tls_ids {self._tls_ids}"
+                )
+            ns_val = override_dict.get("ns_green")
+            ew_val = override_dict.get("ew_green")
+            if not isinstance(ns_val, int) or not isinstance(ew_val, int):
+                raise RuntimeError(
+                    f"tls_phase_overrides['{tls_key}']: ns_green and ew_green must be integers"
+                )
+            if ns_val == ew_val:
+                raise RuntimeError(
+                    f"tls_phase_overrides['{tls_key}']: ns_green ({ns_val}) must differ from ew_green ({ew_val})"
+                )
+            self._tls_phase_overrides[tls_key] = {"ns_green": int(ns_val), "ew_green": int(ew_val)}
+
     def set_route_file_pool(self, route_files: List[str]) -> None:
         """Set a pool of route files to randomly select from during reset.
         
@@ -377,8 +397,11 @@ class SUMOEnv(BaseEnv):
                     f"Current working directory: {Path.cwd()}\n"
                     f"Please check the path or run from project root."
                 )
+            content = route_path.read_text(encoding="utf-8", errors="ignore").lower()
+            if "<vehicle" not in content and "<flow" not in content:
+                raise ValueError(f"Route file appears empty (no vehicle/flow elements): {route_path}")
             validated_files.append(str(route_path))
-        
+
         self._route_pool = validated_files
         print(f"[SUMOEnv] Route pool configured with {len(self._route_pool)} files:")
         for idx, route in enumerate(self._route_pool, 1):
@@ -405,6 +428,13 @@ class SUMOEnv(BaseEnv):
 
     def set_route_file(self, route_file: str) -> None:
         self._config.route_file = str(route_file)
+
+    def get_ns_ew_phase_indices(self, tls_id: str) -> Tuple[int, int]:
+        tls_key = str(tls_id)
+        if tls_key in self._tls_phase_overrides:
+            ovr = self._tls_phase_overrides[tls_key]
+            return (int(ovr["ns_green"]), int(ovr["ew_green"]))
+        return (int(self._phases.ns_green), int(self._phases.ew_green))
 
     def get_last_state_raw(self) -> Optional[Any]:
         return self._last_state_raw
@@ -522,6 +552,7 @@ class SUMOEnv(BaseEnv):
         agg = CycleMetricsAggregator(directions=["NS", "EW"], queue_mode=self._queue_count_mode)
 
         intervals = self._build_intervals_for_tls(
+            tls_id=str(self._config.tls_id),
             action_def=action_def,
             include_transition=bool(self._include_transition_in_waiting),
             g_ns=g_ns,
@@ -584,9 +615,11 @@ class SUMOEnv(BaseEnv):
         w_ns = float(waiting_sums[0]) if waiting_sums.size >= 1 else 0.0
         w_ew = float(waiting_sums[1]) if waiting_sums.size >= 2 else 0.0
 
-        decision_cycle_sec = float(decision_steps) * float(self._config.step_length_sec)
+        t1_sim = float(self._traci.simulation.getTime())
+        decision_duration_sec = max(1e-6, t1_sim - t0_sim)
+        decision_cycle_sec = float(cycle_sec)
 
-        t_step_value = float(cycle_sec + 2 * float(self._config.yellow_sec) + 2 * float(self._config.all_red_sec))
+        t_step_value = float(cycle_sec + 2 * int(self._config.yellow_sec) + 2 * int(self._config.all_red_sec))
         wait_exponent = float(self._reward_exponent if self._use_enhanced_reward else 1.0)
         total_wait = agg.waiting_total(exponent=wait_exponent, use_weights=self._use_pcu_weighted_wait)
 
@@ -616,8 +649,6 @@ class SUMOEnv(BaseEnv):
         deadlock_penalty_step, deadlock_terminate = self._process_deadlock_step(decision_teleport_count)
         reward = float(reward) - float(deadlock_penalty_step)
 
-        t1_sim = float(self._traci.simulation.getTime())
-        decision_duration_sec = max(1e-6, t1_sim - t0_sim)
         if self._reward_time_normalize:
             reward = float(reward) / float(decision_duration_sec)
 
@@ -660,6 +691,7 @@ class SUMOEnv(BaseEnv):
             "cycle_sec": int(cycle_sec),
             "decision_cycle_sec": float(decision_cycle_sec),
             "decision_steps": int(decision_steps),
+            "decision_duration_sec": float(decision_duration_sec),
             "step_length_sec": float(self._config.step_length_sec),
             "yellow_sec": int(self._config.yellow_sec),
             "all_red_sec": int(self._config.all_red_sec),
@@ -674,7 +706,7 @@ class SUMOEnv(BaseEnv):
             "waiting_total": float(w_ns + w_ew),
             "state_raw": state_raw.tolist(),
             "state_norm": state_norm.tolist(),
-            "sim_time": float(self._traci.simulation.getTime()),
+            "sim_time": float(t1_sim),
             "total_stepped_seconds": float(self._stepped_seconds),
             "deadlock_triggered": bool(self._deadlock_triggered),
             "deadlock_reason": str(self._deadlock_reason),
@@ -716,6 +748,7 @@ class SUMOEnv(BaseEnv):
         for tls_id, defn in selected_actions.items():
             g_ns, g_ew = self._compute_green_split(defn)
             intervals = self._build_intervals_for_tls(
+                tls_id=tls_id,
                 action_def=defn,
                 include_transition=bool(self._include_transition_in_waiting),
                 g_ns=g_ns,
@@ -729,7 +762,7 @@ class SUMOEnv(BaseEnv):
         if len(step_values) != 1:
             raise ValueError("All TLS intervals must produce the same number of steps")
         decision_steps = step_values.pop()
-        decision_cycle_sec = float(decision_steps) * float(self._config.step_length_sec)
+        decision_cycle_sec = float(cycle_sec)
         decision_teleport_count = 0
         t0_sim = float(self._traci.simulation.getTime())
 
@@ -815,6 +848,10 @@ class SUMOEnv(BaseEnv):
             fairness_values[tls_id] = agg.fairness_value(metric=self._fairness_metric)
             w_dir[tls_id] = agg.waiting_sums(order=["N", "E", "S", "W"])
 
+        t1_sim = float(self._traci.simulation.getTime())
+        decision_duration_sec = max(1e-6, t1_sim - t0_sim)
+        decision_cycle_sec = float(cycle_sec)
+        t_step_value = float(cycle_sec + 2 * int(self._config.yellow_sec) + 2 * int(self._config.all_red_sec))
         lambda_fairness = float(self._config.lambda_fairness)
         spill_penalty = self._compute_spillback_penalty()
         anti_flicker_penalty = self._compute_anti_flicker_penalty(cycle_sec=cycle_sec)
@@ -848,8 +885,6 @@ class SUMOEnv(BaseEnv):
             self._last_state_raw[tls_id] = state_raw.copy()
 
         deadlock_penalty_step, deadlock_terminate = self._process_deadlock_step(decision_teleport_count)
-        t1_sim = float(self._traci.simulation.getTime())
-        decision_duration_sec = max(1e-6, t1_sim - t0_sim)
         for tls_id in self._tls_ids:
             rewards[tls_id] = float(rewards[tls_id]) - float(deadlock_penalty_step)
             if self._reward_time_normalize:
@@ -889,6 +924,7 @@ class SUMOEnv(BaseEnv):
             "yellow_sec": int(self._config.yellow_sec),
             "decision_cycle_sec": float(decision_cycle_sec),
             "decision_steps": int(decision_steps),
+            "decision_duration_sec": float(decision_duration_sec),
             "step_length_sec": float(self._config.step_length_sec),
             "t_step": float(t_step_value),
             "fairness_penalty": float(fairness_penalty_info),
@@ -898,7 +934,7 @@ class SUMOEnv(BaseEnv):
             "total_wait_reward": float(sum(wait_totals.values())),
             "mean_reward": float(np.mean(list(rewards.values()))),
             "state_raw": {tls: state.tolist() for tls, state in ((k, self._last_state_raw[k]) for k in self._tls_ids)},
-            "sim_time": float(self._traci.simulation.getTime()),
+            "sim_time": float(t1_sim),
             "total_stepped_seconds": float(self._stepped_seconds),
             "deadlock_triggered": bool(self._deadlock_triggered),
             "deadlock_reason": str(self._deadlock_reason),
@@ -960,6 +996,7 @@ class SUMOEnv(BaseEnv):
 
     def _build_intervals_for_tls(
         self,
+        tls_id: str,
         action_def: SumoActionDefinition,
         include_transition: bool,
         g_ns: Optional[int] = None,
@@ -981,19 +1018,18 @@ class SUMOEnv(BaseEnv):
             setting it False excludes them from waiting while still tracking queues.
         """
         g_ns_val, g_ew_val = (g_ns, g_ew) if g_ns is not None and g_ew is not None else self._compute_green_split(action_def)
+        ns_phase_idx, ew_phase_idx = self.get_ns_ew_phase_indices(tls_id)
         intervals: List[Tuple[int, int, bool]] = []
 
-        intervals.append((int(self._phases.ns_green), self._sec_to_steps(int(g_ns_val)), True))
-
-        if self._config.yellow_sec > 0 and self._phases.ns_yellow is not None:
-            intervals.append((int(self._phases.ns_yellow), self._sec_to_steps(int(self._config.yellow_sec)), bool(include_transition)))
+        intervals.append((int(ew_phase_idx), self._sec_to_steps(int(g_ew_val)), True))
+        if self._config.yellow_sec > 0 and self._phases.ew_yellow is not None:
+            intervals.append((int(self._phases.ew_yellow), self._sec_to_steps(int(self._config.yellow_sec)), bool(include_transition)))
         if self._config.all_red_sec > 0 and self._phases.all_red is not None:
             intervals.append((int(self._phases.all_red), self._sec_to_steps(int(self._config.all_red_sec)), bool(include_transition)))
 
-        intervals.append((int(self._phases.ew_green), self._sec_to_steps(int(g_ew_val)), True))
-        
-        if self._config.yellow_sec > 0 and self._phases.ew_yellow is not None:
-            intervals.append((int(self._phases.ew_yellow), self._sec_to_steps(int(self._config.yellow_sec)), bool(include_transition)))
+        intervals.append((int(ns_phase_idx), self._sec_to_steps(int(g_ns_val)), True))
+        if self._config.yellow_sec > 0 and self._phases.ns_yellow is not None:
+            intervals.append((int(self._phases.ns_yellow), self._sec_to_steps(int(self._config.yellow_sec)), bool(include_transition)))
         if self._config.all_red_sec > 0 and self._phases.all_red is not None:
             intervals.append((int(self._phases.all_red), self._sec_to_steps(int(self._config.all_red_sec)), bool(include_transition)))
 
@@ -1306,67 +1342,97 @@ class SUMOEnv(BaseEnv):
         except Exception:
             return None
 
+    def _resolve_action_splits(self) -> List[Tuple[float, float]]:
+        splits_raw = self._config.action_splits if len(self._config.action_splits) > 0 else DEFAULT_ACTION_SPLITS
+        splits: List[Tuple[float, float]] = []
+        for idx, pair in enumerate(splits_raw):
+            if not isinstance(pair, (list, tuple)) or len(pair) < 2:
+                raise ValueError(f"action_splits[{idx}] must have two values")
+            rho_ns_val = float(pair[0])
+            rho_ew_val = float(pair[1])
+            splits.append((rho_ns_val, rho_ew_val))
+        if self._multi_mode and len(splits) != 5:
+            raise ValueError(f"action_splits must have exactly 5 entries, got {len(splits)}")
+        for idx, (rho_ns_val, rho_ew_val) in enumerate(splits):
+            if rho_ns_val <= 0.0 or rho_ew_val <= 0.0 or rho_ns_val >= 1.0 or rho_ew_val >= 1.0:
+                raise ValueError(f"action_splits[{idx}] values must be in (0,1)")
+            if abs(float(rho_ns_val) + float(rho_ew_val) - 1.0) > SPLIT_SUM_TOL:
+                raise ValueError(f"action_splits[{idx}] rho_ns+rho_ew must equal 1.0")
+        return splits
+
+    def _resolve_cycle_options(self) -> List[int]:
+        cycles_raw = self._config.cycle_options_sec if len(self._config.cycle_options_sec) > 0 else DEFAULT_CYCLE_OPTIONS_SEC
+        cycles = [int(x) for x in cycles_raw]
+        if self._multi_mode and len(cycles) != 3:
+            raise ValueError(f"cycle_options_sec must have exactly 3 entries, got {len(cycles)}")
+        if any(int(cycle) <= 0 for cycle in cycles):
+            raise ValueError(f"cycle_options_sec must contain positive values, got {cycles}")
+        return cycles
+
+    def _validate_action_green(self, cycle: int, rho_ns: float, rho_ew: float) -> None:
+        min_green_sec = max(int(self._g_min_sec), int(round(float(self._config.rho_min) * float(cycle))))
+        g_ns = float(rho_ns) * float(cycle)
+        g_ew = float(rho_ew) * float(cycle)
+        if g_ns < float(min_green_sec) or g_ew < float(min_green_sec):
+            raise ValueError(
+                f"Action cycle={cycle} rho_ns={rho_ns} rho_ew={rho_ew} violates min_green_sec={min_green_sec}"
+            )
+
     def _build_action_definitions(self) -> List[SumoActionDefinition]:
+        splits = self._resolve_action_splits()
+        cycles = self._resolve_cycle_options()
+        if len(cycles) != 3 or len(splits) != 5:
+            raise ValueError(f"action space must use 3 cycles and 5 splits, got cycles={len(cycles)} splits={len(splits)}")
+
+        expected_total = len(cycles) * len(splits)
         if len(self._config.action_table) > 0:
             defs: List[SumoActionDefinition] = []
-            for item in self._config.action_table:
-                cycle = item.get("cycle_sec")
-                rho_ns = item.get("rho_ns", item.get("ns_ratio", None))
-                rho_ew = item.get("rho_ew", None)
-                if rho_ns is None:
-                    raise ValueError("action_table entries must include rho_ns/ns_ratio")
-                if rho_ew is None:
-                    rho_ew = 1.0 - float(rho_ns)
-                defs.append(SumoActionDefinition(cycle_sec=int(cycle), rho_ns=float(rho_ns), rho_ew=float(rho_ew)))
-            return defs
-
-        splits = self._config.action_splits if len(self._config.action_splits) > 0 else [
-            (0.30, 0.70),
-            (0.40, 0.60),
-            (0.50, 0.50),
-            (0.60, 0.40),
-            (0.70, 0.30),
-        ]
-
-        cycles = self._config.cycle_options_sec if len(self._config.cycle_options_sec) > 0 else [60, 90, 120]
-
-        if self._multi_mode:
-            if len(splits) != 5:
-                raise ValueError(f"action_splits must have exactly 5 entries, got {len(splits)}")
-            if len(cycles) != 3:
-                raise ValueError(f"cycle_options_sec must have exactly 3 entries, got {len(cycles)}")
-
-            for idx, (rho_ns, rho_ew) in enumerate(splits):
-                if abs(float(rho_ns) + float(rho_ew) - 1.0) > 1e-6:
-                    raise ValueError(f"action_splits[{idx}] rho_ns+rho_ew must equal 1.0")
-
-            g_min = int(self._g_min_sec)
-            for cycle in cycles:
-                for idx, (rho_ns, rho_ew) in enumerate(splits):
-                    g_ns = float(rho_ns) * float(cycle)
-                    g_ew = float(rho_ew) * float(cycle)
-                    if g_ns < g_min or g_ew < g_min:
-                        raise ValueError(
-                            f"Action cycle={cycle} split[{idx}]=({rho_ns},{rho_ew}) violates min_green: "
-                            f"g_ns={g_ns:.1f} g_ew={g_ew:.1f} < g_min_sec={g_min}"
-                        )
-
-            defs: List[SumoActionDefinition] = []
+            entry_map = {}
+            for idx, item in enumerate(self._config.action_table):
+                cycle_val = item.get("cycle_sec")
+                rho_ns_val = item.get("rho_ns", item.get("ns_ratio", None))
+                rho_ew_val = item.get("rho_ew", None)
+                if cycle_val is None or rho_ns_val is None:
+                    raise ValueError("action_table entries must include cycle_sec and rho_ns/ns_ratio")
+                cycle_int = int(cycle_val)
+                rho_ns_float = float(rho_ns_val)
+                rho_ew_float = float(rho_ew_val) if rho_ew_val is not None else float(1.0 - rho_ns_float)
+                if rho_ns_float <= 0.0 or rho_ns_float >= 1.0 or rho_ew_float <= 0.0 or rho_ew_float >= 1.0:
+                    raise ValueError(f"action_table[{idx}] rho values must be in (0,1)")
+                if abs(float(rho_ns_float) + float(rho_ew_float) - 1.0) > SPLIT_SUM_TOL:
+                    raise ValueError(f"action_table[{idx}] rho_ns+rho_ew must equal 1.0")
+                if cycle_int not in cycles:
+                    raise ValueError(f"action_table[{idx}] cycle_sec={cycle_int} not in cycle_options_sec={cycles}")
+                self._validate_action_green(cycle=cycle_int, rho_ns=rho_ns_float, rho_ew=rho_ew_float)
+                key = (int(cycle_int), round(float(rho_ns_float), 6), round(float(rho_ew_float), 6))
+                if key in entry_map:
+                    raise ValueError(f"Duplicate action_table entry for cycle_sec={cycle_int} split={rho_ns_float}/{rho_ew_float}")
+                entry_map[key] = (cycle_int, rho_ns_float, rho_ew_float)
+            if len(entry_map) != expected_total:
+                raise ValueError(f"action_table must have {expected_total} entries, got {len(entry_map)}")
             for cycle in cycles:
                 for rho_ns, rho_ew in splits:
-                    defs.append(
-                        SumoActionDefinition(
-                            cycle_sec=int(cycle),
-                            rho_ns=float(rho_ns),
-                            rho_ew=float(rho_ew),
-                        )
-                    )
+                    key = (int(cycle), round(float(rho_ns), 6), round(float(rho_ew), 6))
+                    if key not in entry_map:
+                        raise ValueError(f"action_table missing entry for cycle_sec={cycle} split={rho_ns}/{rho_ew}")
+                    cycle_int, rho_ns_float, rho_ew_float = entry_map[key]
+                    defs.append(SumoActionDefinition(cycle_sec=cycle_int, rho_ns=rho_ns_float, rho_ew=rho_ew_float))
             return defs
 
-        return [
-            SumoActionDefinition(cycle_sec=int(self._config.green_cycle_sec), rho_ns=float(rho_ns), rho_ew=float(rho_ew))
-            for rho_ns, rho_ew in splits
-        ]
+        defs: List[SumoActionDefinition] = []
+        for cycle in cycles:
+            for rho_ns, rho_ew in splits:
+                self._validate_action_green(cycle=int(cycle), rho_ns=float(rho_ns), rho_ew=float(rho_ew))
+                defs.append(
+                    SumoActionDefinition(
+                        cycle_sec=int(cycle),
+                        rho_ns=float(rho_ns),
+                        rho_ew=float(rho_ew),
+                    )
+                )
+        if len(defs) != expected_total:
+            raise ValueError(f"Expected {expected_total} actions, got {len(defs)}")
+        return defs
 
     def _get_free_port(self) -> int:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

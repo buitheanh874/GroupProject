@@ -13,6 +13,7 @@ import numpy as np
 
 from rl.utils import ensure_dir, load_yaml_config, set_global_seed
 from scripts.common import build_env
+from scripts.route_pool_loader import load_route_pool_from_config
 
 
 def try_vec(x: Any, expected_dim: Optional[int]) -> Optional[List[float]]:
@@ -75,7 +76,15 @@ def main() -> None:
 
     set_global_seed(int(args.seed))
 
+    project_root = repo_root
+    route_pool = load_route_pool_from_config(config, split="train", project_root=project_root)
+
     env = build_env(config)
+    if route_pool and hasattr(env, "set_route_file_pool"):
+        try:
+            env.set_route_file_pool(route_pool)
+        except Exception:
+            pass
     fixed_action_id = int(config.get("baseline", {}).get("fixed_action_id", 2))
 
     raw_states: List[List[float]] = []

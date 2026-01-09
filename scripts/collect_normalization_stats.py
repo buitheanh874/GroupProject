@@ -24,6 +24,11 @@ def main() -> None:
 
     config = load_yaml_config(args.config)
 
+    # Collect raw states; turn off normalization to avoid double-normalizing.
+    config.setdefault("env", {}).setdefault("sumo", {})
+    config["env"]["sumo"]["normalize_state"] = False
+    config["env"]["sumo"]["return_raw_state"] = False
+
     run_cfg = config.get("run", {})
     seed = int(run_cfg.get("seed", 0))
     set_global_seed(seed)

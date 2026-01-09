@@ -33,7 +33,6 @@ env:
     rho_min: 0.1
     g_min_sec: 10
     lambda_fairness: 0.0
-    allowed_cycles_sec: [60, 90, 120]
     cycle_options_sec: [60, 90, 120]
     action_splits:
       - [0.30, 0.70]
@@ -181,11 +180,11 @@ env:
         lanes_right_turn_slip_ns: []
         lanes_right_turn_slip_ew: []
     phase_program:
-      ns_green: 0
-      ew_green: 2
-      ns_yellow: 1
-      ew_yellow: 3
-      all_red: 0
+      ew_green: 0
+      ew_yellow: 1
+      all_red: 2
+      ns_green: 3
+      ns_yellow: 4
 
 normalization:
   file: configs/norm_1.json
@@ -193,7 +192,7 @@ normalization:
 eval:
   model_path: models/1/train_1_best.pt
   runs: 10
-  route_pool_manifest: networks/variants/eval/manifest_mixed_all.txt
+  route_pool_manifest: networks/variants/eval/manifest_1.txt
 
 baseline:
   fixed_action_id: 2

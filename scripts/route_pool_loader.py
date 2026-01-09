@@ -16,15 +16,13 @@ def _resolve_path(path_str: str, base_dir: Path, project_root: Path) -> Path:
     return path.resolve()
 
 
-def _validate_route_content(route_path: Path) -> None:
-    if route_path.stat().st_size < 100:
-        return
+def validate_route_file_nonempty(route_path: Path) -> None:
     content = route_path.read_text(encoding="utf-8", errors="ignore")
-    has_vehicle = "<vehicle" in content
-    has_flow = "<flow" in content
-    has_trip = "<trip" in content
-    if not (has_vehicle or has_flow or has_trip):
-        raise ValueError(f"Route file appears empty (no vehicle/flow/trip elements): {route_path}")
+    text = content.lower()
+    has_vehicle = "<vehicle" in text
+    has_flow = "<flow" in text
+    if not (has_vehicle or has_flow):
+        raise ValueError(f"Route file appears empty (no vehicle/flow elements): {route_path}")
 
 
 def _load_manifest(manifest_path: Path, project_root: Path) -> List[str]:
@@ -44,7 +42,7 @@ def _load_manifest(manifest_path: Path, project_root: Path) -> List[str]:
                 route_path = alt_path
         if not route_path.exists():
             raise FileNotFoundError(f"Route file from manifest missing: {route_path} (manifest: {manifest_path})")
-        _validate_route_content(route_path)
+        validate_route_file_nonempty(route_path)
         routes.append(str(route_path))
     if len(routes) == 0:
         raise ValueError(f"Route pool manifest is empty after filtering comments/blank lines: {manifest_path}")
@@ -60,11 +58,14 @@ def _expand_route_pool(entries: List[Any], project_root: Path) -> List[str]:
             matches = sorted(Path(p).resolve() for p in glob.glob(str(pattern)))
             if len(matches) == 0:
                 raise FileNotFoundError(f"No route files matched pattern: {path_str}")
-            expanded.extend(str(p) for p in matches)
+            for path in matches:
+                validate_route_file_nonempty(path)
+                expanded.append(str(path))
         else:
             path = _resolve_path(path_str, project_root, project_root)
             if not path.exists():
                 raise FileNotFoundError(f"Route file not found: {path}")
+            validate_route_file_nonempty(path)
             expanded.append(str(path))
     return expanded
 
@@ -77,6 +78,7 @@ def load_route_pool_from_config(config: Dict[str, Any], split: str, project_root
         1) <split>.route_pool_manifest
         2) <split>.route_pool (with runtime glob expansion)
     Returns the resolved route list (absolute paths) and mutates config['env']['sumo']['route_pool'].
+    Also sets config['env']['sumo']['route_file'] to the first route if routes are loaded.
     """
     split_cfg = config.get(split, {})
     manifest = split_cfg.get("route_pool_manifest")
@@ -90,5 +92,26 @@ def load_route_pool_from_config(config: Dict[str, Any], split: str, project_root
 
     if routes:
         config.setdefault("env", {}).setdefault("sumo", {})["route_pool"] = list(routes)
+        config["env"]["sumo"]["route_file"] = routes[0]
 
     return routes
+
+
+def resolve_route_file_if_manifest(config: Dict[str, Any], project_root: Path) -> None:
+    sumo_cfg = config.get("env", {}).get("sumo", {})
+    route_file = sumo_cfg.get("route_file", "")
+    if not route_file:
+        return
+
+    route_file_str = str(route_file)
+    if route_file_str.lower().endswith(".txt"):
+        manifest_path = Path(route_file_str)
+        if not manifest_path.is_absolute():
+            manifest_path = project_root / route_file_str
+        if manifest_path.exists():
+            routes = _load_manifest(manifest_path, project_root)
+            if routes:
+                config["env"]["sumo"]["route_file"] = routes[0]
+                if "route_pool" not in config.get("env", {}).get("sumo", {}):
+                    config.setdefault("env", {}).setdefault("sumo", {})["route_pool"] = routes
+
