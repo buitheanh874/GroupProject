@@ -6,7 +6,7 @@ run:
 env:
   type: sumo
   sumo:
-    teleport_penalty_lambda: 0.0
+    teleport_penalty_lambda: 5.0
     teleport_time_cap_sec: null
     sumo_binary: sumo
     net_file: networks/BIGNET.net.xml
@@ -28,7 +28,7 @@ env:
     yellow_sec: 3
     all_red_sec: 2
     max_cycles: 60
-    max_sim_seconds: 1800
+    max_sim_seconds: 3600
     terminate_on_empty: false
     rho_min: 0.1
     g_min_sec: 10
@@ -59,15 +59,15 @@ env:
     occ_threshold: 0.65
     beta: 1.0
 
-    deadlock_early_no_arrival_sec: 30.0
-    deadlock_no_arrival_sec: 150.0
-    deadlock_queue_threshold: 20.0
-    deadlock_downstream_occ_threshold: 0.85
-    deadlock_active_min: 30
-    deadlock_early_penalty_max: 5.0
-    deadlock_penalty: 100.0
-    terminate_on_deadlock: true
-    teleport_failure_when_congested: true
+    deadlock_early_no_arrival_sec: 0
+    deadlock_no_arrival_sec: 0
+    deadlock_queue_threshold: 0
+    deadlock_downstream_occ_threshold: 0
+    deadlock_active_min: 0
+    deadlock_early_penalty_max: 0
+    deadlock_penalty: 0
+    terminate_on_deadlock: false
+    teleport_failure_when_congested: false
 
     lane_groups_by_tls:
       J0:
@@ -214,6 +214,7 @@ agent:
   batch_size: 256
   replay_buffer_size: 200000
   target_update_freq: 5000
+  clip_grad_norm: 10.0
 
 exploration:
   eps_start: 1.0
@@ -224,7 +225,7 @@ train:
   episodes: 3000
   save_every_episodes: 100
   print_every_episodes: 5
-  route_pool_manifest: networks/variants/train/manifest.txt #thêm 400 rou
+  route_pool_manifest: networks/variants/train/manifest_1.txt
 
 baseline:
   fixed_action_id: 2

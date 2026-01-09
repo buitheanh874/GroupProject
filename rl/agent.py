@@ -25,6 +25,7 @@ class AgentConfig:
     use_time_aware_gamma: bool = False
     gamma_0: float = 0.98
     t_ref: float = 60.0
+    clip_grad_norm: Optional[float] = 10.0 
 
 
 class DQNAgent:
@@ -158,6 +159,8 @@ class DQNAgent:
 
         self.optimizer.zero_grad()
         loss.backward()
+        if self._config.clip_grad_norm is not None and float(self._config.clip_grad_norm) > 0:
+            torch.nn.utils.clip_grad_norm_(self.online_net.parameters(), max_norm=float(self._config.clip_grad_norm))
         self.optimizer.step()
 
         self.update_step_count += 1

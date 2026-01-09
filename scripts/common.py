@@ -423,6 +423,7 @@ def build_agent(config: Dict[str, Any], env: BaseEnv) -> Tuple[DQNAgent, torch.d
         replay_buffer_size=int(agent_cfg.get("replay_buffer_size", 100000)),
         target_update_freq=int(agent_cfg.get("target_update_freq", 1000)),
         seed=int(run_cfg.get("seed", 0)),
+        clip_grad_norm=float(agent_cfg.get("clip_grad_norm", 10.0)) if agent_cfg.get("clip_grad_norm") is not None else 10.0,
     )
 
     agent = DQNAgent(config=agent_config, device=device)

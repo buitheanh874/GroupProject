@@ -35,7 +35,14 @@ def _make_env(include_transition: Optional[bool]) -> SUMOEnv:
         g_min_sec=5,
         lambda_fairness=0.0,
         fairness_metric="max",
-        action_splits=[(0.5, 0.5)],
+        cycle_options_sec=[60, 90, 120],
+        action_splits=[
+            (0.30, 0.70),
+            (0.40, 0.60),
+            (0.50, 0.50),
+            (0.60, 0.40),
+            (0.70, 0.30),
+        ],
         action_table=[],
         queue_count_mode="distinct_cycle",
         use_pcu_weighted_wait=False,
@@ -80,7 +87,9 @@ def _non_green_flags(env: SUMOEnv, intervals: List[tuple[int, int, bool]]) -> Li
 def test_transition_waiting_excluded_when_flag_false():
     env = _make_env(include_transition=False)
     action_def = env._action_defs[0]
-    intervals = env._build_intervals_for_tls(action_def=action_def, include_transition=False)
+    intervals = env._build_intervals_for_tls(
+        tls_id=str(env._config.tls_id), action_def=action_def, include_transition=False
+    )
     flags = _non_green_flags(env, intervals)
     assert len(flags) > 0
     assert all(flag is False for flag in flags)
@@ -89,7 +98,9 @@ def test_transition_waiting_excluded_when_flag_false():
 def test_transition_waiting_included_when_flag_true():
     env = _make_env(include_transition=True)
     action_def = env._action_defs[0]
-    intervals = env._build_intervals_for_tls(action_def=action_def, include_transition=True)
+    intervals = env._build_intervals_for_tls(
+        tls_id=str(env._config.tls_id), action_def=action_def, include_transition=True
+    )
     flags = _non_green_flags(env, intervals)
     assert len(flags) > 0
     assert all(flag is True for flag in flags)

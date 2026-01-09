@@ -31,7 +31,6 @@ def validate_downstream_links_config(
     center_tls_id: str,
     validate_ids: bool = True,
 ) -> None:
-    """Fail-fast validation for downstream occupancy links."""
     links_raw = downstream_links or {}
     links: Dict[str, Optional[str]] = {}
     for k, v in links_raw.items():
@@ -622,6 +621,7 @@ class SUMOEnv(BaseEnv):
         t_step_value = float(cycle_sec + 2 * int(self._config.yellow_sec) + 2 * int(self._config.all_red_sec))
         wait_exponent = float(self._reward_exponent if self._use_enhanced_reward else 1.0)
         total_wait = agg.waiting_total(exponent=wait_exponent, use_weights=self._use_pcu_weighted_wait)
+        transition_total_sec = 2 * int(self._config.yellow_sec) + 2 * int(self._config.all_red_sec)
 
         lambda_fairness = float(self._config.lambda_fairness)
         fairness_value = 0.0
@@ -650,7 +650,10 @@ class SUMOEnv(BaseEnv):
         reward = float(reward) - float(deadlock_penalty_step)
 
         if self._reward_time_normalize:
-            reward = float(reward) / float(decision_duration_sec)
+            if transition_total_sec > 0:
+                reward = float(reward) * float(t_step_value) / float(decision_duration_sec)
+            else:
+                reward = float(reward) / float(decision_duration_sec)
 
         state_raw = np.array([float(last_q_ns), float(last_q_ew), float(w_ns), float(w_ew)], dtype=np.float32)
         self._last_state_raw = state_raw.copy()
@@ -852,6 +855,7 @@ class SUMOEnv(BaseEnv):
         decision_duration_sec = max(1e-6, t1_sim - t0_sim)
         decision_cycle_sec = float(cycle_sec)
         t_step_value = float(cycle_sec + 2 * int(self._config.yellow_sec) + 2 * int(self._config.all_red_sec))
+        transition_total_sec = 2 * int(self._config.yellow_sec) + 2 * int(self._config.all_red_sec)
         lambda_fairness = float(self._config.lambda_fairness)
         spill_penalty = self._compute_spillback_penalty()
         anti_flicker_penalty = self._compute_anti_flicker_penalty(cycle_sec=cycle_sec)
@@ -870,7 +874,8 @@ class SUMOEnv(BaseEnv):
                 anti_flicker_penalty=float(anti_flicker_penalty),
             )
             if float(self._teleport_penalty_lambda) > 0.0:
-                teleport_penalty = float(self._teleport_penalty_lambda) * float(decision_teleport_count)
+                num_tls = max(1, len(self._tls_ids))
+                teleport_penalty = float(self._teleport_penalty_lambda) * float(decision_teleport_count) / float(num_tls)
                 rewards[tls_id] = float(rewards[tls_id]) - float(teleport_penalty)
             state_raw = self._build_state_vector(
                 tls_id=tls_id,
@@ -888,7 +893,10 @@ class SUMOEnv(BaseEnv):
         for tls_id in self._tls_ids:
             rewards[tls_id] = float(rewards[tls_id]) - float(deadlock_penalty_step)
             if self._reward_time_normalize:
-                rewards[tls_id] = float(rewards[tls_id]) / float(decision_duration_sec)
+                if transition_total_sec > 0:
+                    rewards[tls_id] = float(rewards[tls_id]) * float(t_step_value) / float(decision_duration_sec)
+                else:
+                    rewards[tls_id] = float(rewards[tls_id]) / float(decision_duration_sec)
 
         self._cycle_index += 1
         self._prev_cycle_sec = int(cycle_sec)
