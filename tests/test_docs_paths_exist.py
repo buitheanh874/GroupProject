@@ -5,7 +5,6 @@ from pathlib import Path
 
 def test_docs_files_exist_and_non_empty():
     docs = [
-        Path("docs/HANOI_SETUP.md"),
         Path("docs/MDP_COMPLIANCE.md"),
     ]
     for doc in docs:

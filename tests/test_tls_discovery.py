@@ -45,7 +45,7 @@ def test_tls_id_validation_rejects_duplicates(tmp_path: Path):
     net_file = tmp_path / "net.xml"
     route_file = tmp_path / "route.rou.xml"
     net_file.write_text("<net><tlLogic id='A'/></net>", encoding="utf-8")
-    route_file.write_text("<routes></routes>", encoding="utf-8")
+    route_file.write_text("<routes><vehicle id='v0'/></routes>", encoding="utf-8")
 
     sumo_cfg = {
         "net_file": str(net_file),
@@ -62,7 +62,7 @@ def test_center_tls_must_be_in_tls_ids(tmp_path: Path):
     net_file = tmp_path / "net.xml"
     route_file = tmp_path / "route.rou.xml"
     net_file.write_text("<net><tlLogic id='A'/><tlLogic id='B'/></net>", encoding="utf-8")
-    route_file.write_text("<routes></routes>", encoding="utf-8")
+    route_file.write_text("<routes><vehicle id='v0'/></routes>", encoding="utf-8")
 
     sumo_cfg = {
         "net_file": str(net_file),

@@ -15,7 +15,7 @@ This guide is synced to the current codebase and keeps the original Claude audit
 - Run commands from repo root (`C:/Users/Dell/GroupProject`); paths below are relative.
 
 ## Quick Start 1 - Hub-spoke (5 TLS)
-- Prepare assets: place `networks/hub_spoke/hub_spoke.net.xml` and `networks/hub_spoke/hub_spoke.rou.xml`; create the route pool manifests referenced in configs (`train.route_pool_manifest: networks/variants/train/manifest.txt`, `eval.route_pool_manifest: networks/variants/eval/manifest_low.txt`) or set those fields to null if using a single route file.
+- Prepare assets: place `networks/hub_spoke/hub_spoke.net.xml` and `networks/hub_spoke/hub_spoke.rou.xml`; create the route pool manifests referenced in configs (`train.route_pool_manifest: networks/variants/train/manifest_1.txt`, `eval.route_pool_manifest: networks/variants/eval/manifest_1.txt`) or set those fields to null if using a single route file.
 - Train smoke (uses `configs/train_hub_spoke_demo.yaml`, logs to `logs/hub_spoke_demo`, models to `models/hub_spoke_demo`):
 ```bash
 python scripts/train.py --config configs/train_hub_spoke_demo.yaml --episodes 5
@@ -51,7 +51,7 @@ PY
 - `state_dim`: defaults to 12 when multiple tls_ids or when `action_table` is provided; must be 12 for multi-TLS; allowed values are 4 or 12.
 - `lane_groups_by_tls` (dict) required when tls_ids has multiple entries; each TLS must define non-empty `lanes_ns_ctrl` and `lanes_ew_ctrl`; optional `lanes_right_turn_slip_*` and `approach_lanes` must not overlap controlled lanes. Single-TLS fallback uses `lane_groups`.
 - `phase_program`: `ns_green` and `ew_green` required; `ns_yellow`/`ew_yellow` needed if `yellow_sec > 0`; `all_red` needed if `all_red_sec > 0`.
-- `action_splits` (list of `[rho_ns, rho_ew]`) vs `action_table` (items with `cycle_sec`, `rho_ns`/`ns_ratio`, optional `rho_ew`); `allowed_cycles_sec` defaults to `[30, 60, 90]` and cannot be empty; `g_min_sec` default 5 enforces minimum green. When `state_dim = 12` and `action_table` is empty, actions auto-generate from `action_splits` across allowed cycles.
+- `action_splits` (list of `[rho_ns, rho_ew]`) vs `action_table` (items with `cycle_sec`, `rho_ns`/`ns_ratio`, optional `rho_ew`); `allowed_cycles_sec` defaults to `[60, 90, 120]` and cannot be empty; `g_min_sec` default 5 enforces minimum green. When `state_dim = 12` and `action_table` is empty, actions auto-generate from `action_splits` across allowed cycles.
 - `route_pool_manifest` / `route_pool` under `train` or `eval`: manifest takes priority; paths are resolved relative to the manifest and project root, globs supported when using `route_pool`. Resolved routes are injected into `env.sumo.route_pool`.
 - `normalization`: supply `mean`/`std` vectors of length `state_dim` or set `file` to a JSON containing `mean`/`std`. Required when `normalize_state: true`; disabled (`mean=[0...], std=[1...]`) when `normalize_state: false`.
 - `downstream_links` plus `enable_downstream_occupancy`: occupancy is only used for `center_tls_id`; when enabled you must provide N/E/S/W links or the config fails fast (ValueError). Set `enable_downstream_occupancy: false` until links are confirmed.

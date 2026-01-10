@@ -53,12 +53,12 @@ class CycleDistributionTracker:
 
 
 def example_usage():
-    tracker = CycleDistributionTracker(allowed_cycles=[30, 60, 90])
+    tracker = CycleDistributionTracker(allowed_cycles=[60, 90, 120])
 
     import random
 
     for _ in range(100):
-        cycle = random.choices([30, 60, 90], weights=[0.1, 0.8, 0.1])[0]
+        cycle = random.choices([60, 90, 120], weights=[0.1, 0.8, 0.1])[0]
         tracker.record(cycle)
 
     print(tracker.get_summary_str())
@@ -67,7 +67,7 @@ def example_usage():
 
     tracker.reset()
     for _ in range(100):
-        cycle = random.choice([30, 60, 90])
+        cycle = random.choice([60, 90, 120])
         tracker.record(cycle)
 
     print(tracker.get_summary_str())

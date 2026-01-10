@@ -84,7 +84,7 @@ def test_action_defs_constraints():
     env = _make_multi_env()
     action_defs = env._action_defs
     cycles = {int(a.cycle_sec) for a in action_defs}
-    assert cycles == {30, 60, 90}
+    assert cycles == {60, 90, 120}
 
     for action in action_defs:
         g_ns, g_ew = env._compute_green_split(action)
@@ -100,7 +100,7 @@ def test_default_multi_action_table_full_coverage():
     assert len(action_defs) == 15
 
     expected_splits = {(0.30, 0.70), (0.40, 0.60), (0.50, 0.50), (0.60, 0.40), (0.70, 0.30)}
-    for cycle in (30, 60, 90):
+    for cycle in (60, 90, 120):
         splits_for_cycle = {
             (round(a.rho_ns, 2), round(a.rho_ew, 2))
             for a in action_defs
@@ -109,7 +109,7 @@ def test_default_multi_action_table_full_coverage():
         assert splits_for_cycle == expected_splits
 
     cycle_map = env.cycle_to_actions
-    assert set(cycle_map.keys()) == {30, 60, 90}
+    assert set(cycle_map.keys()) == {60, 90, 120}
     for cycle, indices in cycle_map.items():
         assert len(indices) == 5
         assert all(int(action_defs[i].cycle_sec) == int(cycle) for i in indices)

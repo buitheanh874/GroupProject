@@ -8,9 +8,16 @@ import torch
 
 from env.base_env import BaseEnv
 from env.normalization import StateNormalizer
-from env.sumo_env import SUMOEnv, SumoEnvConfig, SumoLaneGroups, SumoPhaseProgram, validate_downstream_links_config
+from env.sumo_env import (
+    DEFAULT_ACTION_SPLITS,
+    DEFAULT_CYCLE_OPTIONS_SEC,
+    SUMOEnv,
+    SumoEnvConfig,
+    SumoLaneGroups,
+    SumoPhaseProgram,
+    validate_downstream_links_config,
+)
 from scripts.validation import validate_action_table
-from env.toy_queue_env import ToyQueueEnv, ToyQueueEnvConfig
 from rl.agent import AgentConfig, DQNAgent
 from rl.utils import resolve_device
 from scripts.sumo_network_tools import extract_tls_ids
@@ -93,13 +100,7 @@ def load_config_with_inheritance(config_path: str) -> Dict[str, Any]:
 
 
 def _default_action_splits() -> List[Tuple[float, float]]:
-    return [
-        (0.30, 0.70),
-        (0.40, 0.60),
-        (0.50, 0.50),
-        (0.60, 0.40),
-        (0.70, 0.30),
-    ]
+    return [(float(a), float(b)) for a, b in DEFAULT_ACTION_SPLITS]
 
 
 def resolve_tls_ids_from_sumo_cfg(sumo_cfg: Dict[str, Any], net_path: Path) -> Tuple[List[str], str]:
@@ -146,17 +147,6 @@ def build_env(config: Dict[str, Any]) -> BaseEnv:
     env_config = config.get("env", {})
     env_type = str(env_config.get("type", "")).strip().lower()
 
-    if env_type == "toy":
-        toy_cfg = env_config.get("toy", {})
-        toy_env_config = ToyQueueEnvConfig(
-            max_steps=int(toy_cfg.get("max_steps", 200)),
-            arrival_prob=float(toy_cfg.get("arrival_prob", 0.7)),
-            serve_slow_rate=int(toy_cfg.get("serve_slow_rate", 1)),
-            serve_fast_rate=int(toy_cfg.get("serve_fast_rate", 3)),
-            seed=int(config.get("run", {}).get("seed", 0)),
-        )
-        return ToyQueueEnv(toy_env_config)
-
     if env_type == "sumo":
         sumo_cfg = env_config.get("sumo", {})
         net_path = Path(sumo_cfg.get("net_file", ""))
@@ -174,6 +164,19 @@ def build_env(config: Dict[str, Any]) -> BaseEnv:
                 f"Route file not found: {route_path}\n"
                 f"Current working directory: {Path.cwd()}\n"
                 f"Please check the path in config: env.sumo.route_file"
+            )
+        
+        route_file_str = str(route_path).lower()
+        if route_file_str.endswith(".txt"):
+            raise RuntimeError(
+                f"Invalid sumo.route_file: expected .rou.xml, got '{route_path}'\n"
+                f"Did you pass a manifest.txt file? SUMO cannot parse manifest files directly.\n"
+                f"Use route_pool_manifest in train/eval config section, or call resolve_route_file_if_manifest()."
+            )
+        if not (route_file_str.endswith(".rou.xml") or route_file_str.endswith(".xml")):
+            raise RuntimeError(
+                f"Invalid sumo.route_file: expected .rou.xml or .xml, got '{route_path}'\n"
+                f"SUMO requires an XML route file."
             )
         lane_cfg = sumo_cfg.get("lane_groups", {})
         lane_cfg_by_tls = sumo_cfg.get("lane_groups_by_tls", {})
@@ -213,7 +216,7 @@ def build_env(config: Dict[str, Any]) -> BaseEnv:
         yellow_sec = int(sumo_cfg.get("yellow_sec", 0))
         all_red_sec = int(sumo_cfg.get("all_red_sec", 0))
         rho_min = float(sumo_cfg.get("rho_min", 0.1))
-        g_min_sec = int(sumo_cfg.get("g_min_sec", 5))
+        g_min_sec = int(sumo_cfg.get("min_green_sec", sumo_cfg.get("g_min_sec", 5)))
         lambda_fairness = float(sumo_cfg.get("lambda_fairness", 0.12))
         fairness_metric = str(sumo_cfg.get("fairness_metric", "max")).lower()
         queue_count_mode = str(sumo_cfg.get("queue_count_mode", "distinct_cycle")).lower()
@@ -226,7 +229,9 @@ def build_env(config: Dict[str, Any]) -> BaseEnv:
         enable_spillback_penalty = bool(sumo_cfg.get("enable_spillback_penalty", False))
         beta = float(sumo_cfg.get("beta", 0.0))
         occ_threshold = float(sumo_cfg.get("occ_threshold", 0.0))
-        allowed_cycles = [int(x) for x in sumo_cfg.get("allowed_cycles_sec", [30, 60, 90])]
+        allowed_cycles_cfg = sumo_cfg.get("allowed_cycles_sec")
+        cycle_options = [int(x) for x in sumo_cfg.get("cycle_options_sec", allowed_cycles_cfg if allowed_cycles_cfg is not None else DEFAULT_CYCLE_OPTIONS_SEC)]
+        allowed_cycles = list(cycle_options)
 
         # Validate scalar params upfront.
         from scripts.validation import validate_scalar_params
@@ -331,6 +336,18 @@ def build_env(config: Dict[str, Any]) -> BaseEnv:
             enable_kpi_tracker=bool(sumo_cfg.get("enable_kpi_tracker", False)),
             state_dim=state_dim,
             enable_downstream_occupancy=occupancy_enabled,
+            deadlock_early_no_arrival_sec=float(sumo_cfg.get("deadlock_early_no_arrival_sec", 0.0)),
+            deadlock_no_arrival_sec=float(sumo_cfg.get("deadlock_no_arrival_sec", 0.0)),
+            deadlock_queue_threshold=float(sumo_cfg.get("deadlock_queue_threshold", 0.0)),
+            deadlock_downstream_occ_threshold=float(sumo_cfg.get("deadlock_downstream_occ_threshold", 0.0)),
+            deadlock_active_min=int(sumo_cfg.get("deadlock_active_min", 0)),
+            deadlock_early_penalty_max=float(sumo_cfg.get("deadlock_early_penalty_max", 0.0)),
+            deadlock_penalty=float(sumo_cfg.get("deadlock_penalty", 0.0)),
+            terminate_on_deadlock=bool(sumo_cfg.get("terminate_on_deadlock", False)),
+            teleport_failure_when_congested=bool(sumo_cfg.get("teleport_failure_when_congested", False)),
+            cycle_options_sec=cycle_options,
+            reward_time_normalize=bool(sumo_cfg.get("reward_time_normalize", False)),
+            tls_phase_overrides={str(k): {str(kk): int(vv) for kk, vv in v.items()} for k, v in sumo_cfg.get("tls_phase_overrides", {}).items()},
         )
 
         normalization_cfg = config.get("normalization", {})
@@ -338,7 +355,10 @@ def build_env(config: Dict[str, Any]) -> BaseEnv:
         std: Any = normalization_cfg.get("std")
         norm_file = normalization_cfg.get("file")
 
-        if norm_file:
+        # Only load external normalization stats when normalization is enabled.
+        # This avoids FileNotFound errors during normalization collection runs
+        # where the previous stats file might have been removed.
+        if normalize_state and norm_file:
             import json
 
             with open(str(norm_file), "r", encoding="utf-8") as f:
@@ -391,6 +411,7 @@ def build_agent(config: Dict[str, Any], env: BaseEnv) -> Tuple[DQNAgent, torch.d
         replay_buffer_size=int(agent_cfg.get("replay_buffer_size", 100000)),
         target_update_freq=int(agent_cfg.get("target_update_freq", 1000)),
         seed=int(run_cfg.get("seed", 0)),
+        clip_grad_norm=float(agent_cfg.get("clip_grad_norm", 10.0)) if agent_cfg.get("clip_grad_norm") is not None else 10.0,
     )
 
     agent = DQNAgent(config=agent_config, device=device)

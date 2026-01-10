@@ -15,11 +15,12 @@ def test_route_pool_manifest_selection_varied(tmp_path: Path):
     project_root = tmp_path
     train_dir = project_root / "train"
     train_dir.mkdir()
+    content = "<routes><vehicle id='v0'/></routes>"
 
     route_files = []
     for idx in range(3):
         path = train_dir / f"route_{idx}.rou.xml"
-        path.write_text("<routes></routes>", encoding="utf-8")
+        path.write_text(content, encoding="utf-8")
         route_files.append(path)
 
     manifest = train_dir / "manifest.txt"

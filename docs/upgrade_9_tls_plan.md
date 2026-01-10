@@ -287,7 +287,7 @@ The codebase **already has generic multi-TLS support** for N traffic lights, but
 #### Integration Tests
 
 - [ ] **Smoke test: 5-episode train with 9 TLS**
-  - **Files**: Create `tests/test_9tls_train_smoke.py` or update `scripts/run_quick_test.py`
+  - **Files**: Create `tests/test_9tls_train_smoke.py`
   - **Description**: Run 5 episodes of training with 9-TLS config; ensure no crashes
   - **Risk**: Medium (requires SUMO or mock)
   - **Acceptance**: Training completes; metrics CSV has 5 rows; no NaN rewards

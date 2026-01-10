@@ -23,8 +23,8 @@ def _prepare_config(cfg: dict) -> dict:
 @pytest.mark.parametrize(
     "template_path",
     [
-        Path("configs/train_hanoi_template.yaml"),
-        Path("configs/eval_hanoi_template.yaml"),
+        Path("configs/train_bignet_9tls.yaml"),
+        Path("configs/eval_bignet_9tls.yaml"),
     ],
 )
 def test_templates_validate_action_table_and_scalars(template_path: Path):
@@ -32,8 +32,14 @@ def test_templates_validate_action_table_and_scalars(template_path: Path):
     sumo_cfg = cfg.get("env", {}).get("sumo", {})
 
     action_table = cfg.get("action_table", [])
-    allowed_cycles = [30, 60, 90]
-    action_splits = [(0.5, 0.5), (0.6, 0.4)]
+    allowed_cycles = [60, 90, 120]
+    action_splits = [
+        (0.30, 0.70),
+        (0.40, 0.60),
+        (0.50, 0.50),
+        (0.60, 0.40),
+        (0.70, 0.30),
+    ]
     rho_min = 0.1
     g_min_sec = min(entry.get("g_min_sec", 0) for entry in action_table) if action_table else 5
 

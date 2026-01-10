@@ -27,7 +27,7 @@ sys.path.insert(0, str(project_root))
 from rl.cycle_tracker import CycleDistributionTracker
 from rl.utils import ensure_dir, generate_run_id, linear_epsilon, load_yaml_config, save_yaml_config, set_global_seed
 from scripts.common import build_agent, build_env, resolve_allowed_action_ids
-from scripts.route_pool_loader import load_route_pool_from_config
+from scripts.route_pool_loader import load_route_pool_from_config, validate_route_file_nonempty
 from scripts.scenario_config_bridge import apply_calibration_overrides
 from scripts.config_normalization import normalize_action_table_schema
 
@@ -37,6 +37,10 @@ def run_training(config: Dict[str, Any]) -> str:
     config = normalize_action_table_schema(config)
     train_cfg = config.get("train", {})
     route_pool = load_route_pool_from_config(config, split="train", project_root=project_root)
+    sumo_cfg = config.get("env", {}).get("sumo", {})
+    route_file = sumo_cfg.get("route_file")
+    if not route_pool and route_file:
+        validate_route_file_nonempty(Path(route_file))
 
     run_cfg = config.get("run", {})
     seed = int(run_cfg.get("seed", 0))

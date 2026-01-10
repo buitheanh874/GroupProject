@@ -28,7 +28,7 @@ def test_eval_single_pass_wiring(tmp_path, monkeypatch):
     route_dir = project_root / "eval"
     route_dir.mkdir()
     route_file = route_dir / "route.rou.xml"
-    route_file.write_text("<routes></routes>", encoding="utf-8")
+    route_file.write_text("<routes><vehicle id='v0'/></routes>", encoding="utf-8")
     manifest = route_dir / "manifest.txt"
     manifest.write_text(route_file.name, encoding="utf-8")
 

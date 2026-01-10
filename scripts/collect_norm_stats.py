@@ -5,15 +5,15 @@ import json
 import sys
 from typing import Any, List, Optional
 
-from scripts.repo_root import find_repo_root
-
-repo_root = find_repo_root(__file__)
+from pathlib import Path
+repo_root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(repo_root))
 
 import numpy as np
 
 from rl.utils import ensure_dir, load_yaml_config, set_global_seed
 from scripts.common import build_env
+from scripts.route_pool_loader import load_route_pool_from_config
 
 
 def try_vec(x: Any, expected_dim: Optional[int]) -> Optional[List[float]]:
@@ -24,6 +24,31 @@ def try_vec(x: Any, expected_dim: Optional[int]) -> Optional[List[float]]:
         return [float(v) for v in arr.tolist()]
     except Exception:
         return None
+
+
+def append_raw_states(
+    raw_states: List[List[float]],
+    raw_source: Any,
+    expected_dim: Optional[int],
+) -> Optional[int]:
+    if raw_source is None:
+        return expected_dim
+    if isinstance(raw_source, dict):
+        for val in raw_source.values():
+            vec = try_vec(val, expected_dim)
+            if vec is None:
+                continue
+            if expected_dim is None:
+                expected_dim = len(vec)
+            raw_states.append(vec)
+        return expected_dim
+    vec = try_vec(raw_source, expected_dim)
+    if vec is None:
+        return expected_dim
+    if expected_dim is None:
+        expected_dim = len(vec)
+    raw_states.append(vec)
+    return expected_dim
 
 
 def main() -> None:
@@ -51,7 +76,15 @@ def main() -> None:
 
     set_global_seed(int(args.seed))
 
+    project_root = repo_root
+    route_pool = load_route_pool_from_config(config, split="train", project_root=project_root)
+
     env = build_env(config)
+    if route_pool and hasattr(env, "set_route_file_pool"):
+        try:
+            env.set_route_file_pool(route_pool)
+        except Exception:
+            pass
     fixed_action_id = int(config.get("baseline", {}).get("fixed_action_id", 2))
 
     raw_states: List[List[float]] = []
@@ -63,56 +96,26 @@ def main() -> None:
                 env.set_seed(int(args.seed + episode))
 
             state = env.reset()
-            expected_dim = int(getattr(env, "state_dim", len(state))) if expected_dim is None else expected_dim
+            if expected_dim is None:
+                state_dim_value = getattr(env, "state_dim", None)
+                expected_dim = int(state_dim_value) if state_dim_value is not None else None
 
-            if isinstance(info, dict) and "state_raw" in info:
-                raw_info = info["state_raw"]
-                if isinstance(raw_info, dict):
-                    for val in raw_info.values():
-                        vec = try_vec(val, expected_dim)
-                        if vec is not None:
-                            raw_states.append(vec)
-                elif isinstance(raw_info, list):
-                    vec = try_vec(raw_info, expected_dim)
-                    if vec is not None:
-                        raw_states.append(vec)
-
-            if isinstance(next_state, dict):
-                for obs in next_state.values():
-                    vec = try_vec(obs, expected_dim)
-                    if vec is not None:
-                        raw_states.append(vec)
-            else:
-                vec = try_vec(next_state, expected_dim)
-                if vec is not None:
-                    raw_states.append(vec)
+            raw_state = env.get_last_state_raw() if hasattr(env, "get_last_state_raw") else None
+            if raw_state is None:
+                raw_state = state
+            expected_dim = append_raw_states(raw_states, raw_state, expected_dim)
 
             done = False
             while not done:
                 action_input = {tls: int(fixed_action_id) for tls in sorted(state.keys())} if isinstance(state, dict) else int(fixed_action_id)
                 next_state, _, done, info = env.step(action_input)
 
-                if isinstance(info, dict) and "state_raw" in info:
-                    raw_info = info["state_raw"]
-                    if isinstance(raw_info, list):
-                        vec = try_vec(raw_info, expected_dim)
-                        if vec is not None:
-                            raw_states.append(vec)
-                    elif isinstance(raw_info, dict):
-                        for val in raw_info.values():
-                            vec = try_vec(val, expected_dim)
-                            if vec is not None:
-                                raw_states.append(vec)
-
-                if isinstance(next_state, dict):
-                    for obs in next_state.values():
-                        vec = try_vec(obs, expected_dim)
-                        if vec is not None:
-                            raw_states.append(vec)
+                raw_info = info.get("state_raw") if isinstance(info, dict) else None
+                if raw_info is not None:
+                    expected_dim = append_raw_states(raw_states, raw_info, expected_dim)
                 else:
-                    vec = try_vec(next_state, expected_dim)
-                    if vec is not None:
-                        raw_states.append(vec)
+                    expected_dim = append_raw_states(raw_states, next_state, expected_dim)
+                state = next_state
 
     finally:
         env.close()

@@ -36,7 +36,7 @@ def test_multi_cycle_enforcement():
         (0.70, 0.30),
     ]
 
-    cycles = [30, 60, 90]
+    cycles = [60, 90, 120]
     rho_min = 0.1
 
     for cycle in cycles:
@@ -59,7 +59,7 @@ def test_action_table_size_default_multi():
         (0.60, 0.40),
         (0.70, 0.30),
     ]
-    cycles = [30, 60, 90]
+    cycles = [60, 90, 120]
     expected = len(splits) * len(cycles)
     generated = []
     for cycle in cycles:

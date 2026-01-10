@@ -1,5 +1,5 @@
 run:
-  run_name: eval_bignet_9tls_mixed
+  run_name: eval_1
   seed: 42
   device: cpu
 
@@ -26,12 +26,14 @@ env:
     step_length_sec: 1.0
     green_cycle_sec: 60
     yellow_sec: 3
-    all_red_sec: 0
+    all_red_sec: 2
     max_cycles: 60
-    max_sim_seconds: 900
+    max_sim_seconds: 1800
     terminate_on_empty: false
     rho_min: 0.1
+    g_min_sec: 10
     lambda_fairness: 0.0
+    cycle_options_sec: [60, 90, 120]
     action_splits:
       - [0.30, 0.70]
       - [0.40, 0.60]
@@ -40,11 +42,12 @@ env:
       - [0.70, 0.30]
     action_table: []
     include_transition_in_waiting: false
+    reward_time_normalize: true
     sumo_extra_args:
       - "--ignore-junction-blocker"
       - "1"
       - "--time-to-teleport"
-      - "1200"
+      - "300"
     enable_kpi_tracker: true
     normalize_state: true
     return_raw_state: false
@@ -53,6 +56,17 @@ env:
     enable_spillback_penalty: true
     occ_threshold: 0.65
     beta: 1.0
+
+    deadlock_early_no_arrival_sec: 0.0
+    deadlock_no_arrival_sec: 0.0
+    deadlock_queue_threshold: 0.0
+    deadlock_downstream_occ_threshold: 0.0
+    deadlock_active_min: 0
+    deadlock_early_penalty_max: 0.0
+    deadlock_penalty: 0.0
+    terminate_on_deadlock: false
+    teleport_failure_when_congested: false
+
     lane_groups_by_tls:
       J0:
         lanes_ns_ctrl:
@@ -166,18 +180,17 @@ env:
         lanes_right_turn_slip_ns: []
         lanes_right_turn_slip_ew: []
     phase_program:
-      ns_green: 0
-      ew_green: 2
-      ns_yellow: 1
-      ew_yellow: 3
-      all_red: 0
+      ew_green: 0
+      ew_yellow: 1
+      all_red: 2
+      ns_green: 3
+      ns_yellow: 4
 
 normalization:
-  mean: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-  std: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+  file: configs/norm_1.json
 
 eval:
-  model_path: models/bignet_9tls/train_bignet_9tls_20260105_200511_best.pt
+  model_path: models/1/train_1_best.pt
   runs: 10
   route_pool_manifest: networks/variants/eval/manifest_mixed_all.txt
 
@@ -185,4 +198,4 @@ baseline:
   fixed_action_id: 2
 
 logging:
-  results_dir: results/bignet_9tls_eval
+  results_dir: results/1_eval

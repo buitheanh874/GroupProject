@@ -5,8 +5,6 @@ from typing import Any, Dict
 
 import yaml
 
-from scripts.hanoi_calibration import validate_calibration
-
 
 def _resolve_path(path_str: str, project_root: Path) -> Path:
     path = Path(path_str)
@@ -35,8 +33,9 @@ def apply_calibration_overrides(config: Dict[str, Any], project_root: Path) -> D
     calib_data = yaml.safe_load(calib_path.read_text(encoding="utf-8"))
     if not isinstance(calib_data, dict):
         raise ValueError("scenario_calibration file must contain a mapping/object")
-    calib = validate_calibration(calib_data)
-    pcu_weights = calib.get("pcu_weights", {})
+    
+    scenario = calib_data.get("scenario", calib_data)
+    pcu_weights = scenario.get("pcu_weights", {})
 
     sumo_cfg = config.setdefault("env", {}).setdefault("sumo", {})
     if not force_override and sumo_cfg.get("vehicle_weights"):

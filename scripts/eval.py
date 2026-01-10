@@ -16,7 +16,7 @@ from rl.utils import ensure_dir, generate_run_id, load_yaml_config, set_global_s
 from scripts.common import build_agent, build_env, resolve_allowed_action_ids
 from controllers.fixed_time import FixedTimeController, FixedTimeControllerConfig
 from controllers.max_pressure import MaxPressureSplitController, select_action_from_defs
-from scripts.route_pool_loader import load_route_pool_from_config
+from scripts.route_pool_loader import load_route_pool_from_config, validate_route_file_nonempty
 from scripts.scenario_config_bridge import apply_calibration_overrides
 from scripts.config_normalization import normalize_action_table_schema
 
@@ -40,6 +40,9 @@ def build_eval_row(
 ) -> Dict[str, Any]:
     arrived = int(kpi.get("arrived_vehicles", 0))
     throughput = float(arrived) / float(max(1, episode_steps))
+    arrived_corr = int(kpi.get("arrived_corr", 0))
+    throughput_corr = float(kpi.get("throughput_corr", float(arrived_corr) / float(max(1, episode_steps))))
+    completion_rate_value = float(kpi.get("completion_rate", float(arrived) / float(max(1, episode_steps))))
     return {
         "controller": str(controller),
         "scenario": str(scenario),
@@ -54,6 +57,21 @@ def build_eval_row(
         "max_wait_time": float(kpi.get("max_wait_time", 0.0)),
         "p95_wait_time": float(kpi.get("p95_wait_time", 0.0)),
         "throughput": throughput,
+        "teleport_started_total": int(kpi.get("teleport_started_total", 0)),
+        "teleport_unique": int(kpi.get("teleport_unique", 0)),
+        "teleport_rate": float(kpi.get("teleport_rate", 0.0)),
+        "arrived_corr": arrived_corr,
+        "teleported_arrived": int(kpi.get("teleported_arrived", 0)),
+        "completion_rate": completion_rate_value,
+        "failed_corr": int(kpi.get("failed_corr", 0)),
+        "avg_wait_time_corr": float(kpi.get("avg_wait_time_corr", 0.0)),
+        "avg_travel_time_corr": float(kpi.get("avg_travel_time_corr", 0.0)),
+        "p95_wait_time_corr": float(kpi.get("p95_wait_time_corr", 0.0)),
+        "max_wait_time_corr": float(kpi.get("max_wait_time_corr", 0.0)),
+        "throughput_corr": throughput_corr,
+        "deadlock_triggered": int(kpi.get("deadlock_triggered", 0)),
+        "deadlock_reason": str(kpi.get("deadlock_reason", "")),
+        "deadlock_no_arrival_sec": float(kpi.get("deadlock_no_arrival_sec", 0.0)),
     }
 
 
@@ -76,6 +94,21 @@ def build_failed_row(
         "max_wait_time": 9999.0,
         "p95_wait_time": 9999.0,
         "throughput": 0.0,
+        "teleport_started_total": 0,
+        "teleport_unique": 0,
+        "teleport_rate": 0.0,
+        "arrived_corr": 0,
+        "teleported_arrived": 0,
+        "completion_rate": 0.0,
+        "failed_corr": 0,
+        "avg_wait_time_corr": 9999.0,
+        "avg_travel_time_corr": 0.0,
+        "p95_wait_time_corr": 9999.0,
+        "max_wait_time_corr": 9999.0,
+        "throughput_corr": 0.0,
+        "deadlock_triggered": 0,
+        "deadlock_reason": "",
+        "deadlock_no_arrival_sec": 0.0,
     }
 
 
@@ -130,6 +163,10 @@ def main(argv: Optional[List[str]] = None) -> None:
     config = apply_calibration_overrides(config, project_root=repo_root)
     config = normalize_action_table_schema(config)
     route_pool = load_route_pool_from_config(config, split="eval", project_root=repo_root)
+    sumo_cfg = config.get("env", {}).get("sumo", {})
+    route_file = sumo_cfg.get("route_file")
+    if not route_pool and route_file:
+        validate_route_file_nonempty(Path(route_file))
     run_cfg = config.get("run", {})
     seed = int(run_cfg.get("seed", 0))
     set_global_seed(seed)
@@ -246,6 +283,21 @@ def main(argv: Optional[List[str]] = None) -> None:
                 "max_wait_time",
                 "p95_wait_time",
                 "throughput",
+                "teleport_started_total",
+                "teleport_unique",
+                "teleport_rate",
+                "arrived_corr",
+                "teleported_arrived",
+                "completion_rate",
+                "failed_corr",
+                "avg_wait_time_corr",
+                "avg_travel_time_corr",
+                "p95_wait_time_corr",
+                "max_wait_time_corr",
+                "throughput_corr",
+                "deadlock_triggered",
+                "deadlock_reason",
+                "deadlock_no_arrival_sec",
             ],
         )
         writer.writeheader()

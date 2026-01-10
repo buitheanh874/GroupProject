@@ -14,6 +14,15 @@ from env.kpi import EpisodeKpiTracker
 from env.normalization import StateNormalizer
 from env.mdp_metrics import CycleMetricsAggregator, compute_normalized_reward
 
+DEFAULT_ACTION_SPLITS: List[Tuple[float, float]] = [
+    (0.30, 0.70),
+    (0.40, 0.60),
+    (0.50, 0.50),
+    (0.60, 0.40),
+    (0.70, 0.30),
+]
+DEFAULT_CYCLE_OPTIONS_SEC: List[int] = [60, 90, 120]
+SPLIT_SUM_TOL = 1e-6
 
 def validate_downstream_links_config(
     downstream_links: Dict[str, str],
@@ -22,7 +31,6 @@ def validate_downstream_links_config(
     center_tls_id: str,
     validate_ids: bool = True,
 ) -> None:
-    """Fail-fast validation for downstream occupancy links."""
     links_raw = downstream_links or {}
     links: Dict[str, Optional[str]] = {}
     for k, v in links_raw.items():
@@ -179,6 +187,20 @@ class SumoEnvConfig:
     enable_kpi_tracker: bool = False
     state_dim: int = 4
     enable_downstream_occupancy: bool = True
+    teleport_penalty_lambda: float = 0.0
+    teleport_time_cap_sec: Optional[float] = None
+    deadlock_early_no_arrival_sec: float = 0.0
+    deadlock_no_arrival_sec: float = 0.0
+    deadlock_queue_threshold: float = 0.0
+    deadlock_downstream_occ_threshold: float = 0.0
+    deadlock_active_min: int = 0
+    deadlock_early_penalty_max: float = 0.0
+    deadlock_penalty: float = 0.0
+    terminate_on_deadlock: bool = False
+    teleport_failure_when_congested: bool = False
+    cycle_options_sec: List[int] = field(default_factory=list)
+    reward_time_normalize: bool = False
+    tls_phase_overrides: Dict[str, Dict[str, int]] = field(default_factory=dict)
 
 
 class SUMOEnv(BaseEnv):
@@ -264,15 +286,6 @@ class SUMOEnv(BaseEnv):
 
         self._g_min_sec = int(self._config.g_min_sec)
 
-        if self._legacy_mode and len(self._config.action_splits) <= 0:
-            self._config.action_splits = [
-                (0.30, 0.70),
-                (0.40, 0.60),
-                (0.50, 0.50),
-                (0.60, 0.40),
-                (0.70, 0.30),
-            ]
-
         self._action_defs = self._build_action_definitions()
         self._validate_config_consistency()
 
@@ -327,6 +340,37 @@ class SUMOEnv(BaseEnv):
         self._last_route_file: Optional[str] = None
         self._episode_count = 0
 
+        self._teleport_penalty_lambda = float(self._config.teleport_penalty_lambda)
+        self._teleport_time_cap_sec = self._config.teleport_time_cap_sec
+        self._teleport_unique_ids: Set[str] = set()
+        self._teleport_started_total: int = 0
+
+        self._no_arrival_steps: int = 0
+        self._deadlock_triggered: bool = False
+        self._deadlock_reason: str = ""
+        self._early_penalty_total: float = 0.0
+        self._deadlock_penalty_applied: float = 0.0
+        self._reward_time_normalize: bool = bool(self._config.reward_time_normalize)
+
+        self._tls_phase_overrides: Dict[str, Dict[str, int]] = {}
+        for tls_id_key, override_dict in self._config.tls_phase_overrides.items():
+            tls_key = str(tls_id_key)
+            if tls_key not in self._tls_ids:
+                raise RuntimeError(
+                    f"tls_phase_overrides: TLS '{tls_key}' not in tls_ids {self._tls_ids}"
+                )
+            ns_val = override_dict.get("ns_green")
+            ew_val = override_dict.get("ew_green")
+            if not isinstance(ns_val, int) or not isinstance(ew_val, int):
+                raise RuntimeError(
+                    f"tls_phase_overrides['{tls_key}']: ns_green and ew_green must be integers"
+                )
+            if ns_val == ew_val:
+                raise RuntimeError(
+                    f"tls_phase_overrides['{tls_key}']: ns_green ({ns_val}) must differ from ew_green ({ew_val})"
+                )
+            self._tls_phase_overrides[tls_key] = {"ns_green": int(ns_val), "ew_green": int(ew_val)}
+
     def set_route_file_pool(self, route_files: List[str]) -> None:
         """Set a pool of route files to randomly select from during reset.
         
@@ -352,8 +396,11 @@ class SUMOEnv(BaseEnv):
                     f"Current working directory: {Path.cwd()}\n"
                     f"Please check the path or run from project root."
                 )
+            content = route_path.read_text(encoding="utf-8", errors="ignore").lower()
+            if "<vehicle" not in content and "<flow" not in content:
+                raise ValueError(f"Route file appears empty (no vehicle/flow elements): {route_path}")
             validated_files.append(str(route_path))
-        
+
         self._route_pool = validated_files
         print(f"[SUMOEnv] Route pool configured with {len(self._route_pool)} files:")
         for idx, route in enumerate(self._route_pool, 1):
@@ -381,6 +428,13 @@ class SUMOEnv(BaseEnv):
     def set_route_file(self, route_file: str) -> None:
         self._config.route_file = str(route_file)
 
+    def get_ns_ew_phase_indices(self, tls_id: str) -> Tuple[int, int]:
+        tls_key = str(tls_id)
+        if tls_key in self._tls_phase_overrides:
+            ovr = self._tls_phase_overrides[tls_key]
+            return (int(ovr["ns_green"]), int(ovr["ew_green"]))
+        return (int(self._phases.ns_green), int(self._phases.ew_green))
+
     def get_last_state_raw(self) -> Optional[Any]:
         return self._last_state_raw
 
@@ -402,6 +456,15 @@ class SUMOEnv(BaseEnv):
         self._kpi_disabled_warned = False
         self._prev_cycle_sec = None
         self._kpi_tracker = self._make_kpi_tracker() if self._enable_kpi_tracker else None
+        
+        self._teleport_unique_ids = set()
+        self._teleport_started_total = 0
+
+        self._no_arrival_steps = 0
+        self._deadlock_triggered = False
+        self._deadlock_reason = ""
+        self._early_penalty_total = 0.0
+        self._deadlock_penalty_applied = 0.0
 
         self._episode_count += 1
 
@@ -482,10 +545,13 @@ class SUMOEnv(BaseEnv):
             raise ValueError(f"Action {action_id} violates min green constraint: g_ns={g_ns}, g_ew={g_ew}, min={min_green_sec}")
 
         decision_steps = 0
+        decision_teleport_count = 0
+        t0_sim = float(self._traci.simulation.getTime())
 
         agg = CycleMetricsAggregator(directions=["NS", "EW"], queue_mode=self._queue_count_mode)
 
         intervals = self._build_intervals_for_tls(
+            tls_id=str(self._config.tls_id),
             action_def=action_def,
             include_transition=bool(self._include_transition_in_waiting),
             g_ns=g_ns,
@@ -500,6 +566,9 @@ class SUMOEnv(BaseEnv):
 
             for _ in range(int(duration_steps)):
                 self._traci.simulationStep()
+
+                step_teleport_count = self._track_teleports_step()
+                decision_teleport_count += step_teleport_count
 
                 queued_ns = self._queued_for_lanes(self._lanes_single.lanes_ns_ctrl)
                 queued_ew = self._queued_for_lanes(self._lanes_single.lanes_ew_ctrl)
@@ -529,6 +598,12 @@ class SUMOEnv(BaseEnv):
                             self._kpi_disabled_warned = True
                         self._kpi_tracker = None
 
+                arrived_count_step = self._get_arrived_count_step()
+                if arrived_count_step > 0:
+                    self._no_arrival_steps = 0
+                else:
+                    self._no_arrival_steps += 1
+
                 self._stepped_seconds += float(self._config.step_length_sec)
                 decision_steps += 1
 
@@ -539,11 +614,14 @@ class SUMOEnv(BaseEnv):
         w_ns = float(waiting_sums[0]) if waiting_sums.size >= 1 else 0.0
         w_ew = float(waiting_sums[1]) if waiting_sums.size >= 2 else 0.0
 
-        decision_cycle_sec = float(decision_steps) * float(self._config.step_length_sec)
+        t1_sim = float(self._traci.simulation.getTime())
+        decision_duration_sec = max(1e-6, t1_sim - t0_sim)
+        decision_cycle_sec = float(cycle_sec)
 
-        t_step_value = float(cycle_sec + 2 * float(self._config.yellow_sec) + 2 * float(self._config.all_red_sec))
+        t_step_value = float(cycle_sec + 2 * int(self._config.yellow_sec) + 2 * int(self._config.all_red_sec))
         wait_exponent = float(self._reward_exponent if self._use_enhanced_reward else 1.0)
         total_wait = agg.waiting_total(exponent=wait_exponent, use_weights=self._use_pcu_weighted_wait)
+        transition_total_sec = 2 * int(self._config.yellow_sec) + 2 * int(self._config.all_red_sec)
 
         lambda_fairness = float(self._config.lambda_fairness)
         fairness_value = 0.0
@@ -554,7 +632,7 @@ class SUMOEnv(BaseEnv):
 
         spill_penalty = self._compute_spillback_penalty()
         anti_flicker_penalty = self._compute_anti_flicker_penalty(cycle_sec=cycle_sec)
-
+        
         reward = compute_normalized_reward(
             wait_total=total_wait,
             t_step=float(t_step_value),
@@ -563,6 +641,19 @@ class SUMOEnv(BaseEnv):
             spill_penalty=float(spill_penalty),
             anti_flicker_penalty=float(anti_flicker_penalty),
         )
+
+        if float(self._teleport_penalty_lambda) > 0.0:
+            teleport_penalty = float(self._teleport_penalty_lambda) * float(decision_teleport_count)
+            reward = float(reward) - float(teleport_penalty)
+
+        deadlock_penalty_step, deadlock_terminate = self._process_deadlock_step(decision_teleport_count)
+        reward = float(reward) - float(deadlock_penalty_step)
+
+        if self._reward_time_normalize:
+            if transition_total_sec > 0:
+                reward = float(reward) * float(t_step_value) / float(decision_duration_sec)
+            else:
+                reward = float(reward) / float(decision_duration_sec)
 
         state_raw = np.array([float(last_q_ns), float(last_q_ew), float(w_ns), float(w_ew)], dtype=np.float32)
         self._last_state_raw = state_raw.copy()
@@ -575,7 +666,9 @@ class SUMOEnv(BaseEnv):
 
         done = False
 
-        if self._config.max_sim_seconds is not None and int(self._config.max_sim_seconds) > 0:
+        if deadlock_terminate:
+            done = True
+        elif self._config.max_sim_seconds is not None and int(self._config.max_sim_seconds) > 0:
             if float(self._stepped_seconds) >= float(self._config.max_sim_seconds):
                 done = True
 
@@ -601,6 +694,7 @@ class SUMOEnv(BaseEnv):
             "cycle_sec": int(cycle_sec),
             "decision_cycle_sec": float(decision_cycle_sec),
             "decision_steps": int(decision_steps),
+            "decision_duration_sec": float(decision_duration_sec),
             "step_length_sec": float(self._config.step_length_sec),
             "yellow_sec": int(self._config.yellow_sec),
             "all_red_sec": int(self._config.all_red_sec),
@@ -615,11 +709,22 @@ class SUMOEnv(BaseEnv):
             "waiting_total": float(w_ns + w_ew),
             "state_raw": state_raw.tolist(),
             "state_norm": state_norm.tolist(),
-            "sim_time": float(self._traci.simulation.getTime()),
+            "sim_time": float(t1_sim),
             "total_stepped_seconds": float(self._stepped_seconds),
+            "deadlock_triggered": bool(self._deadlock_triggered),
+            "deadlock_reason": str(self._deadlock_reason),
+            "no_arrival_steps": int(self._no_arrival_steps),
+            "no_arrival_sec": float(self._no_arrival_steps * float(self._config.step_length_sec)),
+            "early_penalty_applied": float(self._early_penalty_total),
+            "deadlock_penalty_applied": float(self._deadlock_penalty_applied),
         }
 
         if done and self._kpi_tracker is not None:
+            self._kpi_tracker.set_deadlock_info(
+                triggered=bool(self._deadlock_triggered),
+                reason=str(self._deadlock_reason),
+                no_arrival_sec=float(self._no_arrival_steps * float(self._config.step_length_sec)),
+            )
             info["episode_kpi"] = self._kpi_tracker.summary_dict()
 
         return state, float(reward), bool(done), info
@@ -646,6 +751,7 @@ class SUMOEnv(BaseEnv):
         for tls_id, defn in selected_actions.items():
             g_ns, g_ew = self._compute_green_split(defn)
             intervals = self._build_intervals_for_tls(
+                tls_id=tls_id,
                 action_def=defn,
                 include_transition=bool(self._include_transition_in_waiting),
                 g_ns=g_ns,
@@ -659,7 +765,9 @@ class SUMOEnv(BaseEnv):
         if len(step_values) != 1:
             raise ValueError("All TLS intervals must produce the same number of steps")
         decision_steps = step_values.pop()
-        decision_cycle_sec = float(decision_steps) * float(self._config.step_length_sec)
+        decision_cycle_sec = float(cycle_sec)
+        decision_teleport_count = 0
+        t0_sim = float(self._traci.simulation.getTime())
 
         for tls_id, intervals in intervals_by_tls.items():
             if len(intervals) == 0:
@@ -677,6 +785,8 @@ class SUMOEnv(BaseEnv):
 
         for _ in range(int(decision_steps)):
             self._traci.simulationStep()
+            step_teleport_count = self._track_teleports_step()
+            decision_teleport_count += step_teleport_count
 
             for tls_id in self._tls_ids:
                 accumulate_waiting = True
@@ -709,6 +819,12 @@ class SUMOEnv(BaseEnv):
                         self._kpi_disabled_warned = True
                     self._kpi_tracker = None
 
+            arrived_count_step = self._get_arrived_count_step()
+            if arrived_count_step > 0:
+                self._no_arrival_steps = 0
+            else:
+                self._no_arrival_steps += 1
+
             self._stepped_seconds += float(self._config.step_length_sec)
 
             for tls_id in self._tls_ids:
@@ -735,6 +851,11 @@ class SUMOEnv(BaseEnv):
             fairness_values[tls_id] = agg.fairness_value(metric=self._fairness_metric)
             w_dir[tls_id] = agg.waiting_sums(order=["N", "E", "S", "W"])
 
+        t1_sim = float(self._traci.simulation.getTime())
+        decision_duration_sec = max(1e-6, t1_sim - t0_sim)
+        decision_cycle_sec = float(cycle_sec)
+        t_step_value = float(cycle_sec + 2 * int(self._config.yellow_sec) + 2 * int(self._config.all_red_sec))
+        transition_total_sec = 2 * int(self._config.yellow_sec) + 2 * int(self._config.all_red_sec)
         lambda_fairness = float(self._config.lambda_fairness)
         spill_penalty = self._compute_spillback_penalty()
         anti_flicker_penalty = self._compute_anti_flicker_penalty(cycle_sec=cycle_sec)
@@ -752,6 +873,10 @@ class SUMOEnv(BaseEnv):
                 spill_penalty=float(spill_penalty),
                 anti_flicker_penalty=float(anti_flicker_penalty),
             )
+            if float(self._teleport_penalty_lambda) > 0.0:
+                num_tls = max(1, len(self._tls_ids))
+                teleport_penalty = float(self._teleport_penalty_lambda) * float(decision_teleport_count) / float(num_tls)
+                rewards[tls_id] = float(rewards[tls_id]) - float(teleport_penalty)
             state_raw = self._build_state_vector(
                 tls_id=tls_id,
                 last_q_dir=last_q_dir[tls_id],
@@ -764,12 +889,23 @@ class SUMOEnv(BaseEnv):
                 self._last_state_raw = {}
             self._last_state_raw[tls_id] = state_raw.copy()
 
+        deadlock_penalty_step, deadlock_terminate = self._process_deadlock_step(decision_teleport_count)
+        for tls_id in self._tls_ids:
+            rewards[tls_id] = float(rewards[tls_id]) - float(deadlock_penalty_step)
+            if self._reward_time_normalize:
+                if transition_total_sec > 0:
+                    rewards[tls_id] = float(rewards[tls_id]) * float(t_step_value) / float(decision_duration_sec)
+                else:
+                    rewards[tls_id] = float(rewards[tls_id]) / float(decision_duration_sec)
+
         self._cycle_index += 1
         self._prev_cycle_sec = int(cycle_sec)
 
         done = False
 
-        if self._config.max_sim_seconds is not None and int(self._config.max_sim_seconds) > 0:
+        if deadlock_terminate:
+            done = True
+        elif self._config.max_sim_seconds is not None and int(self._config.max_sim_seconds) > 0:
             if float(self._stepped_seconds) >= float(self._config.max_sim_seconds):
                 done = True
 
@@ -796,6 +932,7 @@ class SUMOEnv(BaseEnv):
             "yellow_sec": int(self._config.yellow_sec),
             "decision_cycle_sec": float(decision_cycle_sec),
             "decision_steps": int(decision_steps),
+            "decision_duration_sec": float(decision_duration_sec),
             "step_length_sec": float(self._config.step_length_sec),
             "t_step": float(t_step_value),
             "fairness_penalty": float(fairness_penalty_info),
@@ -805,11 +942,22 @@ class SUMOEnv(BaseEnv):
             "total_wait_reward": float(sum(wait_totals.values())),
             "mean_reward": float(np.mean(list(rewards.values()))),
             "state_raw": {tls: state.tolist() for tls, state in ((k, self._last_state_raw[k]) for k in self._tls_ids)},
-            "sim_time": float(self._traci.simulation.getTime()),
+            "sim_time": float(t1_sim),
             "total_stepped_seconds": float(self._stepped_seconds),
+            "deadlock_triggered": bool(self._deadlock_triggered),
+            "deadlock_reason": str(self._deadlock_reason),
+            "no_arrival_steps": int(self._no_arrival_steps),
+            "no_arrival_sec": float(self._no_arrival_steps * float(self._config.step_length_sec)),
+            "early_penalty_applied": float(self._early_penalty_total),
+            "deadlock_penalty_applied": float(self._deadlock_penalty_applied),
         }
 
         if done and self._kpi_tracker is not None:
+            self._kpi_tracker.set_deadlock_info(
+                triggered=bool(self._deadlock_triggered),
+                reason=str(self._deadlock_reason),
+                no_arrival_sec=float(self._no_arrival_steps * float(self._config.step_length_sec)),
+            )
             info["episode_kpi"] = self._kpi_tracker.summary_dict()
 
         return states, rewards, bool(done), info
@@ -856,6 +1004,7 @@ class SUMOEnv(BaseEnv):
 
     def _build_intervals_for_tls(
         self,
+        tls_id: str,
         action_def: SumoActionDefinition,
         include_transition: bool,
         g_ns: Optional[int] = None,
@@ -877,19 +1026,18 @@ class SUMOEnv(BaseEnv):
             setting it False excludes them from waiting while still tracking queues.
         """
         g_ns_val, g_ew_val = (g_ns, g_ew) if g_ns is not None and g_ew is not None else self._compute_green_split(action_def)
+        ns_phase_idx, ew_phase_idx = self.get_ns_ew_phase_indices(tls_id)
         intervals: List[Tuple[int, int, bool]] = []
 
-        intervals.append((int(self._phases.ns_green), self._sec_to_steps(int(g_ns_val)), True))
-
-        if self._config.yellow_sec > 0 and self._phases.ns_yellow is not None:
-            intervals.append((int(self._phases.ns_yellow), self._sec_to_steps(int(self._config.yellow_sec)), bool(include_transition)))
+        intervals.append((int(ew_phase_idx), self._sec_to_steps(int(g_ew_val)), True))
+        if self._config.yellow_sec > 0 and self._phases.ew_yellow is not None:
+            intervals.append((int(self._phases.ew_yellow), self._sec_to_steps(int(self._config.yellow_sec)), bool(include_transition)))
         if self._config.all_red_sec > 0 and self._phases.all_red is not None:
             intervals.append((int(self._phases.all_red), self._sec_to_steps(int(self._config.all_red_sec)), bool(include_transition)))
 
-        intervals.append((int(self._phases.ew_green), self._sec_to_steps(int(g_ew_val)), True))
-        
-        if self._config.yellow_sec > 0 and self._phases.ew_yellow is not None:
-            intervals.append((int(self._phases.ew_yellow), self._sec_to_steps(int(self._config.yellow_sec)), bool(include_transition)))
+        intervals.append((int(ns_phase_idx), self._sec_to_steps(int(g_ns_val)), True))
+        if self._config.yellow_sec > 0 and self._phases.ns_yellow is not None:
+            intervals.append((int(self._phases.ns_yellow), self._sec_to_steps(int(self._config.yellow_sec)), bool(include_transition)))
         if self._config.all_red_sec > 0 and self._phases.all_red is not None:
             intervals.append((int(self._phases.all_red), self._sec_to_steps(int(self._config.all_red_sec)), bool(include_transition)))
 
@@ -934,6 +1082,151 @@ class SUMOEnv(BaseEnv):
                 if speed < float(self._halt_speed_threshold):
                     queued.append(veh)
         return queued
+
+    def _track_teleports_step(self) -> int:
+        if self._traci is None:
+            return 0
+        sim = getattr(self._traci, "simulation", None)
+        if sim is None:
+            return 0
+        try:
+            teleport_ids = list(sim.getStartingTeleportIDList())
+        except AttributeError:
+            try:
+                count = int(sim.getStartingTeleportNumber())
+            except Exception:
+                return 0
+            self._teleport_started_total += count
+            return count
+        except Exception:
+            return 0
+        count = 0
+        for vid in teleport_ids:
+            if vid not in self._teleport_unique_ids:
+                self._teleport_unique_ids.add(vid)
+            self._teleport_started_total += 1
+            count += 1
+        return count
+
+    def _get_arrived_count_step(self) -> int:
+        if self._traci is None:
+            return 0
+        sim = getattr(self._traci, "simulation", None)
+        if sim is None:
+            return 0
+        try:
+            arrived_ids = sim.getArrivedIDList()
+            return len(arrived_ids)
+        except AttributeError:
+            pass
+        try:
+            return int(sim.getArrivedNumber())
+        except Exception:
+            pass
+        return 0
+
+    def _get_queue_proxy(self) -> float:
+        if self._traci is None:
+            return 0.0
+        total_queue = 0.0
+        if self._lanes_single is not None:
+            for lane_id in self._lanes_single.lanes_ns_ctrl + self._lanes_single.lanes_ew_ctrl:
+                try:
+                    total_queue += float(self._traci.lane.getLastStepHaltingNumber(str(lane_id)))
+                except Exception:
+                    pass
+        else:
+            for tls_id, lanes_group in self._lanes_by_tls.items():
+                for lane_id in lanes_group.lanes_ns_ctrl + lanes_group.lanes_ew_ctrl:
+                    try:
+                        total_queue += float(self._traci.lane.getLastStepHaltingNumber(str(lane_id)))
+                    except Exception:
+                        pass
+        return total_queue
+
+    def _get_downstream_occ_proxy(self) -> Optional[float]:
+        if not self._enable_downstream_occupancy or len(self._downstream_links) == 0:
+            return None
+        if self._traci is None:
+            return None
+        try:
+            occ_values = self._read_downstream_occupancy()
+            return float(np.max(occ_values))
+        except Exception:
+            return None
+
+    def _get_active_vehicle_count(self) -> int:
+        if self._kpi_tracker is not None:
+            try:
+                departed = len(self._kpi_tracker._departed_ids)
+                arrived = len(self._kpi_tracker._arrived_ids)
+                return max(0, departed - arrived)
+            except Exception:
+                pass
+        if self._traci is None:
+            return 0
+        try:
+            return int(self._traci.simulation.getMinExpectedNumber())
+        except Exception:
+            return 0
+
+    def _check_congestion_evidence(self) -> bool:
+        queue_thresh = float(self._config.deadlock_queue_threshold)
+        occ_thresh = float(self._config.deadlock_downstream_occ_threshold)
+        if queue_thresh <= 0.0 and occ_thresh <= 0.0:
+            return True
+        queue_proxy = self._get_queue_proxy()
+        if queue_thresh > 0.0 and queue_proxy >= queue_thresh:
+            return True
+        occ_proxy = self._get_downstream_occ_proxy()
+        if occ_thresh > 0.0 and occ_proxy is not None and occ_proxy >= occ_thresh:
+            return True
+        return False
+
+    def _check_active_vehicles_ok(self) -> bool:
+        active_min = int(self._config.deadlock_active_min)
+        if active_min <= 0:
+            return True
+        active_count = self._get_active_vehicle_count()
+        return active_count >= active_min
+
+    def _process_deadlock_step(self, decision_teleport_count: int) -> Tuple[float, bool]:
+        penalty = 0.0
+        should_terminate = False
+        step_length = float(self._config.step_length_sec)
+        early_limit_sec = float(self._config.deadlock_early_no_arrival_sec)
+        deadlock_limit_sec = float(self._config.deadlock_no_arrival_sec)
+        early_penalty_max = float(self._config.deadlock_early_penalty_max)
+        deadlock_penalty_val = float(self._config.deadlock_penalty)
+        if deadlock_limit_sec <= 0.0:
+            return penalty, should_terminate
+        congestion_ok = self._check_congestion_evidence()
+        active_ok = self._check_active_vehicles_ok()
+        if early_limit_sec > 0.0 and early_penalty_max > 0.0:
+            early_limit_steps = int(early_limit_sec / step_length) if step_length > 0 else 0
+            if early_limit_steps > 0 and self._no_arrival_steps >= early_limit_steps and congestion_ok and active_ok:
+                early_ratio = min(1.0, float(self._no_arrival_steps) / max(1.0, float(early_limit_steps)))
+                early_pen = early_penalty_max * early_ratio
+                penalty += early_pen
+                self._early_penalty_total += early_pen
+        deadlock_limit_steps = int(deadlock_limit_sec / step_length) if step_length > 0 else 0
+        if deadlock_limit_steps > 0 and not self._deadlock_triggered:
+            if self._no_arrival_steps >= deadlock_limit_steps and congestion_ok and active_ok:
+                self._deadlock_triggered = True
+                self._deadlock_reason = "no_progress_congestion"
+                penalty += deadlock_penalty_val
+                self._deadlock_penalty_applied = deadlock_penalty_val
+                if bool(self._config.terminate_on_deadlock):
+                    should_terminate = True
+        if bool(self._config.teleport_failure_when_congested) and not self._deadlock_triggered:
+            if decision_teleport_count > 0 and congestion_ok and active_ok:
+                self._deadlock_triggered = True
+                self._deadlock_reason = "teleport_under_congestion"
+                penalty += deadlock_penalty_val
+                self._deadlock_penalty_applied = deadlock_penalty_val
+                if bool(self._config.terminate_on_deadlock):
+                    should_terminate = True
+        return penalty, should_terminate
 
     def _queued_directions_for_tls(self, tls_id: str) -> Dict[str, List[str]]:
         dirs = self._direction_lanes_by_tls.get(tls_id, {})
@@ -1053,49 +1346,101 @@ class SUMOEnv(BaseEnv):
 
     def _make_kpi_tracker(self) -> Optional[EpisodeKpiTracker]:
         try:
-            return EpisodeKpiTracker(stop_speed_threshold=0.1)
+            return EpisodeKpiTracker(stop_speed_threshold=0.1, teleport_time_cap_sec=self._teleport_time_cap_sec)
         except Exception:
             return None
 
+    def _resolve_action_splits(self) -> List[Tuple[float, float]]:
+        splits_raw = self._config.action_splits if len(self._config.action_splits) > 0 else DEFAULT_ACTION_SPLITS
+        splits: List[Tuple[float, float]] = []
+        for idx, pair in enumerate(splits_raw):
+            if not isinstance(pair, (list, tuple)) or len(pair) < 2:
+                raise ValueError(f"action_splits[{idx}] must have two values")
+            rho_ns_val = float(pair[0])
+            rho_ew_val = float(pair[1])
+            splits.append((rho_ns_val, rho_ew_val))
+        if self._multi_mode and len(splits) != 5:
+            raise ValueError(f"action_splits must have exactly 5 entries, got {len(splits)}")
+        for idx, (rho_ns_val, rho_ew_val) in enumerate(splits):
+            if rho_ns_val <= 0.0 or rho_ew_val <= 0.0 or rho_ns_val >= 1.0 or rho_ew_val >= 1.0:
+                raise ValueError(f"action_splits[{idx}] values must be in (0,1)")
+            if abs(float(rho_ns_val) + float(rho_ew_val) - 1.0) > SPLIT_SUM_TOL:
+                raise ValueError(f"action_splits[{idx}] rho_ns+rho_ew must equal 1.0")
+        return splits
+
+    def _resolve_cycle_options(self) -> List[int]:
+        cycles_raw = self._config.cycle_options_sec if len(self._config.cycle_options_sec) > 0 else DEFAULT_CYCLE_OPTIONS_SEC
+        cycles = [int(x) for x in cycles_raw]
+        if self._multi_mode and len(cycles) != 3:
+            raise ValueError(f"cycle_options_sec must have exactly 3 entries, got {len(cycles)}")
+        if any(int(cycle) <= 0 for cycle in cycles):
+            raise ValueError(f"cycle_options_sec must contain positive values, got {cycles}")
+        return cycles
+
+    def _validate_action_green(self, cycle: int, rho_ns: float, rho_ew: float) -> None:
+        min_green_sec = max(int(self._g_min_sec), int(round(float(self._config.rho_min) * float(cycle))))
+        g_ns = float(rho_ns) * float(cycle)
+        g_ew = float(rho_ew) * float(cycle)
+        if g_ns < float(min_green_sec) or g_ew < float(min_green_sec):
+            raise ValueError(
+                f"Action cycle={cycle} rho_ns={rho_ns} rho_ew={rho_ew} violates min_green_sec={min_green_sec}"
+            )
+
     def _build_action_definitions(self) -> List[SumoActionDefinition]:
+        splits = self._resolve_action_splits()
+        cycles = self._resolve_cycle_options()
+        if len(cycles) != 3 or len(splits) != 5:
+            raise ValueError(f"action space must use 3 cycles and 5 splits, got cycles={len(cycles)} splits={len(splits)}")
+
+        expected_total = len(cycles) * len(splits)
         if len(self._config.action_table) > 0:
             defs: List[SumoActionDefinition] = []
-            for item in self._config.action_table:
-                cycle = item.get("cycle_sec")
-                rho_ns = item.get("rho_ns", item.get("ns_ratio", None))
-                rho_ew = item.get("rho_ew", None)
-                if rho_ns is None:
-                    raise ValueError("action_table entries must include rho_ns/ns_ratio")
-                if rho_ew is None:
-                    rho_ew = 1.0 - float(rho_ns)
-                defs.append(SumoActionDefinition(cycle_sec=int(cycle), rho_ns=float(rho_ns), rho_ew=float(rho_ew)))
-            return defs
-
-        splits = self._config.action_splits if len(self._config.action_splits) > 0 else [
-            (0.30, 0.70),
-            (0.40, 0.60),
-            (0.50, 0.50),
-            (0.60, 0.40),
-            (0.70, 0.30),
-        ]
-
-        if self._multi_mode:
-            defs: List[SumoActionDefinition] = []
-            for cycle in [30, 60, 90]:
+            entry_map = {}
+            for idx, item in enumerate(self._config.action_table):
+                cycle_val = item.get("cycle_sec")
+                rho_ns_val = item.get("rho_ns", item.get("ns_ratio", None))
+                rho_ew_val = item.get("rho_ew", None)
+                if cycle_val is None or rho_ns_val is None:
+                    raise ValueError("action_table entries must include cycle_sec and rho_ns/ns_ratio")
+                cycle_int = int(cycle_val)
+                rho_ns_float = float(rho_ns_val)
+                rho_ew_float = float(rho_ew_val) if rho_ew_val is not None else float(1.0 - rho_ns_float)
+                if rho_ns_float <= 0.0 or rho_ns_float >= 1.0 or rho_ew_float <= 0.0 or rho_ew_float >= 1.0:
+                    raise ValueError(f"action_table[{idx}] rho values must be in (0,1)")
+                if abs(float(rho_ns_float) + float(rho_ew_float) - 1.0) > SPLIT_SUM_TOL:
+                    raise ValueError(f"action_table[{idx}] rho_ns+rho_ew must equal 1.0")
+                if cycle_int not in cycles:
+                    raise ValueError(f"action_table[{idx}] cycle_sec={cycle_int} not in cycle_options_sec={cycles}")
+                self._validate_action_green(cycle=cycle_int, rho_ns=rho_ns_float, rho_ew=rho_ew_float)
+                key = (int(cycle_int), round(float(rho_ns_float), 6), round(float(rho_ew_float), 6))
+                if key in entry_map:
+                    raise ValueError(f"Duplicate action_table entry for cycle_sec={cycle_int} split={rho_ns_float}/{rho_ew_float}")
+                entry_map[key] = (cycle_int, rho_ns_float, rho_ew_float)
+            if len(entry_map) != expected_total:
+                raise ValueError(f"action_table must have {expected_total} entries, got {len(entry_map)}")
+            for cycle in cycles:
                 for rho_ns, rho_ew in splits:
-                    defs.append(
-                        SumoActionDefinition(
-                            cycle_sec=int(cycle),
-                            rho_ns=float(rho_ns),
-                            rho_ew=float(rho_ew),
-                        )
-                    )
+                    key = (int(cycle), round(float(rho_ns), 6), round(float(rho_ew), 6))
+                    if key not in entry_map:
+                        raise ValueError(f"action_table missing entry for cycle_sec={cycle} split={rho_ns}/{rho_ew}")
+                    cycle_int, rho_ns_float, rho_ew_float = entry_map[key]
+                    defs.append(SumoActionDefinition(cycle_sec=cycle_int, rho_ns=rho_ns_float, rho_ew=rho_ew_float))
             return defs
 
-        return [
-            SumoActionDefinition(cycle_sec=int(self._config.green_cycle_sec), rho_ns=float(rho_ns), rho_ew=float(rho_ew))
-            for rho_ns, rho_ew in splits
-        ]
+        defs: List[SumoActionDefinition] = []
+        for cycle in cycles:
+            for rho_ns, rho_ew in splits:
+                self._validate_action_green(cycle=int(cycle), rho_ns=float(rho_ns), rho_ew=float(rho_ew))
+                defs.append(
+                    SumoActionDefinition(
+                        cycle_sec=int(cycle),
+                        rho_ns=float(rho_ns),
+                        rho_ew=float(rho_ew),
+                    )
+                )
+        if len(defs) != expected_total:
+            raise ValueError(f"Expected {expected_total} actions, got {len(defs)}")
+        return defs
 
     def _get_free_port(self) -> int:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -1149,17 +1494,19 @@ class SUMOEnv(BaseEnv):
             str(int(seed)),
             "--no-step-log",
             "true",
-            "--time-to-teleport",
-            "120",
         ]
 
         if len(self._config.additional_files) > 0:
             additional = ",".join([str(x) for x in self._config.additional_files])
             command.extend(["-a", additional])
 
-        if len(self._config.sumo_extra_args) > 0:
-            for arg in self._config.sumo_extra_args:
+        extra_args = [str(x) for x in self._config.sumo_extra_args]
+        has_time_to_teleport = any(str(arg).startswith("--time-to-teleport") for arg in extra_args)
+        if len(extra_args) > 0:
+            for arg in extra_args:
                 command.append(str(arg))
+        if not has_time_to_teleport:
+            command.extend(["--time-to-teleport", "120"])
 
         return command
 
