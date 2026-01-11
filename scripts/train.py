@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 import numpy as np
+import time
 
 
 if __package__ in (None, ""):
@@ -197,7 +198,24 @@ def run_training(config: Dict[str, Any]) -> str:
                 if hasattr(env, "set_seed"):
                     env.set_seed(int(seed + episode))
 
-                state = env.reset()
+                # SUMO resilience: retry reset up to 3 times
+                reset_ok = False
+                for _retry in range(3):
+                    try:
+                        state = env.reset()
+                        reset_ok = True
+                        break
+                    except Exception as reset_err:
+                        print(f"[WARN] Episode {episode}: reset failed (attempt {_retry+1}/3): {reset_err}")
+                        try:
+                            env.close()
+                        except Exception:
+                            pass
+                        time.sleep(2)
+                if not reset_ok:
+                    print(f"[ERROR] Episode {episode}: reset failed after 3 attempts, skipping")
+                    continue
+
                 episode_cycle_counts = Counter({cycle: 0 for cycle in allowed_cycles})
 
                 done = False
@@ -242,7 +260,18 @@ def run_training(config: Dict[str, Any]) -> str:
                                 allowed_action_ids=allowed_ids,
                             )
 
-                        next_state, rewards, done, info = env.step(actions)
+                        try:
+                            next_state, rewards, done, info = env.step(actions)
+                        except Exception as step_err:
+                            print(f"[WARN] Episode {episode}: step failed at step {episode_steps}: {step_err}")
+                            done = True
+                            next_state = state
+                            rewards = {tls_id: 0.0 for tls_id in tls_ids_sorted}
+                            info = {}
+                            try:
+                                env.close()
+                            except Exception:
+                                pass
 
                         step_rewards = list(rewards.values()) if isinstance(rewards, dict) else [float(rewards)]
                         step_reward = float(np.mean(step_rewards))
@@ -272,7 +301,18 @@ def run_training(config: Dict[str, Any]) -> str:
                         global_step += len(actions)
                     else:
                         action_id = agent.select_action(state=state, epsilon=epsilon)
-                        next_state, reward, done, info = env.step(action_id)
+                        try:
+                            next_state, reward, done, info = env.step(action_id)
+                        except Exception as step_err:
+                            print(f"[WARN] Episode {episode}: step failed at step {episode_steps}: {step_err}")
+                            done = True
+                            next_state = state
+                            reward = 0.0
+                            info = {}
+                            try:
+                                env.close()
+                            except Exception:
+                                pass
 
                         gamma_value = agent.compute_gamma(info.get("t_step") if isinstance(info, dict) else None)
                         agent.store_transition(state, action_id, reward, next_state, done, gamma=gamma_value)
