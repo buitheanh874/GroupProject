@@ -33,7 +33,7 @@ class FixedTimeController:
                 raise ValueError(f"Action missing {field}")
             try:
                 ratio = float(value)
-            except Exception as exc:  # pragma: no cover - defensive
+            except Exception as exc:
                 raise ValueError(f"Action {field} must be numeric, got {value}") from exc
             return ratio
 
@@ -84,7 +84,7 @@ class FixedTimeController:
             rho_ns, rho_ew, cycle_sec = self._extract_action_params(item)
             error = abs(rho_ns - target_ns) + abs(rho_ew - target_ew)
             if target_cycle is not None and cycle_sec is not None and int(cycle_sec) != int(target_cycle):
-                error += penalty  # heavy penalty when cycles differ and are available
+                error += penalty
             if error < best_error:
                 best_error = error
                 best_index = int(idx)

@@ -41,7 +41,7 @@ def test_compute_normalized_reward_with_variable_cycle():
         t_step=90.0,
         decision_cycle_sec=90.0,
     )
-    assert reward_short < reward_long  # same W, shorter cycle => more negative
+    assert reward_short < reward_long
     assert math.isclose(reward_short, -1.0)
     assert math.isclose(reward_long, -(30.0 / 90.0))
 
@@ -102,7 +102,7 @@ def test_reward_monotonic_with_weights_and_exponent():
 
     reward_weighted = compute_normalized_reward(wait_total=wait_weighted, t_step=10.0, decision_cycle_sec=10.0)
     reward_unweighted = compute_normalized_reward(wait_total=wait_unweighted, t_step=10.0, decision_cycle_sec=10.0)
-    assert reward_weighted < reward_unweighted  # more negative when weighted heavier vehicles
+    assert reward_weighted < reward_unweighted
 
     agg_exp = CycleMetricsAggregator(directions=["N"], queue_mode="distinct_cycle")
     agg_exp.observe("N", ["a", "b"], step_sec=1.0, accumulate_waiting=True)

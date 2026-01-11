@@ -230,11 +230,5 @@ def main(argv: List[str] | None = None) -> None:
 
 
 if __name__ == "__main__":
-#    try:
-#        from scipy import stats
-#    except ImportError:
-#        print("\n[ERROR] scipy is required for statistical tests")
-#        print("Install: pip install scipy")
-#        sys.exit(1)
     
     main()

@@ -7,7 +7,6 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-# Ensure scripts module is importable when run directly
 script_dir = Path(__file__).resolve().parent
 project_root = script_dir.parent
 if str(project_root) not in sys.path:
@@ -59,7 +58,6 @@ def validate_config(config: Dict[str, Any], repo_root: Path) -> bool:
     errors = []
     warnings = []
     
-    # Check net_file
     net_file = sumo_cfg.get("net_file", "")
     if net_file:
         net_path = Path(net_file)
@@ -72,12 +70,10 @@ def validate_config(config: Dict[str, Any], repo_root: Path) -> bool:
     else:
         errors.append("env.sumo.net_file not specified")
     
-    # Check route_file
     route_file = sumo_cfg.get("route_file", "")
     if route_file:
         route_lower = str(route_file).lower().strip()
         
-        # Check for manifest misuse
         if route_lower.endswith(".txt"):
             errors.append(
                 f"sumo.route_file points to a .txt manifest: {route_file}\n"
@@ -101,7 +97,6 @@ def validate_config(config: Dict[str, Any], repo_root: Path) -> bool:
     else:
         errors.append("env.sumo.route_file not specified")
     
-    # Check route_pool_manifest if present
     for split in ["train", "eval"]:
         manifest = config.get(split, {}).get("route_pool_manifest")
         if manifest:
@@ -113,7 +108,6 @@ def validate_config(config: Dict[str, Any], repo_root: Path) -> bool:
             else:
                 warnings.append(f"{split}.route_pool_manifest not found: {manifest_path}")
     
-    # Print results
     if warnings:
         print("\nWarnings:")
         for w in warnings:
@@ -134,8 +128,8 @@ def main() -> None:
 
     parser = argparse.ArgumentParser(description="Doctor check for SUMO/TraCI environment and config validation.")
     parser.add_argument("--config", type=str, default=None, help="Path to YAML config file for validation")
-    parser.add_argument("--net-file", default="networks/hub_spoke/hub_spoke.net.xml")
-    parser.add_argument("--route-file", default="networks/hub_spoke/hub_spoke.rou.xml")
+    parser.add_argument("--net-file", default="networks/BIGNET.net.xml")
+    parser.add_argument("--route-file", default="networks/variants/train/bignet_train_seed00042.rou.xml")
     parser.add_argument("--step-length", type=float, default=1.0)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--skip-traci", action="store_true", help="Skip TraCI connection test")
@@ -163,7 +157,6 @@ def main() -> None:
     except Exception as exc:
         sys.exit(f"Failed to import traci: {exc}")
 
-    # Config-based validation mode
     if args.config:
         print(f"\n--- Config Validation: {args.config} ---")
         config_path = Path(args.config)
@@ -179,7 +172,6 @@ def main() -> None:
         if not validate_config(config, repo_root):
             sys.exit(1)
         
-        # Get paths from config for TraCI test
         sumo_cfg = config.get("env", {}).get("sumo", {})
         net_file = sumo_cfg.get("net_file", args.net_file)
         route_file = sumo_cfg.get("route_file", args.route_file)
@@ -188,13 +180,11 @@ def main() -> None:
         
         print(f"\nConfig validation: PASSED")
     else:
-        # Legacy mode: use CLI args
         net_path = repo_root / args.net_file
         route_path = repo_root / args.route_file
         require_path(net_path, "Network file")
         require_path(route_path, "Route file")
 
-    # TraCI connection test
     if args.skip_traci:
         print("\nTraCI test: SKIPPED (--skip-traci)")
         print("Status: OK (config only)")

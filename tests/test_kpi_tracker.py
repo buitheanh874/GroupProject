@@ -24,7 +24,6 @@ class FakeTraci:
         self._speeds = dict(speeds)
         self._teleports = list(teleports) if teleports is not None else []
 
-    # simulation API
     def getTime(self):
         return float(self._time)
 
@@ -40,7 +39,6 @@ class FakeTraci:
     def getStartingTeleportNumber(self):
         return int(len(self._teleports))
 
-    # vehicle API
     def getIDList(self):
         return list(self._speeds.keys())
 

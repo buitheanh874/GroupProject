@@ -53,11 +53,13 @@ def append_raw_states(
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=str, default="configs/train_hub_spoke_demo.yaml")
+    parser.add_argument("--config", type=str, required=True, help="Path to training config YAML")
     parser.add_argument("--episodes", type=int, default=5)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--out", type=str, default="configs/norm_stats.json")
     parser.add_argument("--max-cycles", type=int, default=None)
+    parser.add_argument("--fixed-action-id", type=int, default=None, help="Override fixed action ID for data collection")
+    parser.add_argument("--manifest", type=str, default=None, help="Override route pool manifest (e.g., manifest_scale50.txt for 50%% demand)")
     args = parser.parse_args()
 
     config = load_yaml_config(args.config)
@@ -73,6 +75,14 @@ def main() -> None:
     else:
         if config["env"]["sumo"].get("max_cycles", 0) <= 0:
             config["env"]["sumo"]["max_cycles"] = 20
+    
+    if args.fixed_action_id is not None:
+        config.setdefault("baseline", {})
+        config["baseline"]["fixed_action_id"] = int(args.fixed_action_id)
+
+    if args.manifest is not None:
+        config.setdefault("train", {})
+        config["train"]["route_pool_manifest"] = str(args.manifest)
 
     set_global_seed(int(args.seed))
 

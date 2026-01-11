@@ -163,7 +163,7 @@ env:
         ew_green: 3
 
 normalization:
-  file: configs/norm_bignet_short.json
+  file: configs/norm_curriculum_v3_short.json
 
 agent:
   hidden_dims: [192, 192]
@@ -183,10 +183,38 @@ train:
   episodes: 300
   save_every_episodes: 30
   print_every_episodes: 5
-  route_pool_manifest: networks/variants/train/manifest.txt
 
 baseline:
-  fixed_action_id: 2
+  fixed_action_id: 12
+
+curriculum:
+  enabled: true
+  phases:
+    - name: "phase1_warmup"
+      episodes: 30
+      demand_scale: 0.50
+      route_pool_manifest: networks/variants/train/manifest_scale50.txt
+      description: "600 veh/hr/lane - warmup"
+    - name: "phase2_moderate"
+      episodes: 45
+      demand_scale: 0.70
+      route_pool_manifest: networks/variants/train/manifest_scale70.txt
+      description: "840 veh/hr/lane - moderate"
+    - name: "phase3_eval"
+      episodes: 135
+      demand_scale: 1.0
+      route_pool_manifest: networks/variants/train/manifest_scale100.txt
+      description: "1200 veh/hr/lane - primary eval"
+    - name: "phase4_deadlock"
+      episodes: 60
+      demand_scale: 1.25
+      route_pool_manifest: networks/variants/train/manifest_scale125.txt
+      description: "1500 veh/hr/lane - gridlock training"
+    - name: "phase5_stress"
+      episodes: 30
+      demand_scale: 1.50
+      route_pool_manifest: networks/variants/train/manifest_scale150.txt
+      description: "1800 veh/hr/lane - extreme stress"
 
 logging:
   log_dir: logs/bignet_300ep

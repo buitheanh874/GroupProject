@@ -27,8 +27,6 @@ def compute_approach_angle(shape: List[Tuple[float, float]]) -> float:
     if len(shape) < 2:
         return 0.0
     
-    # Use last two points to determine approach direction
-    # The lane approaches the junction from shape[-2] to shape[-1]
     x1, y1 = shape[-2]
     x2, y2 = shape[-1]
     
@@ -38,7 +36,6 @@ def compute_approach_angle(shape: List[Tuple[float, float]]) -> float:
     angle_rad = math.atan2(dy, dx)
     angle_deg = math.degrees(angle_rad)
     
-    # Normalize to 0-360
     if angle_deg < 0:
         angle_deg += 360
     
@@ -54,21 +51,15 @@ def angle_to_direction(angle: float) -> str:
     If a lane points West (angle ~180), traffic comes from the East → E
     If a lane points South (angle ~270), traffic comes from the North → N
     """
-    # Normalize angle to 0-360
     angle = angle % 360
     
-    # Determine where traffic is heading TO, then invert to get FROM
     if 315 <= angle or angle < 45:
-        # Pointing East → traffic comes from West
         return "W"
     elif 45 <= angle < 135:
-        # Pointing North → traffic comes from South
         return "S"
     elif 135 <= angle < 225:
-        # Pointing West → traffic comes from East
         return "E"
-    else:  # 225 <= angle < 315
-        # Pointing South → traffic comes from North
+    else:
         return "N"
 
 def extract_lane_directions(net_file: str) -> Dict[str, Dict[str, str]]:
@@ -85,7 +76,6 @@ def extract_lane_directions(net_file: str) -> Dict[str, Dict[str, str]]:
         edge_id = edge.get('id', '')
         to_junction = edge.get('to', '')
         
-        # Skip internal edges
         if edge_id.startswith(':'):
             continue
             
@@ -148,7 +138,6 @@ def generate_approach_lanes_config(
 def main():
     net_file = "networks/BIGNET.net.xml"
     
-    # Current lane_groups_by_tls from config
     lane_groups_by_tls = {
         "J0": {
             "lanes_ns_ctrl": ["-E3_0", "-E3_1", "-E2_0", "-E2_1"],
@@ -192,7 +181,6 @@ def main():
     print("EXTRACTING LANE DIRECTIONS FROM NETWORK GEOMETRY")
     print("=" * 70)
     
-    # First, show sample lane directions
     lane_directions = extract_lane_directions(net_file)
     
     print(f"\nTotal lanes in network: {len(lane_directions)}")
@@ -203,7 +191,6 @@ def main():
             info = lane_directions[lane]
             print(f"  {lane}: direction={info['direction']}, angle={info['angle']}°, to={info['to_junction']}")
     
-    # Generate approach_lanes config
     print("\n" + "=" * 70)
     print("GENERATED APPROACH_LANES CONFIG")
     print("=" * 70)
@@ -216,13 +203,11 @@ def main():
             lanes = directions[dir_key]
             print(f"    {dir_key}: {lanes}")
     
-    # Save to JSON for easy copy
     output_file = "configs/approach_lanes_generated.json"
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(approach_lanes, f, indent=2)
     print(f"\n[OK] Saved to {output_file}")
     
-    # Generate YAML snippet
     print("\n" + "=" * 70)
     print("YAML CONFIG SNIPPET (copy to train_bignet_short.yaml)")
     print("=" * 70)

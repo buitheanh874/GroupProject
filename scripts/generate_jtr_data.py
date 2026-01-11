@@ -8,7 +8,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Dict, List, Tuple
 
-HANOI_BASE_FLOW_PER_LANE = 2000.0
+HANOI_BASE_FLOW_PER_LANE = 1000.0
 
 
 def get_source_edges_info(net_file: Path) -> Tuple[Dict[str, int], List[str]]:
@@ -46,7 +46,7 @@ def get_source_edges_info(net_file: Path) -> Tuple[Dict[str, int], List[str]]:
     return sources_info, sorted(sink_ids)
 
 
-def generate_flows_xml(output_path: Path, sources_info: Dict[str, int], duration: int, global_scale: float) -> None:
+def generate_flows_xml(output_path: Path, sources_info: Dict[str, int], duration: int, global_scale: float, base_flow: float = HANOI_BASE_FLOW_PER_LANE) -> None:
     root = ET.Element("routes")
 
     vtypes = [
@@ -96,7 +96,7 @@ def generate_flows_xml(output_path: Path, sources_info: Dict[str, int], duration
     }
 
     for edge_id, num_lanes in sources_info.items():
-        base_edge_flow = float(num_lanes) * float(HANOI_BASE_FLOW_PER_LANE)
+        base_edge_flow = float(num_lanes) * float(base_flow)
         edge_noise = random.uniform(0.6, 1.1)
         total_edge_flow = base_edge_flow * float(global_scale) * float(edge_noise)
 
@@ -147,6 +147,8 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
     parser.add_argument("--volume-scale", type=float, default=1.0, help="Demand scaling factor (0.0-2.0)")
     parser.add_argument("--duration", type=int, default=3600, help="Simulation duration (seconds)")
+    parser.add_argument("--base-flow", type=float, default=HANOI_BASE_FLOW_PER_LANE,
+                        help="Base flow per lane in veh/hr (train=500, eval=2000 for Hanoi)")
     args = parser.parse_args()
 
     random.seed(int(args.seed))
@@ -180,7 +182,9 @@ def main() -> None:
     print(f"  Volume scale: {volume_scale:.2f}")
     print(f"  Duration: {duration}s")
 
-    generate_flows_xml(flow_file, sources_info, duration, volume_scale)
+    base_flow = max(100.0, float(args.base_flow))
+    print(f"  Base flow: {base_flow:.0f} veh/hr/lane")
+    generate_flows_xml(flow_file, sources_info, duration, volume_scale, base_flow)
     generate_turnfile_xml(turn_file, sinks, duration)
 
     cmd = [

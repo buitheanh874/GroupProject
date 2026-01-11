@@ -34,5 +34,5 @@ def test_route_pool_manifest_selection_varied(tmp_path: Path):
     picks_a = [_select_route_from_pool(routes, episode_seed=123, episode_index=i) for i in range(1, 8)]
     picks_b = [_select_route_from_pool(routes, episode_seed=123, episode_index=i) for i in range(1, 8)]
 
-    assert picks_a == picks_b  # deterministic for same seed
-    assert len(set(picks_a)) > 1  # but not constant route
+    assert picks_a == picks_b
+    assert len(set(picks_a)) > 1

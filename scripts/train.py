@@ -36,6 +36,40 @@ def run_training(config: Dict[str, Any]) -> str:
     config = apply_calibration_overrides(config, project_root=project_root)
     config = normalize_action_table_schema(config)
     train_cfg = config.get("train", {})
+    
+    curriculum_cfg = config.get("curriculum", {})
+    curriculum_enabled = curriculum_cfg.get("enabled", False)
+    curriculum_phases = curriculum_cfg.get("phases", [])
+    
+    if curriculum_enabled and len(curriculum_phases) > 0:
+        print("[Curriculum] Enabled with {} phases".format(len(curriculum_phases)))
+        for i, phase in enumerate(curriculum_phases):
+            print(f"  Phase {i+1}: {phase.get('name', 'unnamed')} - {phase.get('episodes', 0)} episodes")
+    else:
+        curriculum_enabled = False
+        print("[Curriculum] Disabled - using single manifest training")
+    
+    phase_schedule = []
+    if curriculum_enabled:
+        for phase in curriculum_phases:
+            phase_schedule.append({
+                "name": phase.get("name", "phase"),
+                "episodes": phase.get("episodes", 100),
+                "manifest": phase.get("route_pool_manifest", ""),
+                "demand_scale": phase.get("demand_scale", 1.0),
+            })
+    else:
+        default_episodes = int(train_cfg.get("episodes", 200))
+        phase_schedule.append({
+            "name": "default",
+            "episodes": default_episodes,
+            "manifest": train_cfg.get("route_pool_manifest", ""),
+            "demand_scale": 1.0,
+        })
+    
+    total_episodes = sum(p["episodes"] for p in phase_schedule)
+    print(f"[Training] Total episodes: {total_episodes}")
+    
     route_pool = load_route_pool_from_config(config, split="train", project_root=project_root)
     sumo_cfg = config.get("env", {}).get("sumo", {})
     route_file = sumo_cfg.get("route_file")
@@ -69,7 +103,7 @@ def run_training(config: Dict[str, Any]) -> str:
 
     metrics_path = os.path.join(log_dir, f"{run_id}_train_metrics.csv")
 
-    episodes = int(train_cfg.get("episodes", 200))
+    episodes = total_episodes
     save_every_episodes = int(train_cfg.get("save_every_episodes", 50))
     print_every_episodes = int(train_cfg.get("print_every_episodes", 10))
 
@@ -86,6 +120,33 @@ def run_training(config: Dict[str, Any]) -> str:
 
     best_reward = -float("inf")
     global_step = 0
+    
+    current_phase_idx = 0
+    phase_episode_count = 0
+    current_phase = phase_schedule[0]
+    
+    def switch_to_phase(phase_idx: int) -> None:
+        """Switch to a new curriculum phase by loading its route manifest."""
+        nonlocal current_phase, phase_episode_count
+        if phase_idx >= len(phase_schedule):
+            return
+        current_phase = phase_schedule[phase_idx]
+        phase_episode_count = 0
+        manifest_path = current_phase["manifest"]
+        if manifest_path and hasattr(env, "set_route_file_pool"):
+            try:
+                from scripts.route_pool_loader import _load_manifest, _resolve_path
+                manifest_full = _resolve_path(manifest_path, project_root, project_root)
+                if manifest_full.exists():
+                    routes = _load_manifest(manifest_full, project_root)
+                    env.set_route_file_pool(routes)
+                    print(f"[Curriculum] Phase {phase_idx+1}/{len(phase_schedule)}: {current_phase['name']}")
+                    print(f"  Manifest: {manifest_path} ({len(routes)} routes)")
+                    print(f"  Episodes: {current_phase['episodes']}, Demand scale: {current_phase['demand_scale']}")
+            except Exception as e:
+                print(f"[Curriculum] Warning: Failed to load manifest for phase {phase_idx}: {e}")
+    
+    switch_to_phase(0)
 
     try:
         with open(metrics_path, "w", newline="", encoding="utf-8") as csv_file:
@@ -115,10 +176,24 @@ def run_training(config: Dict[str, Any]) -> str:
                     fieldnames.append(f"cycle_{cycle}_pct")
                 fieldnames.append("cycle_entropy")
             
+            if curriculum_enabled:
+                fieldnames.append("phase_name")
+                fieldnames.append("phase_episode")
+            
             writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
             writer.writeheader()
 
             for episode in range(1, int(episodes) + 1):
+                if curriculum_enabled:
+                    phase_episode_count += 1
+                    if phase_episode_count > current_phase["episodes"] and current_phase_idx < len(phase_schedule) - 1:
+                        current_phase_idx += 1
+                        switch_to_phase(current_phase_idx)
+                        phase_episode_count = 1
+                        phase_checkpoint_path = os.path.join(model_dir, f"{run_id}_phase{current_phase_idx}.pt")
+                        agent.save_model(phase_checkpoint_path)
+                        print(f"[Curriculum] Saved checkpoint: {phase_checkpoint_path}")
+                
                 if hasattr(env, "set_seed"):
                     env.set_seed(int(seed + episode))
 
@@ -261,6 +336,10 @@ def run_training(config: Dict[str, Any]) -> str:
                     for cycle in allowed_cycles:
                         row[f"cycle_{cycle}_pct"] = float(cycle_dist.get(cycle, 0.0))
                     row["cycle_entropy"] = float(cycle_tracker.get_entropy())
+                
+                if curriculum_enabled:
+                    row["phase_name"] = current_phase["name"]
+                    row["phase_episode"] = phase_episode_count
 
                 writer.writerow(row)
                 csv_file.flush()
@@ -305,7 +384,7 @@ def run_training(config: Dict[str, Any]) -> str:
 
 def main(argv: Optional[list[str]] = None) -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=str, default="configs/train_hub_spoke_demo.yaml")
+    parser.add_argument("--config", type=str, required=True, help="Path to training config YAML")
     parser.add_argument("--episodes", type=int, default=None)
     parser.add_argument("--seed", type=int, default=None)
     parser.add_argument("--run-name", type=str, default=None)

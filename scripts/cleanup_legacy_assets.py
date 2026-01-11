@@ -93,5 +93,5 @@ def main() -> None:
 if __name__ == "__main__":
     try:
         main()
-    except Exception as exc:  # pragma: no cover
+    except Exception as exc:
         sys.exit(f"cleanup_legacy_assets failed: {exc}")

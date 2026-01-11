@@ -549,6 +549,8 @@ class SUMOEnv(BaseEnv):
         t0_sim = float(self._traci.simulation.getTime())
 
         agg = CycleMetricsAggregator(directions=["NS", "EW"], queue_mode=self._queue_count_mode)
+        traci_error: Optional[Exception] = None
+        empty_shutdown = False
 
         intervals = self._build_intervals_for_tls(
             tls_id=str(self._config.tls_id),
@@ -565,7 +567,23 @@ class SUMOEnv(BaseEnv):
             self._set_phase(tls_id=str(self._config.tls_id), phase_index=phase_index, hold_steps=int(duration_steps))
 
             for _ in range(int(duration_steps)):
-                self._traci.simulationStep()
+                try:
+                    expected_remaining = int(self._traci.simulation.getMinExpectedNumber())
+                    if expected_remaining <= 0:
+                        empty_shutdown = True
+                        break
+                except Exception as exc:
+                    if self._is_traci_connection_closed(exc):
+                        traci_error = exc
+                        break
+
+                try:
+                    self._traci.simulationStep()
+                except Exception as exc:
+                    if self._is_traci_connection_closed(exc):
+                        traci_error = exc
+                        break
+                    raise
 
                 step_teleport_count = self._track_teleports_step()
                 decision_teleport_count += step_teleport_count
@@ -593,10 +611,16 @@ class SUMOEnv(BaseEnv):
                         queue_total = float(len(queued_ns) + len(queued_ew))
                         self._kpi_tracker.on_simulation_step(self._traci, queue_length=queue_total)
                     except Exception as exc:
+                        if self._is_traci_connection_closed(exc):
+                            traci_error = exc
+                            self._kpi_tracker = None
+                            break
                         if not self._kpi_disabled_warned:
                             print(f"[WARN] Disabling KPI tracker after error: {exc}")
                             self._kpi_disabled_warned = True
                         self._kpi_tracker = None
+                if traci_error is not None:
+                    break
 
                 arrived_count_step = self._get_arrived_count_step()
                 if arrived_count_step > 0:
@@ -604,8 +628,19 @@ class SUMOEnv(BaseEnv):
                 else:
                     self._no_arrival_steps += 1
 
+                if self._traci is None or not self._connected:
+                    if traci_error is None:
+                        traci_error = RuntimeError("TraCI connection closed during step")
+                    break
+
                 self._stepped_seconds += float(self._config.step_length_sec)
                 decision_steps += 1
+
+            if traci_error is not None or empty_shutdown:
+                break
+
+        if traci_error is not None:
+            self.close()
 
         queue_counts = agg.queue_counts(order=["NS", "EW"])
         last_q_ns = float(queue_counts[0]) if queue_counts.size >= 1 else 0.0
@@ -614,7 +649,13 @@ class SUMOEnv(BaseEnv):
         w_ns = float(waiting_sums[0]) if waiting_sums.size >= 1 else 0.0
         w_ew = float(waiting_sums[1]) if waiting_sums.size >= 2 else 0.0
 
-        t1_sim = float(self._traci.simulation.getTime())
+        if traci_error is None and self._traci is not None:
+            try:
+                t1_sim = float(self._traci.simulation.getTime())
+            except Exception:
+                t1_sim = float(self._stepped_seconds)
+        else:
+            t1_sim = float(self._stepped_seconds)
         decision_duration_sec = max(1e-6, t1_sim - t0_sim)
         decision_cycle_sec = float(cycle_sec)
 
@@ -668,6 +709,8 @@ class SUMOEnv(BaseEnv):
 
         if deadlock_terminate:
             done = True
+        elif traci_error is not None or empty_shutdown:
+            done = True
         elif self._config.max_sim_seconds is not None and int(self._config.max_sim_seconds) > 0:
             if float(self._stepped_seconds) >= float(self._config.max_sim_seconds):
                 done = True
@@ -676,7 +719,7 @@ class SUMOEnv(BaseEnv):
             if self._cycle_index >= int(self._config.max_cycles):
                 done = True
 
-        if not done and bool(self._config.terminate_on_empty):
+        if not done and bool(self._config.terminate_on_empty) and self._traci is not None:
             try:
                 expected_remaining = int(self._traci.simulation.getMinExpectedNumber())
                 if expected_remaining <= 0:
@@ -718,6 +761,11 @@ class SUMOEnv(BaseEnv):
             "early_penalty_applied": float(self._early_penalty_total),
             "deadlock_penalty_applied": float(self._deadlock_penalty_applied),
         }
+        if empty_shutdown:
+            info["termination_reason"] = "empty_simulation"
+        if traci_error is not None:
+            info["termination_reason"] = "traci_connection_closed"
+            info["traci_error"] = str(traci_error)
 
         if done and self._kpi_tracker is not None:
             self._kpi_tracker.set_deadlock_info(
@@ -783,8 +831,32 @@ class SUMOEnv(BaseEnv):
             tls_id: CycleMetricsAggregator(directions=["N", "E", "S", "W"], queue_mode=self._queue_count_mode) for tls_id in self._tls_ids
         }
 
+        executed_steps = 0
+        traci_error: Optional[Exception] = None
+        empty_shutdown = False
+
         for _ in range(int(decision_steps)):
-            self._traci.simulationStep()
+            if self._traci is None or not self._connected:
+                if traci_error is None:
+                    traci_error = RuntimeError("TraCI connection closed unexpectedly before step")
+                break
+            try:
+                expected_remaining = int(self._traci.simulation.getMinExpectedNumber())
+                if expected_remaining <= 0:
+                    empty_shutdown = True
+                    break
+            except Exception as exc:
+                if self._is_traci_connection_closed(exc):
+                    traci_error = exc
+                    break
+
+            try:
+                self._traci.simulationStep()
+            except Exception as exc:
+                if self._is_traci_connection_closed(exc):
+                    traci_error = exc
+                    break
+                raise
             step_teleport_count = self._track_teleports_step()
             decision_teleport_count += step_teleport_count
 
@@ -814,10 +886,16 @@ class SUMOEnv(BaseEnv):
                         queue_total += float(np.sum(agg_by_tls[tls_id].snapshot_counts(order=["N", "E", "S", "W"])))
                     self._kpi_tracker.on_simulation_step(self._traci, queue_length=queue_total)
                 except Exception as exc:
+                    if self._is_traci_connection_closed(exc):
+                        traci_error = exc
+                        self._kpi_tracker = None
+                        break
                     if not self._kpi_disabled_warned:
                         print(f"[WARN] Disabling KPI tracker after error: {exc}")
                         self._kpi_disabled_warned = True
                     self._kpi_tracker = None
+            if traci_error is not None:
+                break
 
             arrived_count_step = self._get_arrived_count_step()
             if arrived_count_step > 0:
@@ -826,6 +904,7 @@ class SUMOEnv(BaseEnv):
                 self._no_arrival_steps += 1
 
             self._stepped_seconds += float(self._config.step_length_sec)
+            executed_steps += 1
 
             for tls_id in self._tls_ids:
                 remaining_steps[tls_id] -= 1
@@ -835,6 +914,9 @@ class SUMOEnv(BaseEnv):
                         phase_index, duration_steps, _ = intervals_by_tls[tls_id][interval_pos[tls_id]]
                         remaining_steps[tls_id] = duration_steps
                         self._set_phase(tls_id=tls_id, phase_index=phase_index, hold_steps=duration_steps)
+
+        if traci_error is not None:
+            self.close()
 
         rewards: Dict[str, float] = {}
         states: Dict[str, np.ndarray] = {}
@@ -851,7 +933,13 @@ class SUMOEnv(BaseEnv):
             fairness_values[tls_id] = agg.fairness_value(metric=self._fairness_metric)
             w_dir[tls_id] = agg.waiting_sums(order=["N", "E", "S", "W"])
 
-        t1_sim = float(self._traci.simulation.getTime())
+        if traci_error is None and self._traci is not None:
+            try:
+                t1_sim = float(self._traci.simulation.getTime())
+            except Exception:
+                t1_sim = float(self._stepped_seconds)
+        else:
+            t1_sim = float(self._stepped_seconds)
         decision_duration_sec = max(1e-6, t1_sim - t0_sim)
         decision_cycle_sec = float(cycle_sec)
         t_step_value = float(cycle_sec + 2 * int(self._config.yellow_sec) + 2 * int(self._config.all_red_sec))
@@ -931,7 +1019,8 @@ class SUMOEnv(BaseEnv):
             "cycle_sec": int(cycle_sec),
             "yellow_sec": int(self._config.yellow_sec),
             "decision_cycle_sec": float(decision_cycle_sec),
-            "decision_steps": int(decision_steps),
+            "decision_steps": int(executed_steps),
+            "decision_steps_planned": int(decision_steps),
             "decision_duration_sec": float(decision_duration_sec),
             "step_length_sec": float(self._config.step_length_sec),
             "t_step": float(t_step_value),
@@ -951,6 +1040,11 @@ class SUMOEnv(BaseEnv):
             "early_penalty_applied": float(self._early_penalty_total),
             "deadlock_penalty_applied": float(self._deadlock_penalty_applied),
         }
+        if empty_shutdown:
+            info["termination_reason"] = "empty_simulation"
+        if traci_error is not None:
+            info["termination_reason"] = "traci_connection_closed"
+            info["traci_error"] = str(traci_error)
 
         if done and self._kpi_tracker is not None:
             self._kpi_tracker.set_deadlock_info(
@@ -1119,11 +1213,33 @@ class SUMOEnv(BaseEnv):
             return len(arrived_ids)
         except AttributeError:
             pass
+        except Exception as exc:
+            if self._is_traci_connection_closed(exc):
+                self._connected = False
+                self._traci = None
+                return 0
+            return 0
         try:
             return int(sim.getArrivedNumber())
+        except Exception as exc:
+            if self._is_traci_connection_closed(exc):
+                self._connected = False
+                self._traci = None
+            return 0
+
+    def _is_traci_connection_closed(self, exc: Exception) -> bool:
+        try:
+            from traci.exceptions import FatalTraCIError
+            if isinstance(exc, FatalTraCIError):
+                return True
         except Exception:
             pass
-        return 0
+        message = str(exc).lower()
+        return (
+            "connection already closed" in message
+            or "connection closed" in message
+            or "socket reset" in message
+        )
 
     def _get_queue_proxy(self) -> float:
         if self._traci is None:
@@ -1283,6 +1399,8 @@ class SUMOEnv(BaseEnv):
         return np.asarray(values, dtype=np.float32)
 
     def _read_downstream_occupancy(self) -> np.ndarray:
+        if self._traci is None or not self._connected:
+            return np.zeros(4, dtype=np.float32)
         values = []
         for key in ["N", "E", "S", "W"]:
             if key not in self._downstream_links:

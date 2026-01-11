@@ -13,7 +13,6 @@ def main():
     config = load_yaml_config('configs/train_bignet_short.yaml')
     routes = load_route_pool_from_config(config, split='train', project_root=Path('.'))
     
-    # Temporarily disable normalization to see raw values
     config['env']['sumo']['normalize_state'] = False
     
     env = build_env(config)
@@ -35,10 +34,8 @@ def main():
     else:
         print(f"  {state}")
     
-    # Run a few steps and collect states
     all_states = []
     for step in range(10):
-        # Same action for all TLS (required: same cycle_sec)
         action_id = np.random.randint(0, env.action_dim)
         actions = {tls_id: action_id for tls_id in env._tls_ids}
         next_state, reward, done, info = env.step(actions)
@@ -47,16 +44,15 @@ def main():
         if isinstance(next_state, dict):
             for tls_id, s in next_state.items():
                 all_states.append(s)
-                q = s[0:4]  # queue N,E,S,W
-                w = s[4:8]  # wait N,E,S,W
-                occ = s[8:12]  # downstream occ
+                q = s[0:4]
+                w = s[4:8]
+                occ = s[8:12]
                 print(f"  [{tls_id}] queue={q}, wait={w}, occ={occ}")
         
         if done:
             print("Episode done!")
             break
     
-    # Summary
     all_states = np.array(all_states)
     print("\n" + "="*60)
     print("SUMMARY ACROSS ALL STATES:")

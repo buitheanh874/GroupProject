@@ -38,7 +38,7 @@ def test_waiting_sums_ignore_non_accumulated_steps():
     waiting = agg.waiting_sums(order=["E"])
     snapshot_counts = agg.snapshot_counts(order=["E"])
 
-    assert math.isclose(float(waiting[0]), 1.0)  # only the accumulated step counts
+    assert math.isclose(float(waiting[0]), 1.0)
     assert snapshot_counts.tolist() == [2.0]
 
 
@@ -68,6 +68,5 @@ def test_waiting_sums_and_transition_exclusion():
     agg.observe("N", ["v1", "v2"], step_sec=0.5, accumulate_waiting=True)
     agg.observe("S", ["s1"], step_sec=0.5, accumulate_waiting=False)  # transition excluded
     sums = agg.waiting_sums(order=["N", "S"])
-    # N: v1 waited 1.0s, v2 waited 0.5s
     assert math.isclose(float(sums[0]), 1.5)
     assert math.isclose(float(sums[1]), 0.0)

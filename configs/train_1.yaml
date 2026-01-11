@@ -292,7 +292,7 @@ env:
         ew_green: 3
 
 normalization:
-  file: configs/norm_1.json
+  file: configs/norm_curriculum_v3.json
 
 agent:
   hidden_dims: [256, 256]
@@ -309,13 +309,41 @@ exploration:
   eps_decay_steps: 50000
 
 train:
-  episodes: 800
+  episodes: 1000
   save_every_episodes: 50
-  print_every_episodes: 5
-  route_pool_manifest: networks/variants/train/manifest_1.txt
+  print_every_episodes: 10
 
 baseline:
-  fixed_action_id: 2
+  fixed_action_id: 12
+
+curriculum:
+  enabled: true
+  phases:
+    - name: "phase1_warmup"
+      episodes: 100
+      demand_scale: 0.50
+      route_pool_manifest: networks/variants/train/manifest_scale50.txt
+      description: "600 veh/hr/lane - warmup"
+    - name: "phase2_moderate"
+      episodes: 150
+      demand_scale: 0.70
+      route_pool_manifest: networks/variants/train/manifest_scale70.txt
+      description: "840 veh/hr/lane - moderate"
+    - name: "phase3_eval"
+      episodes: 450
+      demand_scale: 1.0
+      route_pool_manifest: networks/variants/train/manifest_scale100.txt
+      description: "1200 veh/hr/lane - primary eval"
+    - name: "phase4_deadlock"
+      episodes: 200
+      demand_scale: 1.25
+      route_pool_manifest: networks/variants/train/manifest_scale125.txt
+      description: "1500 veh/hr/lane - gridlock training"
+    - name: "phase5_stress"
+      episodes: 100
+      demand_scale: 1.50
+      route_pool_manifest: networks/variants/train/manifest_scale150.txt
+      description: "1800 veh/hr/lane - extreme stress"
 
 logging:
   log_dir: logs/1
