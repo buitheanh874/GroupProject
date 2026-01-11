@@ -168,6 +168,8 @@ normalization:
 agent:
   hidden_dims: [192, 192]
   gamma: 0.99
+  use_time_aware_gamma: true
+  t_ref: 60.0
   learning_rate: 0.0003
   batch_size: 256
   replay_buffer_size: 200000
