@@ -183,7 +183,6 @@ def _force_phase_and_measure(env: Any, tls_id: str, phase_index: int, hold_steps
     traci = getattr(env, "_traci", None)
     if traci is None:
         return {k: 0.0 for k in ["N", "E", "S", "W"]}
-    # Hold the phase for a short window to measure directional relief.
     if hasattr(env, "_set_phase"):
         env._set_phase(tls_id=tls_id, phase_index=int(phase_index), hold_steps=int(hold_steps))
     else:
@@ -353,7 +352,6 @@ def run_check(config_path: str, steps: int, out_dir: Path, seed: Optional[int] =
         except Exception:
             pass
 
-    # Write CSV log for traceability.
     csv_path = out_dir / "phase_sync_log.csv"
     ensure_dir(str(out_dir))
     with open(csv_path, "w", newline="", encoding="utf-8") as f:
@@ -409,16 +407,12 @@ def _summarize_results(
     semantic_results: Dict[str, Dict[str, Any]] = result.get("semantic_results", {})
 
     tls_count = len(semantic_results)
-    # Verified = consistent (proven correct) TLS, not including inverted
     consistent_count = sum(1 for r in semantic_results.values() if r.get("status") == "consistent")
     semantic_verified_count = consistent_count
     semantic_verified_fraction = float(semantic_verified_count) / float(tls_count) if tls_count > 0 else 0.0
 
-    # HARD failures = evidence-based issues that MUST be fixed
     hard_failures: List[str] = []
-    # SOFT failures = coverage gate (optional gating, not hard evidence)
     soft_failures: List[str] = []
-    # Warnings = ambiguous/skipped results that don't prove failure
     warnings: List[str] = []
 
     if tls_count == 0:
@@ -428,7 +422,6 @@ def _summarize_results(
     if len(inverted) > 0:
         hard_failures.append(f"inverted_tls: {sorted(inverted)}")
 
-    # Ambiguous/skipped are WARNINGS only, not failures
     if len(ambiguous) > 0:
         warnings.append(f"ambiguous_tls: {sorted(ambiguous)}")
     if len(skipped_semantic) > 0:
@@ -436,11 +429,9 @@ def _summarize_results(
     if len(unknown) > 0:
         warnings.append(f"ordering_unknown: {sorted(unknown)}")
 
-    # Determine status
     if len(hard_failures) > 0:
         status = "FAIL"
     elif require_semantic and semantic_verified_fraction < min_verified_fraction:
-        # Coverage gate: this is a SOFT fail, not hard evidence
         status = "SOFT FAIL (coverage gate)"
         soft_failures.append(
             f"semantic_verified_fraction ({semantic_verified_fraction:.2f}) < min_verified_fraction ({min_verified_fraction:.2f})"
@@ -604,8 +595,8 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     try:
         try:
-            import traci  # noqa: F401
-        except Exception as exc:  # pragma: no cover - dependency guard
+            import traci
+        except Exception as exc:
             exec_error = f"TraCI/SUMO not available: {exc}"
             raise
 
@@ -641,7 +632,6 @@ def main(argv: Optional[List[str]] = None) -> int:
     else:
         print(f"[phase-sync] Not executed: {exec_error}")
 
-    # Exit code: PASS=0, any FAIL (hard or soft)=1
     if status == "PASS":
         return 0
     return 1

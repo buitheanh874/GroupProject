@@ -233,7 +233,6 @@ def build_env(config: Dict[str, Any]) -> BaseEnv:
         cycle_options = [int(x) for x in sumo_cfg.get("cycle_options_sec", allowed_cycles_cfg if allowed_cycles_cfg is not None else DEFAULT_CYCLE_OPTIONS_SEC)]
         allowed_cycles = list(cycle_options)
 
-        # Validate scalar params upfront.
         from scripts.validation import validate_scalar_params
 
         validate_scalar_params(
@@ -355,9 +354,6 @@ def build_env(config: Dict[str, Any]) -> BaseEnv:
         std: Any = normalization_cfg.get("std")
         norm_file = normalization_cfg.get("file")
 
-        # Only load external normalization stats when normalization is enabled.
-        # This avoids FileNotFound errors during normalization collection runs
-        # where the previous stats file might have been removed.
         if normalize_state and norm_file:
             import json
 

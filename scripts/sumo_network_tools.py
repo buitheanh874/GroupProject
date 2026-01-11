@@ -19,7 +19,7 @@ def extract_tls_ids(net_file: Union[str, Path]) -> List[str]:
 
     try:
         tree = ET.parse(net_path)
-    except Exception as exc:  # pragma: no cover - XML parsing errors are surfaced
+    except Exception as exc:
         raise ValueError(f"Failed to parse SUMO network XML: {net_path}") from exc
 
     root = tree.getroot()

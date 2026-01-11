@@ -72,8 +72,8 @@ def test_route_pool_selection_deterministic_and_varied():
     picks_a = [env_a._select_route_from_pool(episode_index=i) for i in range(1, 6)]
     picks_b = [env_b._select_route_from_pool(episode_index=i) for i in range(1, 6)]
 
-    assert picks_a == picks_b  # deterministic by seed
-    assert len(set(picks_a)) > 1  # not always the same route
+    assert picks_a == picks_b
+    assert len(set(picks_a)) > 1
 
 
 def test_route_pool_selection_does_not_mutate_rng_state():

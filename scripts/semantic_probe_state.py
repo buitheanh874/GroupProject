@@ -303,7 +303,6 @@ def run_probe(
 
     ensure_dir(str(out_dir))
     
-    # Create timestamped filenames
     timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
     csv_path_timestamped = Path(out_dir) / f"semantic_probe_state_{timestamp_str}.csv"
     csv_path_latest = Path(out_dir) / "semantic_probe_state_latest.csv"
@@ -332,14 +331,12 @@ def run_probe(
         "notes",
     ]
     
-    # Write timestamped CSV
     with open(csv_path_timestamped, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         for row in rows:
             writer.writerow(row)
     
-    # Copy to latest
     with open(csv_path_latest, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
@@ -350,7 +347,6 @@ def run_probe(
     veh_mean = sum(vehicle_counts_all) / len(vehicle_counts_all) if vehicle_counts_all else 0.0
     veh_max = max(vehicle_counts_all) if vehicle_counts_all else 0.0
 
-    # Get git commit if available
     git_commit = "unknown"
     try:
         result = subprocess.run(
@@ -365,7 +361,6 @@ def run_probe(
     except Exception:
         pass
     
-    # Get resolved route file path
     route_file_resolved = config.get("env", {}).get("sumo", {}).get("route_file", "unknown")
     
     report_path_timestamped = Path(out_dir) / f"semantic_probe_state_{timestamp_str}.md"
@@ -390,7 +385,6 @@ def run_probe(
             reason_counts[rsn] = reason_counts.get(rsn, 0) + 1
     top_reasons = sorted(reason_counts.items(), key=lambda x: -x[1])[:5]
     
-    # Write report content
     def write_report(f):
         f.write("# Semantic Probe (MDP State) Report\n\n")
         f.write("## Metadata\n")
@@ -429,11 +423,9 @@ def run_probe(
         f.write(f"- **Report (timestamped)**: `{report_path_timestamped}`\n")
         f.write(f"- **Report (latest)**: `{report_path_latest}`\n")
     
-    # Write timestamped report
     with open(report_path_timestamped, "w", encoding="utf-8") as f:
         write_report(f)
     
-    # Write latest report
     with open(report_path_latest, "w", encoding="utf-8") as f:
         write_report(f)
 

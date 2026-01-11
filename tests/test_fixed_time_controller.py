@@ -29,7 +29,6 @@ def test_ignores_cycle_penalty_when_action_missing_cycle():
     controller = FixedTimeController(action_space=action_space, config=config)
     assert controller.act() == 1
     assert controller.selected_split == (0.7, 0.3)
-    # No cycle information to record
     assert controller.selected_cycle_sec is None
 
 

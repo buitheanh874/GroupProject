@@ -65,6 +65,6 @@ def test_state_ordering_multi_tls():
     state = env._build_state_vector(tls_id="CENTER", last_q_dir=last_q_dir, w_dir=w_dir)
 
     assert state.shape[0] == 12
-    assert state.tolist()[0:4] == [1.0, 2.0, 3.0, 4.0]  # q_NS, q_EW, w_NS, w_EW order preserved
+    assert state.tolist()[0:4] == [1.0, 2.0, 3.0, 4.0]
     assert state.tolist()[4:8] == [5.0, 6.0, 7.0, 8.0]
-    assert state.tolist()[8:12] == [0.0, 0.0, 0.0, 0.0]  # occupancy disabled -> zeros
+    assert state.tolist()[8:12] == [0.0, 0.0, 0.0, 0.0]

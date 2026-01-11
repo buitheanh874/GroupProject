@@ -1,12 +1,9 @@
 import traci
 
-# Start SUMO with network file
 traci.start(['sumo', '-n', 'networks/BIGNET.net.xml', '--no-step-log'])
 
-# Get all lanes from network
 network_lanes = set(traci.lane.getIDList())
 
-# Lanes from config
 config_lanes = {
     'J0': {
         'ns': ['-E3_0', '-E3_1', '-E2_0', '-E2_1'],
