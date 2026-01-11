@@ -111,12 +111,12 @@ def main() -> None:
                     print(f"    Episode {ep + 1}: step failed - {e}")
                     break
 
-            if (ep + 1) % 5 == 0 or ep == phase_eps - 1:
-                print(f"    Progress: {ep + 1}/{phase_eps} episodes")
+            # Print progress every episode
+            print(f"    Episode {ep + 1}/{phase_eps} done ({step_count} steps, {len(phase_states)} samples so far)")
 
         env.close()
         all_raw_states.extend(phase_states)
-        print(f"  Collected {len(phase_states)} state samples")
+        print(f"  [Phase complete] Collected {len(phase_states)} state samples")
 
     if not all_raw_states:
         sys.exit("No state samples collected")
@@ -133,7 +133,7 @@ def main() -> None:
         "state_dim": len(mean),
         "num_samples": len(all_raw_states),
         "num_phases": len(phases),
-        "episodes_per_phase": args.episodes_per_phase,
+        "episodes_per_phase": norm_episodes,
     }
 
     out_path = Path(args.out)
