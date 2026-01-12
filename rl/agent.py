@@ -204,3 +204,52 @@ class DQNAgent:
     def to_train_mode(self) -> None:
         self.online_net.train()
         self.target_net.eval()
+
+    def save_checkpoint(self, path: str, extra_state: Optional[Dict[str, Any]] = None) -> None:
+        """Save full checkpoint for resuming training.
+        
+        Args:
+            path: Path to save checkpoint file
+            extra_state: Additional state to save (episode, global_step, phase_idx, etc.)
+        """
+        payload: Dict[str, Any] = {
+            "state_dim": int(self._config.state_dim),
+            "action_dim": int(self._config.action_dim),
+            "hidden_dims": [int(x) for x in self._config.hidden_dims],
+            "online_state_dict": self.online_net.state_dict(),
+            "target_state_dict": self.target_net.state_dict(),
+            "optimizer_state_dict": self.optimizer.state_dict(),
+            "update_step_count": self.update_step_count,
+        }
+        if extra_state:
+            payload.update(extra_state)
+        torch.save(payload, str(path))
+
+    def load_checkpoint(self, path: str) -> Dict[str, Any]:
+        """Load checkpoint and return extra_state for resuming training.
+        
+        Args:
+            path: Path to checkpoint file
+            
+        Returns:
+            Extra state dict (episode, global_step, phase_idx, best_reward, etc.)
+        """
+        payload = torch.load(str(path), map_location=self._device)
+        
+        self.online_net.load_state_dict(payload["online_state_dict"])
+        self.target_net.load_state_dict(payload["target_state_dict"])
+        
+        if "optimizer_state_dict" in payload:
+            self.optimizer.load_state_dict(payload["optimizer_state_dict"])
+        
+        self.update_step_count = payload.get("update_step_count", 0)
+        self.target_net.eval()
+        
+        # Return extra state for training loop
+        excluded_keys = {
+            "state_dim", "action_dim", "hidden_dims",
+            "online_state_dict", "target_state_dict",
+            "optimizer_state_dict", "update_step_count"
+        }
+        return {k: v for k, v in payload.items() if k not in excluded_keys}
+
