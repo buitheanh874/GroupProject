@@ -201,6 +201,8 @@ class SumoEnvConfig:
     cycle_options_sec: List[int] = field(default_factory=list)
     reward_time_normalize: bool = False
     tls_phase_overrides: Dict[str, Dict[str, int]] = field(default_factory=dict)
+    worker_id: Optional[int] = None
+    base_port: int = 8800
 
 
 class SUMOEnv(BaseEnv):
@@ -1561,6 +1563,9 @@ class SUMOEnv(BaseEnv):
         return defs
 
     def _get_free_port(self) -> int:
+        if self._config.worker_id is not None:
+            return int(self._config.base_port) + int(self._config.worker_id)
+        
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             sock.bind(("", 0))

@@ -10,7 +10,6 @@ from torch import nn
 from rl.dueling_dqn import DuelingDQN
 from rl.replay_buffer import ReplayBuffer
 
-
 @dataclass
 class AgentConfig:
     state_dim: int
@@ -244,8 +243,7 @@ class DQNAgent:
         
         self.update_step_count = payload.get("update_step_count", 0)
         self.target_net.eval()
-        
-        # Return extra state for training loop
+
         excluded_keys = {
             "state_dim", "action_dim", "hidden_dims",
             "online_state_dict", "target_state_dict",

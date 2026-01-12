@@ -49,7 +49,6 @@ env:
       - "1"
       - "--time-to-teleport"
       - "300"
-      - "--no-warnings"
 
     enable_kpi_tracker: true
     normalize_state: true
@@ -324,29 +323,29 @@ curriculum:
   phases:
     - name: "phase1_warmup"
       episodes: 100
-      demand_scale: 0.50
-      route_pool_manifest: networks/variants/train/manifest_scale50.txt
-      description: "600 veh/hr/lane - warmup"
+      demand_scale: 0.20
+      route_pool_manifest: networks/variants/train/manifest_curriculum_scale20.txt
+      description: "400 veh/hr/lane (50%) - warmup"
     - name: "phase2_moderate"
       episodes: 150
-      demand_scale: 0.70
-      route_pool_manifest: networks/variants/train/manifest_scale70.txt
-      description: "840 veh/hr/lane - moderate"
-    - name: "phase3_eval"
+      demand_scale: 0.30
+      route_pool_manifest: networks/variants/train/manifest_curriculum_scale30.txt
+      description: "600 veh/hr/lane (75%) - moderate"
+    - name: "phase3_baseline"
       episodes: 450
-      demand_scale: 1.0
-      route_pool_manifest: networks/variants/train/manifest_scale100.txt
-      description: "1200 veh/hr/lane - primary eval"
-    - name: "phase4_deadlock"
+      demand_scale: 0.40
+      route_pool_manifest: networks/variants/train/manifest_curriculum_scale40.txt
+      description: "800 veh/hr/lane (100%) - primary baseline"
+    - name: "phase4_high"
       episodes: 200
-      demand_scale: 1.25
-      route_pool_manifest: networks/variants/train/manifest_scale125.txt
-      description: "1500 veh/hr/lane - gridlock training"
+      demand_scale: 0.50
+      route_pool_manifest: networks/variants/train/manifest_curriculum_scale50.txt
+      description: "1000 veh/hr/lane (125%) - high demand"
     - name: "phase5_stress"
       episodes: 100
-      demand_scale: 1.50
-      route_pool_manifest: networks/variants/train/manifest_scale150.txt
-      description: "1800 veh/hr/lane - extreme stress"
+      demand_scale: 0.60
+      route_pool_manifest: networks/variants/train/manifest_curriculum_scale60.txt
+      description: "1200 veh/hr/lane (150%) - stress test"
 
 logging:
   log_dir: logs/1
