@@ -306,6 +306,9 @@ agent:
   replay_buffer_size: 200000
   target_update_freq: 5000
   clip_grad_norm: 10.0
+  learning_starts: 5000     
+  train_freq: 4            
+  use_huber_loss: true       
 
 exploration:
   eps_start: 1.0
@@ -326,26 +329,31 @@ curriculum:
     - name: "phase1_warmup"
       episodes: 100
       demand_scale: 0.50
+      max_sim_seconds: 1800 
       route_pool_manifest: networks/variants/train/manifest_d400.txt
       description: "400 veh/hr/lane (50%) - warmup"
     - name: "phase2_moderate"
       episodes: 150
       demand_scale: 0.75
+      max_sim_seconds: 1800 
       route_pool_manifest: networks/variants/train/manifest_d600.txt
       description: "600 veh/hr/lane (75%) - moderate"
     - name: "phase3_baseline"
       episodes: 500
       demand_scale: 1.00
+      max_sim_seconds: 3600 
       route_pool_manifest: networks/variants/train/manifest_d800.txt
       description: "800 veh/hr/lane (100%) - primary baseline"
     - name: "phase4_high"
       episodes: 200
       demand_scale: 1.25
+      max_sim_seconds: 3600 
       route_pool_manifest: networks/variants/train/manifest_d1000.txt
       description: "1000 veh/hr/lane (125%) - high demand"
     - name: "phase5_stress"
       episodes: 50
       demand_scale: 1.50
+      max_sim_seconds: 1800  
       route_pool_manifest: networks/variants/train/manifest_d1200.txt
       description: "1200 veh/hr/lane (150%) - stress test"
 

@@ -122,6 +122,9 @@ def _run_learner(
     target_update_freq = agent_cfg.get("target_update_freq", 3000)
     clip_grad_norm = agent_cfg.get("clip_grad_norm", 10.0)
     seed = config.get("run", {}).get("seed", 42)
+    use_huber_loss = agent_cfg.get("use_huber_loss", True)
+    learning_starts = int(agent_cfg.get("learning_starts", 5000))  
+    train_freq = int(agent_cfg.get("train_freq", 4))
     
     agent_config = AgentConfig(
         state_dim=state_dim,
@@ -134,6 +137,7 @@ def _run_learner(
         target_update_freq=target_update_freq,
         clip_grad_norm=clip_grad_norm,
         seed=seed,
+        use_huber_loss=use_huber_loss,
     )
     
     device = torch.device("cpu")
@@ -145,7 +149,10 @@ def _run_learner(
     
     global_step = 0
     total_transitions = 0
+    iter_count = 0  
+    learning_started = False
     
+    print(f"Learner config: learning_starts={learning_starts}, train_freq={train_freq}, use_huber_loss={use_huber_loss}")
     print("Learner waiting for experiences...")
     
     try:
@@ -155,7 +162,6 @@ def _run_learner(
             if chunk is not None:
                 for transition in chunk:
                     s, a, r, ns, d = transition
-                    # Push to agent's internal replay buffer
                     agent.replay_buffer.push(
                         state=np.asarray(s, dtype=np.float32),
                         action=int(a),
@@ -164,8 +170,19 @@ def _run_learner(
                         done=bool(d),
                     )
                     total_transitions += 1
-            
-            # Call agent.update() without arguments - it samples from internal buffer
+
+            if not learning_started:
+                if total_transitions >= learning_starts:
+                    learning_started = True
+                    print(f"Learning started at {total_transitions} transitions (buffer: {len(agent.replay_buffer)})")
+                else:
+                    if total_transitions % 1000 == 0 and total_transitions > 0:
+                        print(f"Warmup: {total_transitions}/{learning_starts} transitions collected...")
+                    continue 
+
+            iter_count += 1
+            if iter_count % train_freq != 0:
+                continue
             loss = agent.update()
             if loss is not None:
                 global_step += 1
@@ -182,6 +199,8 @@ def _run_learner(
         final_path = os.path.join(model_dir, f"parallel_final_step{global_step}.pt")
         agent.save_checkpoint(final_path, {"global_step": global_step, "total_transitions": total_transitions})
         print(f"Saved: {final_path}")
+
+
 
 
 def _receive_chunk(queue: Queue, timeout: float):

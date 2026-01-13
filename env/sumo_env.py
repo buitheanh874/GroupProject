@@ -430,6 +430,18 @@ class SUMOEnv(BaseEnv):
     def set_route_file(self, route_file: str) -> None:
         self._config.route_file = str(route_file)
 
+    def set_max_sim_seconds(self, max_sim_seconds: int) -> None:
+        """Set the maximum simulation time for episodes.
+        
+        This enables variable horizon curriculum learning where different
+        phases can have different episode lengths.
+        
+        Args:
+            max_sim_seconds: Maximum simulation time in seconds
+        """
+        self._config.max_sim_seconds = int(max_sim_seconds)
+        print(f"[SUMOEnv] max_sim_seconds updated to {max_sim_seconds}s")
+
     def get_ns_ew_phase_indices(self, tls_id: str) -> Tuple[int, int]:
         tls_key = str(tls_id)
         if tls_key in self._tls_phase_overrides:

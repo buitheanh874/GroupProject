@@ -68,6 +68,7 @@ def collector_process(
                 "name": phase.get("name", f"phase{i}"),
                 "episodes": phase.get("episodes", 100),
                 "manifest": phase.get("route_pool_manifest", ""),
+                "max_sim_seconds": phase.get("max_sim_seconds", 3600),  # Default 1 hour
             })
         print(f"[Worker {worker_id}] Curriculum enabled: {len(phases)} phases")
     else:
@@ -92,7 +93,10 @@ def collector_process(
             route_pool = load_route_pool_from_config(temp_config, split="train", project_root=project_root)
             if route_pool and hasattr(env, "set_route_file_pool"):
                 env.set_route_file_pool(route_pool)
-                print(f"[Worker {worker_id}] Phase 0 ({phase['name']}): {len(route_pool)} routes")
+            # Apply phase-specific max_sim_seconds
+            if hasattr(env, "set_max_sim_seconds"):
+                env.set_max_sim_seconds(phase["max_sim_seconds"])
+            print(f"[Worker {worker_id}] Phase 0 ({phase['name']}): {len(route_pool)} routes, max_sim={phase['max_sim_seconds']}s")
         except Exception as e:
             print(f"[Worker {worker_id}] Failed to load route pool: {e}")
     
@@ -205,7 +209,10 @@ def collector_process(
                         route_pool = load_route_pool_from_config(temp_config, split="train", project_root=project_root)
                         if route_pool and hasattr(env, "set_route_file_pool"):
                             env.set_route_file_pool(route_pool)
-                        print(f"[Worker {worker_id}] === Switched to Phase {current_phase_idx} ({phase['name']}): {len(route_pool) if route_pool else 0} routes ===")
+                        # Apply phase-specific max_sim_seconds
+                        if hasattr(env, "set_max_sim_seconds"):
+                            env.set_max_sim_seconds(phase["max_sim_seconds"])
+                        print(f"[Worker {worker_id}] === Switched to Phase {current_phase_idx} ({phase['name']}): {len(route_pool) if route_pool else 0} routes, max_sim={phase['max_sim_seconds']}s ===")
                     except Exception as e:
                         print(f"[Worker {worker_id}] Failed to switch phase: {e}")
                 
