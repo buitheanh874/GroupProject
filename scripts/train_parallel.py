@@ -109,7 +109,6 @@ def _run_learner(
     sync_every_updates: int,
 ) -> None:
     from rl.agent import AgentConfig, DQNAgent
-    from rl.replay_buffer import ReplayBuffer
     
     agent_cfg = config.get("agent", {})
     state_dim = config.get("env", {}).get("sumo", {}).get("state_dim", 12)
@@ -121,6 +120,7 @@ def _run_learner(
     batch_size = agent_cfg.get("batch_size", 256)
     buffer_size = agent_cfg.get("replay_buffer_size", 200000)
     target_update_freq = agent_cfg.get("target_update_freq", 3000)
+    clip_grad_norm = agent_cfg.get("clip_grad_norm", 10.0)
     seed = config.get("run", {}).get("seed", 42)
     
     agent_config = AgentConfig(
@@ -132,6 +132,7 @@ def _run_learner(
         batch_size=batch_size,
         replay_buffer_size=buffer_size,
         target_update_freq=target_update_freq,
+        clip_grad_norm=clip_grad_norm,
         seed=seed,
     )
     
@@ -139,9 +140,7 @@ def _run_learner(
     agent = DQNAgent(agent_config, device=device)
     agent.to_train_mode()
     
-    replay_buffer = ReplayBuffer(capacity=buffer_size, seed=seed, state_dim=state_dim)
-    
-    model_dir = config.get("train", {}).get("model_dir", "models/parallel")
+    model_dir = config.get("logging", {}).get("model_dir", "models/parallel")
     os.makedirs(model_dir, exist_ok=True)
     
     global_step = 0
@@ -156,7 +155,8 @@ def _run_learner(
             if chunk is not None:
                 for transition in chunk:
                     s, a, r, ns, d = transition
-                    replay_buffer.push(
+                    # Push to agent's internal replay buffer
+                    agent.replay_buffer.push(
                         state=np.asarray(s, dtype=np.float32),
                         action=int(a),
                         reward=float(r),
@@ -165,13 +165,13 @@ def _run_learner(
                     )
                     total_transitions += 1
             
-            if len(replay_buffer) >= batch_size:
-                batch = replay_buffer.sample(batch_size, device)
-                loss = agent.update(batch)
+            # Call agent.update() without arguments - it samples from internal buffer
+            loss = agent.update()
+            if loss is not None:
                 global_step += 1
                 
                 if global_step % 100 == 0:
-                    print(f"Step {global_step} | Transitions: {total_transitions} | Buffer: {len(replay_buffer)}")
+                    print(f"Step {global_step} | Transitions: {total_transitions} | Buffer: {len(agent.replay_buffer)} | Loss: {loss:.4f}")
                 
                 if global_step % sync_every_updates == 0:
                     _broadcast_weights(agent, weight_queues)

@@ -49,6 +49,8 @@ env:
       - "1"
       - "--time-to-teleport"
       - "300"
+      - "--no-warnings"
+      - "true"
 
     enable_kpi_tracker: true
     normalize_state: true
@@ -292,7 +294,7 @@ env:
         ew_green: 3
 
 normalization:
-  file: configs/norm_curriculum_v3.json
+  file: configs/norm_curriculum_v4.json
 
 agent:
   hidden_dims: [256, 256]
@@ -308,7 +310,7 @@ agent:
 exploration:
   eps_start: 1.0
   eps_end: 0.02
-  eps_decay_steps: 50000
+  eps_decay_steps: 200000
 
 train:
   episodes: 1000
@@ -351,3 +353,14 @@ logging:
   log_dir: logs/1
   model_dir: models/1
   results_dir: results/1
+
+parallel:
+  enabled: true
+  num_actors: 2
+  base_port: 9500
+  base_seed: 42
+  chunk_size: 256
+  queue_max_chunks: 200
+  sync_every_updates: 100
+  epsilon_base: 0.2
+  epsilon_worker_delta: 0.02
