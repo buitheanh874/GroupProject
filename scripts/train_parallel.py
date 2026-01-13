@@ -111,7 +111,12 @@ def _run_learner(
     from rl.agent import AgentConfig, DQNAgent
     
     agent_cfg = config.get("agent", {})
-    state_dim = config.get("env", {}).get("sumo", {}).get("state_dim", 12)
+    parallel_cfg = config.get("parallel", {})
+    sumo_cfg = config.get("env", {}).get("sumo", {})
+    
+    state_dim = sumo_cfg.get("state_dim", 12)
+    tls_ids = sumo_cfg.get("tls_ids", [])
+    num_tls = len(tls_ids) if tls_ids else 1
     action_dim = 15
     
     hidden_dims = agent_cfg.get("hidden_dims", [192, 192])
@@ -123,8 +128,9 @@ def _run_learner(
     clip_grad_norm = agent_cfg.get("clip_grad_norm", 10.0)
     seed = config.get("run", {}).get("seed", 42)
     use_huber_loss = agent_cfg.get("use_huber_loss", True)
-    learning_starts = int(agent_cfg.get("learning_starts", 5000))  
+    learning_starts = int(agent_cfg.get("learning_starts", 5000))
     train_freq = int(agent_cfg.get("train_freq", 4))
+    max_update_time_ms = float(parallel_cfg.get("max_update_time_ms", 50.0))
     
     agent_config = AgentConfig(
         state_dim=state_dim,
@@ -147,20 +153,35 @@ def _run_learner(
     model_dir = config.get("logging", {}).get("model_dir", "models/parallel")
     os.makedirs(model_dir, exist_ok=True)
     
-    global_step = 0
-    total_transitions = 0
-    iter_count = 0  
+    learner_updates = 0
+    agent_transitions_total = 0
+    global_env_steps_total = 0
+    pending_transitions = 0
     learning_started = False
+    last_log_time = time.time()
     
-    print(f"Learner config: learning_starts={learning_starts}, train_freq={train_freq}, use_huber_loss={use_huber_loss}")
+    print(f"Learner config: learning_starts={learning_starts}, train_freq={train_freq}, "
+          f"max_update_time_ms={max_update_time_ms}, num_tls={num_tls}")
     print("Learner waiting for experiences...")
     
     try:
         while not stop_event.is_set():
-            chunk = _receive_chunk(experience_queue, timeout=0.1)
+            chunk_data = _receive_chunk(experience_queue, timeout=0.1)
             
-            if chunk is not None:
-                for transition in chunk:
+            if chunk_data is not None:
+                if isinstance(chunk_data, dict):
+                    transitions = chunk_data.get("transitions", [])
+                    chunk_global_steps = chunk_data.get("global_steps", 0)
+                else:
+                    transitions = chunk_data
+                    chunk_global_steps = len(chunk_data) // num_tls
+                
+                chunk_len = len(transitions)
+                expected_len = chunk_global_steps * num_tls
+                if chunk_len != expected_len and chunk_global_steps > 0:
+                    print(f"[WARN] Chunk invariant violation: len={chunk_len} != {chunk_global_steps}*{num_tls}={expected_len}")
+                
+                for transition in transitions:
                     s, a, r, ns, d = transition
                     agent.replay_buffer.push(
                         state=np.asarray(s, dtype=np.float32),
@@ -169,36 +190,61 @@ def _run_learner(
                         next_state=np.asarray(ns, dtype=np.float32),
                         done=bool(d),
                     )
-                    total_transitions += 1
+                
+                agent_transitions_total += chunk_len
+                global_env_steps_total += chunk_global_steps
+                pending_transitions += chunk_len
 
             if not learning_started:
-                if total_transitions >= learning_starts:
+                if agent_transitions_total >= learning_starts:
                     learning_started = True
-                    print(f"Learning started at {total_transitions} transitions (buffer: {len(agent.replay_buffer)})")
+                    print(f"Learning started at {agent_transitions_total} transitions "
+                          f"(buffer: {len(agent.replay_buffer)})")
                 else:
-                    if total_transitions % 1000 == 0 and total_transitions > 0:
-                        print(f"Warmup: {total_transitions}/{learning_starts} transitions collected...")
-                    continue 
+                    if agent_transitions_total % 1000 == 0 and agent_transitions_total > 0:
+                        print(f"Warmup: {agent_transitions_total}/{learning_starts} transitions...")
+                    continue
 
-            iter_count += 1
-            if iter_count % train_freq != 0:
-                continue
-            loss = agent.update()
-            if loss is not None:
-                global_step += 1
+            update_start = time.perf_counter()
+            updates_this_iter = 0
+            
+            while pending_transitions >= train_freq:
+                elapsed_ms = (time.perf_counter() - update_start) * 1000
+                if elapsed_ms > max_update_time_ms:
+                    break
+                    
+                loss = agent.update()
+                if loss is not None:
+                    learner_updates += 1
+                    updates_this_iter += 1
+                pending_transitions -= train_freq
                 
-                if global_step % 100 == 0:
-                    print(f"Step {global_step} | Transitions: {total_transitions} | Buffer: {len(agent.replay_buffer)} | Loss: {loss:.4f}")
-                
-                if global_step % sync_every_updates == 0:
+                if learner_updates % sync_every_updates == 0:
                     _broadcast_weights(agent, weight_queues)
+            
+            now = time.time()
+            if now - last_log_time >= 10.0 and learner_updates > 0:
+                utd_agent = learner_updates / max(1, agent_transitions_total)
+                utd_global = learner_updates / max(1, global_env_steps_total)
+                print(f"Step {learner_updates} | Trans: {agent_transitions_total} | "
+                      f"Global: {global_env_steps_total} | Pending: {pending_transitions} | "
+                      f"UTD_agent: {utd_agent:.4f} | UTD_global: {utd_global:.2f}")
+                last_log_time = now
                     
     except KeyboardInterrupt:
         pass
     finally:
-        final_path = os.path.join(model_dir, f"parallel_final_step{global_step}.pt")
-        agent.save_checkpoint(final_path, {"global_step": global_step, "total_transitions": total_transitions})
+        final_path = os.path.join(model_dir, f"parallel_final_step{learner_updates}.pt")
+        agent.save_checkpoint(final_path, {
+            "learner_updates": learner_updates,
+            "agent_transitions_total": agent_transitions_total,
+            "global_env_steps_total": global_env_steps_total,
+        })
         print(f"Saved: {final_path}")
+        utd_agent = learner_updates / max(1, agent_transitions_total)
+        print(f"Final UTD_agent: {utd_agent:.4f} (target: 0.25)")
+
+
 
 
 

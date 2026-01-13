@@ -34,12 +34,21 @@ def collector_process(
     from scripts.route_pool_loader import load_route_pool_from_config
     from rl.utils import set_global_seed
     
+    import random
+    
     parallel_cfg = config.get("parallel", {})
     base_port = int(parallel_cfg.get("base_port", 8813))
     base_seed = int(parallel_cfg.get("base_seed", 42))
     chunk_size = int(parallel_cfg.get("chunk_size", 256))
     epsilon_base = float(parallel_cfg.get("epsilon_base", 0.2))
     epsilon_delta = float(parallel_cfg.get("epsilon_worker_delta", 0.02))
+    reset_max_retries = int(parallel_cfg.get("reset_max_retries", 3))
+    reset_backoff_base_sec = float(parallel_cfg.get("reset_backoff_base_sec", 1.0))
+    reset_backoff_cap_sec = float(parallel_cfg.get("reset_backoff_cap_sec", 8.0))
+    
+    sumo_cfg = config.get("env", {}).get("sumo", {})
+    tls_ids = sumo_cfg.get("tls_ids", [])
+    num_tls = len(tls_ids) if tls_ids else 1
     
     worker_seed = base_seed + worker_id
     worker_port = base_port + worker_id
@@ -109,8 +118,11 @@ def collector_process(
     
     local_step = 0
     local_buffer: List[Tuple] = []
+    global_steps_in_buffer = 0
     episode_count = 0
     phase_episode_count = 0
+    reset_fail_count = 0
+    step_error_count = 0
     
     # Calculate total episodes per worker for curriculum
     if curriculum_enabled and phase_info:
@@ -123,13 +135,26 @@ def collector_process(
         while not stop_event.is_set():
             _drain_and_load_weights(policy_net, weight_queue)
             
-            try:
-                state = env.reset()
-                episode_count += 1
-                phase_episode_count += 1
-            except Exception as e:
-                print(f"[Worker {worker_id}] Reset failed: {e}")
-                time.sleep(1.0)
+            state = None
+            for attempt in range(reset_max_retries):
+                try:
+                    state = env.reset()
+                    break
+                except Exception as e:
+                    print(f"[Worker {worker_id}] Reset attempt {attempt+1}/{reset_max_retries} failed: {e}")
+                    try:
+                        env.close()
+                    except Exception:
+                        pass
+                    if attempt < reset_max_retries - 1:
+                        backoff = min(reset_backoff_cap_sec, reset_backoff_base_sec * (2 ** attempt))
+                        jitter = random.uniform(0, backoff)
+                        time.sleep(jitter)
+                    else:
+                        reset_fail_count += 1
+            
+            if state is None:
+                print(f"[Worker {worker_id}] All reset attempts failed, retrying...")
                 continue
             
             # Log episode start
@@ -157,6 +182,12 @@ def collector_process(
                     next_state, reward, done, info = env.step(actions)
                 except Exception as e:
                     print(f"[Worker {worker_id}] Step error: {e}")
+                    step_error_count += 1
+                    try:
+                        env.close()
+                    except Exception:
+                        pass
+                    episode_count += 1
                     break
                 
                 # Track reward
@@ -176,22 +207,27 @@ def collector_process(
                             done,
                         )
                         local_buffer.append(transition)
+                    global_steps_in_buffer += 1
                 else:
                     transition = (state.copy(), actions, reward, next_state.copy(), done)
                     local_buffer.append(transition)
+                    global_steps_in_buffer += 1
                 
                 state = next_state
                 local_step += 1
                 
                 if len(local_buffer) >= chunk_size:
-                    _send_chunk(experience_queue, local_buffer)
+                    _send_chunk_with_metadata(experience_queue, local_buffer, global_steps_in_buffer)
                     local_buffer = []
+                    global_steps_in_buffer = 0
             
             if len(local_buffer) > 0:
-                _send_chunk(experience_queue, local_buffer)
+                _send_chunk_with_metadata(experience_queue, local_buffer, global_steps_in_buffer)
                 local_buffer = []
+                global_steps_in_buffer = 0
             
-            # Log episode end
+            episode_count += 1
+            phase_episode_count += 1
             print(f"[Worker {worker_id}] Episode {episode_count} done | Steps: {episode_steps} | Reward: {episode_reward:.2f}")
             
             # Check phase transition (curriculum)
@@ -251,9 +287,12 @@ def _drain_and_load_weights(policy_net: DuelingDQN, weight_queue: Queue) -> None
         policy_net.load_state_dict(latest_weights)
 
 
-def _send_chunk(queue: Queue, buffer: List[Tuple]) -> None:
-    chunk = list(buffer)
+def _send_chunk_with_metadata(queue: Queue, buffer: List[Tuple], global_steps: int) -> None:
+    chunk_data = {
+        "transitions": list(buffer),
+        "global_steps": global_steps,
+    }
     try:
-        queue.put_nowait(chunk)
+        queue.put_nowait(chunk_data)
     except Full:
         pass

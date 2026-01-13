@@ -72,7 +72,7 @@ This maintains the **same warmup-to-training ratio** as the original DQN paper w
 ## 2. Training Frequency / Replay Ratio (`train_freq: 4`)
 
 ### Definition
-Number of environment steps between each gradient update. Inverse of the replay ratio.
+Number of agent-transitions between each gradient update. Results in UTD_agent ≈ 0.25.
 
 ### Justification
 The original DQN paper updates the policy every **4 environment steps**, resulting in a replay ratio of 0.25:
@@ -80,19 +80,29 @@ The original DQN paper updates the policy every **4 environment steps**, resulti
 > "The agent selects and executes actions according to an ε-greedy policy based on Q. We use a replay period of 4 frames, meaning we train the network every 4 frames."
 > — Mnih et al., 2015
 
-This prevents:
-- **Overtraining** on limited data when buffer is small
-- **Sample inefficiency** from updating too frequently
-- **Instability** from high replay ratios
+Rainbow explicitly confirms this:
+
+> "We perform a learning update every 4 agent steps."
+> — Hessel et al., 2018 (Rainbow)
+
+### Multi-Agent Context (9 TLS)
+
+In our multi-TLS setup with parameter sharing:
+- 1 global decision step = 9 agent-transitions (one per TLS)
+- `train_freq=4` means 1 update per 4 agent-transitions
+- UTD_global = UTD_agent × 9 ≈ 2.25 updates per global step
 
 ### Mathematical Formulation
 ```
-Replay Ratio = Gradient Updates / Environment Steps = 1/4 = 0.25
+UTD_agent = Gradient Updates / Agent Transitions ≈ 0.25
+UTD_global = Gradient Updates / Global Steps ≈ 2.25
 ```
 
 ### References
 1. Mnih, V., et al. (2015). **Human-level control through deep reinforcement learning**. *Nature*, 518(7540), 529-533.
-2. Fedus, W., Ramachandran, P., Agarwal, R., et al. (2020). **Revisiting Fundamentals of Experience Replay**. *ICML 2020*. https://arxiv.org/abs/2007.06700
+2. Hessel, M., et al. (2018). **Rainbow: Combining Improvements in Deep Reinforcement Learning**. *AAAI 2018*. https://arxiv.org/abs/1710.02298
+3. Fedus, W., et al. (2020). **Revisiting Fundamentals of Experience Replay**. *ICML 2020*.
+
 
 ---
 
@@ -490,6 +500,31 @@ for multi-intersection traffic signal control curricula.
   year={2020}
 }
 ```
+
+---
+
+## 10. Parallel Training Recovery Parameters
+
+### Reset Retry Configuration
+
+| Parameter | Value | Source |
+|-----------|-------|--------|
+| `reset_max_retries` | 3 | AWS Well-Architected Reliability: limit retry attempts |
+| `reset_backoff_base_sec` | 1.0 | Exponential backoff base delay |
+| `reset_backoff_cap_sec` | 8.0 | Maximum delay between retries |
+| `max_update_time_ms` | 50 | Time budget per learner iteration |
+
+### Backoff Strategy: Full Jitter
+
+```
+delay = random(0, min(cap, base * 2^attempt))
+```
+
+This implements the "full jitter" pattern recommended by AWS to prevent the thundering herd problem when multiple workers retry simultaneously.
+
+### References
+1. **AWS** (2015). Exponential Backoff and Jitter. https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/
+2. **AWS Well-Architected Framework** (2023). Reliability Pillar: Implement retries with exponential backoff.
 
 ---
 

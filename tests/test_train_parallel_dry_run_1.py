@@ -20,7 +20,7 @@ def test_train_parallel_dry_run_exits_zero():
     assert result.returncode == 0, f"Exit code was {result.returncode}, stderr: {result.stderr}"
 
 
-def test_train_parallel_disabled_config():
+def test_train_parallel_enabled_config():
     result = subprocess.run(
         [
             sys.executable,
@@ -34,4 +34,5 @@ def test_train_parallel_disabled_config():
         timeout=30,
     )
     assert result.returncode == 0
-    assert "parallel.enabled is false" in result.stdout or "Use scripts/train.py" in result.stdout
+    assert "Dry run complete" in result.stdout or "Parallel Training Plan" in result.stdout
+
