@@ -292,7 +292,7 @@ env:
         ew_green: 3
 
 normalization:
-  file: configs/norm_curriculum_v3.json
+  file: configs/norm_curriculum_v4.json
 
 agent:
   hidden_dims: [256, 256]
@@ -311,15 +311,15 @@ exploration:
   eps_decay_steps: 50000
 
 train:
-  episodes: 1000
-  save_every_episodes: 50
-  print_every_episodes: 10
+  episodes: 20
+  save_every_episodes: 5
+  print_every_episodes: 1
 
 baseline:
   fixed_action_id: 12
 
 curriculum:
-  enabled: true
+  enabled: false
   phases:
     - name: "phase1_warmup"
       episodes: 100

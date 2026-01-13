@@ -175,7 +175,7 @@ reward = r_base - teleport_penalty - deadlock_penalty
 reward = reward * t_step / decision_duration_sec
 ```
 
-**Complete formula**:
+**Complete formula**:   
 ```
 reward = [-(W + P_fair + P_spill + P_flicker) / t_step] - P_teleport - P_deadlock
 ```
