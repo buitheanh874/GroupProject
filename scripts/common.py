@@ -217,8 +217,6 @@ def build_env(config: Dict[str, Any]) -> BaseEnv:
         all_red_sec = int(sumo_cfg.get("all_red_sec", 0))
         rho_min = float(sumo_cfg.get("rho_min", 0.1))
         g_min_sec = int(sumo_cfg.get("min_green_sec", sumo_cfg.get("g_min_sec", 5)))
-        lambda_fairness = float(sumo_cfg.get("lambda_fairness", 0.12))
-        fairness_metric = str(sumo_cfg.get("fairness_metric", "max")).lower()
         queue_count_mode = str(sumo_cfg.get("queue_count_mode", "distinct_cycle")).lower()
         halt_speed_threshold = float(sumo_cfg.get("halt_speed_threshold", 0.1))
         use_pcu_weighted_wait = sumo_cfg.get("use_pcu_weighted_wait")

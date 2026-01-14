@@ -158,41 +158,64 @@ g_ew = cycle_sec - g_ns
 
 ## Reward Function
 
-### Core Formula (Complete)
+### Core Formula (Simplified)
 
-**Step 1**: Normalized reward (source: [env/mdp_metrics.py:L135-145](file:///c:/Users/Dell/GroupProject2/env/mdp_metrics.py#L135-145))
-```
-r_base = -(wait_total + fairness_penalty + spill_penalty + anti_flicker_penalty) / t_step
+$$R = -\frac{W_{total}}{T} - \alpha \cdot \sum (Occ)^2 - P_{teleport} - P_{deadlock}$$
+
+**Step 1**: Compute base reward with spillback penalty (source: [env/mdp_metrics.py:L135-164](file:///c:/Users/Dell/GroupProject2/env/mdp_metrics.py#L135-164))
+```python
+r_base = -wait_total / t_step - spill_penalty
 ```
 
-**Step 2**: Apply teleport and deadlock penalties (source: [env/sumo_env.py:L688-693](file:///c:/Users/Dell/GroupProject2/env/sumo_env.py#L688-693))
-```
+**Step 2**: Apply teleport and deadlock penalties (source: [env/sumo_env.py:L660-680](file:///c:/Users/Dell/GroupProject2/env/sumo_env.py#L660-680))
+```python
 reward = r_base - teleport_penalty - deadlock_penalty
 ```
 
-**Step 3** (optional): Time normalization if `reward_time_normalize=True` (source: [env/sumo_env.py:L695-699](file:///c:/Users/Dell/GroupProject2/env/sumo_env.py#L695-699))
-```
-reward = reward * t_step / decision_duration_sec
-```
-
-**Complete formula**:   
-```
-reward = [-(W + P_fair + P_spill + P_flicker) / t_step] - P_teleport - P_deadlock
-```
+> [!IMPORTANT]
+> **The spillback penalty is NOT divided by T.** This ensures proper weighting: congestion penalty (~0.5-4.0 points) vs waiting time penalty (~0.3-1.0 points).
 
 ```python
 def compute_normalized_reward(
     wait_total: float,
     t_step: float,
     decision_cycle_sec: float,
-    fairness_penalty: float = 0.0,
     spill_penalty: float = 0.0,
-    anti_flicker_penalty: float = 0.0,
 ) -> float:
     denom = float(t_step) if float(t_step) > 0.0 else float(decision_cycle_sec)
     denom = max(1.0, float(denom))
-    return -float(wait_total + fairness_penalty + spill_penalty + anti_flicker_penalty) / float(denom)
+    # R = -W/T - spill_penalty (spill NOT divided by T)
+    return -float(wait_total) / float(denom) - float(spill_penalty)
 ```
+
+### Spillback Penalty (Squared Occupancy)
+
+Based on **Varaiya 2013 (Back-Pressure)** and **PressLight (KDD 2019)**:
+
+```python
+def _compute_spillback_penalty(self) -> float:
+    occupancy = self._read_downstream_occupancy()  # 4D vector [N, E, S, W]
+    penalty = self._alpha_spillback * np.sum(occupancy ** 2)
+    return penalty
+```
+
+(source: [env/sumo_env.py:L1310-1330](file:///c:/Users/Dell/GroupProject2/env/sumo_env.py#L1310-1330))
+
+**Why Squared Occupancy?**
+
+| Approach | Formula | Issue |
+|----------|---------|-------|
+| **Threshold-based (OLD)** | `β * max(occ - 0.65, 0)` | Hard cutoff, no gradient below threshold |
+| **Squared (NEW)** | `α * sum(occ²)` | Smooth gradient from 0%, convex penalty curve |
+
+**Example penalties with α=1.0:**
+
+| Downstream Occupancy | ∑(Occ)² | Spillback Penalty |
+|---------------------|---------|-------------------|
+| All at 30% | 4 × 0.09 = 0.36 | **0.36** |
+| All at 50% | 4 × 0.25 = 1.0 | **1.0** |
+| All at 70% | 4 × 0.49 = 1.96 | **1.96** |
+| All at 100% (gridlock) | 4 × 1.0 = 4.0 | **4.0** |
 
 ### t_step Calculation
 
@@ -200,7 +223,7 @@ def compute_normalized_reward(
 t_step = cycle_sec + 2 * yellow_sec + 2 * all_red_sec
 ```
 
-(source: [env/sumo_env.py:L664](file:///c:/Users/Dell/GroupProject2/env/sumo_env.py#L664))
+(source: [env/sumo_env.py:L658](file:///c:/Users/Dell/GroupProject2/env/sumo_env.py#L658))
 
 ### wait_total Calculation
 
@@ -210,146 +233,49 @@ Accumulated waiting time = sum over all vehicles queued during the decision cycl
 total_wait = agg.waiting_total(exponent=wait_exponent, use_weights=use_pcu_weighted_wait)
 ```
 
-(source: [env/sumo_env.py:L666](file:///c:/Users/Dell/GroupProject2/env/sumo_env.py#L666), [env/mdp_metrics.py:L97-106](file:///c:/Users/Dell/GroupProject2/env/mdp_metrics.py#L97-106))
+(source: [env/sumo_env.py:L660](file:///c:/Users/Dell/GroupProject2/env/sumo_env.py#L660), [env/mdp_metrics.py:L97-106](file:///c:/Users/Dell/GroupProject2/env/mdp_metrics.py#L97-106))
 
 ### Penalty Terms
 
-| Term | Formula | Enabled By | Source |
-|------|---------|------------|--------|
-| **Fairness** | `lambda_fairness * max(wait_per_vehicle)` | `lambda_fairness > 0` | [env/sumo_env.py:L669-674](file:///c:/Users/Dell/GroupProject2/env/sumo_env.py#L669-674) |
-| **Spillback** | `beta * sum(max(occ - occ_threshold, 0))` | `enable_spillback_penalty=True` | [env/sumo_env.py:L1356-1369](file:///c:/Users/Dell/GroupProject2/env/sumo_env.py#L1356-1369) |
-| **Anti-Flicker** | `kappa` if `cycle_sec != prev_cycle_sec` else `0` | `enable_anti_flicker=True` | [env/sumo_env.py:L1371-1376](file:///c:/Users/Dell/GroupProject2/env/sumo_env.py#L1371-1376) |
-| **Teleport** | `teleport_penalty_lambda * teleport_count` | `teleport_penalty_lambda > 0` | [env/sumo_env.py:L688-690](file:///c:/Users/Dell/GroupProject2/env/sumo_env.py#L688-690) |
+| Term | Formula | Config Parameter | Source |
+|------|---------|------------------|--------|
+| **Spillback** | `α * sum(occ²)` | `alpha_spillback: 1.0` | [env/sumo_env.py:L1310-1330](file:///c:/Users/Dell/GroupProject2/env/sumo_env.py#L1310-1330) |
 
-### Reward Time Normalization
-
-When `reward_time_normalize=True`:
-
-```python
-reward = reward * t_step / decision_duration_sec
-```
-
-(source: [env/sumo_env.py:L695-699](file:///c:/Users/Dell/GroupProject2/env/sumo_env.py#L695-699))
+> [!NOTE]
+> **Removed components (v2.0):** `lambda_fairness`, `enable_anti_flicker`, `kappa`, `occ_threshold`, `beta`, `teleport_penalty_lambda`, `deadlock_penalty`
 
 ### Default Config Values
 
 | Parameter | Value | Source |
 |-----------|-------|--------|
-| `lambda_fairness` | 0.0 | [configs/train_1.yaml:L35](file:///c:/Users/Dell/GroupProject2/configs/train_1.yaml#L35) |
+| `alpha_spillback` | 1.0 | [configs/train_1.yaml:L59](file:///c:/Users/Dell/GroupProject2/configs/train_1.yaml#L59) |
 | `enable_spillback_penalty` | True | [configs/train_1.yaml:L58](file:///c:/Users/Dell/GroupProject2/configs/train_1.yaml#L58) |
-| `occ_threshold` | 0.65 | [configs/train_1.yaml:L59](file:///c:/Users/Dell/GroupProject2/configs/train_1.yaml#L59) |
-| `beta` | 1.0 | [configs/train_1.yaml:L60](file:///c:/Users/Dell/GroupProject2/configs/train_1.yaml#L60) |
-| `teleport_penalty_lambda` | 5.0 | [configs/train_1.yaml:L9](file:///c:/Users/Dell/GroupProject2/configs/train_1.yaml#L9) |
-| `reward_time_normalize` | True | [configs/train_1.yaml:L45](file:///c:/Users/Dell/GroupProject2/configs/train_1.yaml#L45) |
 
-### Design Rationale: Why Combine These Components?
+### Design Rationale
 
-#### The Multi-Objective Challenge
+#### Why This Simplified Formula?
 
-Traffic signal control involves **conflicting objectives**:
+**Academic Foundation:**
+- **Varaiya 2013**: Back-pressure control uses queue differentials; squared occupancy provides convex incentive to balance flow
+- **PressLight (KDD 2019)**: Uses pressure-based rewards with smooth gradient functions
 
-| Objective | Metric | Potential Conflict |
-|-----------|--------|-------------------|
-| Minimize delay | waiting_time | May cause gridlock if pushing too many vehicles |
-| Prevent gridlock | spillback, teleport | May increase waiting by being too conservative |
-| Fairness | max_wait per vehicle | May reduce throughput by serving low-demand directions |
-
-**Key insight**: Using a single metric (e.g., only waiting time) allows the agent to "game" the reward by exploiting edge cases that technically reduce the metric but cause real-world problems.
+**Practical Benefits:**
+1. **Minimal hyperparameters**: Just 1 parameter (`alpha_spillback`)
+2. **Smooth gradients**: Squared occupancy provides gradient from 0%
+3. **Pure reward signal**: No auxiliary penalties to confuse learning
 
 #### Hierarchical Penalty Design
 
-The reward function follows a **hierarchical priority** structure:
+| Priority | Component | Purpose |
+|----------|-----------|---------|
+| **Primary** | `-W/T` | Minimize vehicle delay |
+| **Safety** | `-α∑Occ²` | Prevent downstream congestion |
 
-```
-Level 1 (Base):     -waiting_time / t_step        [Primary objective]
-Level 2 (Safety):   -spillback_penalty            [Hard constraint]
-Level 2 (Safety):   -teleport_penalty             [Hard constraint]  
-Level 3 (Optional): -fairness_penalty             [Soft constraint, currently OFF]
-```
+#### Why Spillback is NOT Divided by T?
 
-**Why this hierarchy?**
-
-1. **Base objective (waiting time)**: The fundamental goal is minimizing vehicle delay. This is normalized by `t_step` to ensure fair comparison across different cycle lengths.
-
-2. **Safety constraints (spillback + teleport)**: These are **additive** penalties, not multiplicative, because:
-   - They must apply even when waiting_time is low
-   - A spillback can occur BEFORE queues form (downstream congestion from external traffic)
-   - Teleport is a discrete severe event, not a continuous metric
-
-3. **Optional constraints**: Fairness is disabled (lambda=0) because in high-demand scenarios, strict fairness reduces overall throughput. It can be enabled for specific use cases.
-
-#### Why Divide by `t_step`?
-
-**Problem**: Longer cycles naturally accumulate more waiting time, making them appear worse even if they are equally efficient per unit time.
-
-**Example without normalization**:
-- Cycle 60s: 100 vehicle-seconds waiting -> reward = -100
-- Cycle 120s: 200 vehicle-seconds waiting -> reward = -200 (appears 2x worse, but same efficiency)
-
-**With normalization** (`-waiting / t_step`):
-- Cycle 60s: -100/70 = -1.43 (where t_step = 60 + 2*3 + 2*2 = 70)
-- Cycle 120s: -200/130 = -1.54 (where t_step = 120 + 2*3 + 2*2 = 130)
-
-Now the comparison reflects actual efficiency, not just raw numbers.
-
-#### Why Are Penalties Additive (Not Multiplicative)?
-
-**Multiplicative** (`reward = -waiting * (1 + spillback_factor)`):
-- Problem: If waiting = 0, spillback has NO effect
-- Agent could learn to keep queues low by blocking traffic before the intersection
-
-**Additive** (`reward = -waiting/t_step - spillback_penalty`):
-- Spillback penalty applies REGARDLESS of waiting time
-- Acts as a "pre-emptive warning" before gridlock occurs
-- `occ_threshold = 0.65` means penalty starts at 65% occupancy, not at 100%
-
-#### Why Teleport Penalty is NOT Normalized?
-
-```python
-teleport_penalty = lambda * teleport_count  # NOT divided by t_step
-```
-
-**Reasoning**:
-- Teleport is a **discrete, severe event** (SUMO forcibly moves stuck vehicles)
-- 1 teleport in a 60s cycle = 1 teleport in a 120s cycle (same severity)
-- Fixed penalty (lambda=5.0) ensures agent strongly avoids this regardless of cycle length
-
-#### Potential Conflicts and Resolutions
-
-| Conflict | How It Manifests | Resolution in Design |
-|----------|------------------|---------------------|
-| **Waiting vs Spillback** | Agent reduces waiting by pushing vehicles to downstream, causing spillback | `occ_threshold=0.65` only penalizes when downstream is ACTUALLY congested |
-| **Throughput vs Teleport** | Teleport removes stuck vehicles, technically reducing queue | `teleport_penalty=5.0` is large enough to outweigh any queue reduction benefit |
-| **Short vs Long Cycles** | Short cycles have more transitions (yellow+all-red), reducing effective green time | `t_step` includes transition time in normalization denominator |
-| **Multi-agent Coordination** | One TLS optimizes locally at expense of neighbors | Shared `cycle_sec` constraint (all agents use same cycle) + spillback monitoring |
-
-#### Validation Approach
-
-The reward design should be validated through:
-
-1. **Baseline comparison**: Compare RL agent vs fixed-time controller (action_id=12 = 120s cycle, 50/50 split)
-   - If RL performs worse, reward may be misaligned
-
-2. **Ablation study**: Disable each penalty term and observe impact
-   - Disable spillback -> expect more gridlock events
-   - Disable teleport penalty -> expect more teleports
-
-3. **KPI correlation**: Check that reward improvement correlates with real metrics
-   - Higher reward should correlate with lower `avg_wait_time`
-   - If higher reward but higher teleport count, reward design has a bug
-
-4. **Edge case testing**: Test with extreme demand (very high, very low)
-   - Very high demand: agent should prefer longer cycles to reduce transitions
-   - Very low demand: agent should prefer shorter cycles for responsiveness
-
-#### When This Design May NOT Be Optimal
-
-| Scenario | Issue | Recommendation |
-|----------|-------|----------------|
-| Very low demand (<200 veh/hr) | Spillback never occurs, penalty is wasted computation | Disable spillback penalty |
-| Pedestrian-heavy intersection | Fairness matters more than throughput | Enable `lambda_fairness > 0` |
-| Coordinated arterial | Local optimization may break green wave | Add coordination penalty or use centralized control |
-| Real-world deployment | Teleport does not exist in reality | Replace with surrogate (e.g., excessive delay penalty) |
+- **If divided**: At T=60, spillback penalty = 4.0/60 = 0.06 (negligible)
+- **Not divided**: Spillback penalty = 4.0 (significant, ~10x waiting penalty)
+- **Result**: Agent properly balances throughput vs congestion risk
 
 ---
 

@@ -32,7 +32,6 @@ env:
     terminate_on_empty: false
     rho_min: 0.1
     g_min_sec: 10
-    lambda_fairness: 0.0
     cycle_options_sec: [60, 90, 120]
     action_splits:
       - [0.30, 0.70]
@@ -54,8 +53,7 @@ env:
     state_dim: 12
     enable_downstream_occupancy: true
     enable_spillback_penalty: true
-    occ_threshold: 0.65
-    beta: 1.0
+    alpha_spillback: 1.0
 
     deadlock_early_no_arrival_sec: 0.0
     deadlock_no_arrival_sec: 0.0

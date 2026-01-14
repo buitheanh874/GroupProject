@@ -676,12 +676,8 @@ class SUMOEnv(BaseEnv):
             spill_penalty=float(spill_penalty),
         )
 
-        if float(self._teleport_penalty_lambda) > 0.0:
-            teleport_penalty = float(self._teleport_penalty_lambda) * float(decision_teleport_count)
-            reward = float(reward) - float(teleport_penalty)
-
-        deadlock_penalty_step, deadlock_terminate = self._process_deadlock_step(decision_teleport_count)
-        reward = float(reward) - float(deadlock_penalty_step)
+        # Note: teleport and deadlock penalties removed (v2.0)
+        # Formula is now purely: R = -W/T - α∑(Occ)²
 
         if self._reward_time_normalize:
             if transition_total_sec > 0:
@@ -700,14 +696,11 @@ class SUMOEnv(BaseEnv):
 
         done = False
 
-        if deadlock_terminate:
-            done = True
-        elif traci_error is not None or empty_shutdown:
+        if traci_error is not None or empty_shutdown:
             done = True
         elif self._config.max_sim_seconds is not None and int(self._config.max_sim_seconds) > 0:
             if float(self._stepped_seconds) >= float(self._config.max_sim_seconds):
                 done = True
-
         elif int(self._config.max_cycles) > 0:
             if self._cycle_index >= int(self._config.max_cycles):
                 done = True
@@ -941,10 +934,13 @@ class SUMOEnv(BaseEnv):
                 decision_cycle_sec=float(decision_cycle_sec),
                 spill_penalty=float(spill_penalty),
             )
-            if float(self._teleport_penalty_lambda) > 0.0:
-                num_tls = max(1, len(self._tls_ids))
-                teleport_penalty = float(self._teleport_penalty_lambda) * float(decision_teleport_count) / float(num_tls)
-                rewards[tls_id] = float(rewards[tls_id]) - float(teleport_penalty)
+            # Note: teleport and deadlock penalties removed (v2.0)
+            # Formula is now purely: R = -W/T - α∑(Occ)²
+            if self._reward_time_normalize:
+                if transition_total_sec > 0:
+                    rewards[tls_id] = float(rewards[tls_id]) * float(t_step_value) / float(decision_duration_sec)
+                else:
+                    rewards[tls_id] = float(rewards[tls_id]) / float(decision_duration_sec)
             state_raw = self._build_state_vector(
                 tls_id=tls_id,
                 last_q_dir=last_q_dir[tls_id],
@@ -957,26 +953,14 @@ class SUMOEnv(BaseEnv):
                 self._last_state_raw = {}
             self._last_state_raw[tls_id] = state_raw.copy()
 
-        deadlock_penalty_step, deadlock_terminate = self._process_deadlock_step(decision_teleport_count)
-        for tls_id in self._tls_ids:
-            rewards[tls_id] = float(rewards[tls_id]) - float(deadlock_penalty_step)
-            if self._reward_time_normalize:
-                if transition_total_sec > 0:
-                    rewards[tls_id] = float(rewards[tls_id]) * float(t_step_value) / float(decision_duration_sec)
-                else:
-                    rewards[tls_id] = float(rewards[tls_id]) / float(decision_duration_sec)
-
         self._cycle_index += 1
         self._prev_cycle_sec = int(cycle_sec)
 
         done = False
 
-        if deadlock_terminate:
-            done = True
-        elif self._config.max_sim_seconds is not None and int(self._config.max_sim_seconds) > 0:
+        if self._config.max_sim_seconds is not None and int(self._config.max_sim_seconds) > 0:
             if float(self._stepped_seconds) >= float(self._config.max_sim_seconds):
                 done = True
-
         elif int(self._config.max_cycles) > 0:
             if self._cycle_index >= int(self._config.max_cycles):
                 done = True
