@@ -55,21 +55,16 @@ def collector_process(
     epsilon = min(1.0, max(0.0, epsilon_base + epsilon_delta * worker_id))
     
     set_global_seed(worker_seed)
-    
-    # Build env config
     env_config = config.copy()
     env_config.setdefault("env", {}).setdefault("sumo", {})
     env_config["env"]["sumo"]["worker_id"] = worker_id
     env_config["env"]["sumo"]["base_port"] = worker_port
     env_config["run"] = env_config.get("run", {}).copy()
     env_config["run"]["seed"] = worker_seed
-    
-    # Load curriculum phases
     curriculum_cfg = config.get("curriculum", {})
     curriculum_enabled = curriculum_cfg.get("enabled", False)
     phases = curriculum_cfg.get("phases", [])
     
-    # Build phase info for curriculum
     phase_info = []
     if curriculum_enabled and phases:
         for i, phase in enumerate(phases):
@@ -77,7 +72,7 @@ def collector_process(
                 "name": phase.get("name", f"phase{i}"),
                 "episodes": phase.get("episodes", 100),
                 "manifest": phase.get("route_pool_manifest", ""),
-                "max_sim_seconds": phase.get("max_sim_seconds", 3600),  # Default 1 hour
+                "max_sim_seconds": phase.get("max_sim_seconds", 3600),  
             })
         print(f"[Worker {worker_id}] Curriculum enabled: {len(phases)} phases")
     else:
@@ -89,8 +84,7 @@ def collector_process(
         print(f"[Worker {worker_id}] Failed to build env: {e}")
         stop_event.set()
         return
-    
-    # Load initial route pool
+
     current_phase_idx = 0
     route_pool = None
     
@@ -102,7 +96,6 @@ def collector_process(
             route_pool = load_route_pool_from_config(temp_config, split="train", project_root=project_root)
             if route_pool and hasattr(env, "set_route_file_pool"):
                 env.set_route_file_pool(route_pool)
-            # Apply phase-specific max_sim_seconds
             if hasattr(env, "set_max_sim_seconds"):
                 env.set_max_sim_seconds(phase["max_sim_seconds"])
             print(f"[Worker {worker_id}] Phase 0 ({phase['name']}): {len(route_pool)} routes, max_sim={phase['max_sim_seconds']}s")
@@ -123,13 +116,41 @@ def collector_process(
     phase_episode_count = 0
     reset_fail_count = 0
     step_error_count = 0
-    
-    # Calculate total episodes per worker for curriculum
+
     if curriculum_enabled and phase_info:
         total_episodes = sum(p["episodes"] for p in phase_info)
-        # Split episodes among workers (approximate)
         num_workers = int(parallel_cfg.get("num_actors", 2))
         worker_episodes_per_phase = [max(1, p["episodes"] // num_workers) for p in phase_info]
+
+        resume_episode = int(parallel_cfg.get("resume_episode", 0))
+        if resume_episode > 0:
+            episode_count = resume_episode
+            cumulative = 0
+            for idx, p in enumerate(phase_info):
+                phase_eps = worker_episodes_per_phase[idx]
+                if cumulative + phase_eps > resume_episode:
+                    current_phase_idx = idx
+                    phase_episode_count = resume_episode - cumulative
+                    break
+                cumulative += phase_eps
+            else:
+                current_phase_idx = len(phase_info) - 1
+                phase_episode_count = 0
+            
+            if current_phase_idx > 0:
+                phase = phase_info[current_phase_idx]
+                try:
+                    temp_config = env_config.copy()
+                    temp_config.setdefault("train", {})["route_pool_manifest"] = phase["manifest"]
+                    route_pool = load_route_pool_from_config(temp_config, split="train", project_root=project_root)
+                    if route_pool and hasattr(env, "set_route_file_pool"):
+                        env.set_route_file_pool(route_pool)
+                    if hasattr(env, "set_max_sim_seconds"):
+                        env.set_max_sim_seconds(phase["max_sim_seconds"])
+                except Exception as e:
+                    print(f"[Worker {worker_id}] Failed to load resume phase route pool: {e}")
+            
+            print(f"[Worker {worker_id}] Resuming from Episode {resume_episode}, Phase {current_phase_idx} ({phase_info[current_phase_idx]['name']}), Ep in phase: {phase_episode_count}")
     
     try:
         while not stop_event.is_set():
@@ -157,7 +178,6 @@ def collector_process(
                 print(f"[Worker {worker_id}] All reset attempts failed, retrying...")
                 continue
             
-            # Log episode start
             if curriculum_enabled and phase_info:
                 phase_name = phase_info[current_phase_idx]["name"]
                 print(f"[Worker {worker_id}] Episode {episode_count} | Phase {current_phase_idx} ({phase_name}) | Ep in phase: {phase_episode_count}")
@@ -189,8 +209,7 @@ def collector_process(
                         pass
                     episode_count += 1
                     break
-                
-                # Track reward
+
                 if isinstance(reward, dict):
                     episode_reward += sum(reward.values())
                 else:
@@ -229,23 +248,20 @@ def collector_process(
             episode_count += 1
             phase_episode_count += 1
             print(f"[Worker {worker_id}] Episode {episode_count} done | Steps: {episode_steps} | Reward: {episode_reward:.2f}")
-            
-            # Check phase transition (curriculum)
+
             if curriculum_enabled and phase_info and current_phase_idx < len(phase_info) - 1:
                 target_eps = worker_episodes_per_phase[current_phase_idx]
                 if phase_episode_count >= target_eps:
                     current_phase_idx += 1
                     phase_episode_count = 0
                     phase = phase_info[current_phase_idx]
-                    
-                    # Load new route pool
+
                     try:
                         temp_config = env_config.copy()
                         temp_config.setdefault("train", {})["route_pool_manifest"] = phase["manifest"]
                         route_pool = load_route_pool_from_config(temp_config, split="train", project_root=project_root)
                         if route_pool and hasattr(env, "set_route_file_pool"):
                             env.set_route_file_pool(route_pool)
-                        # Apply phase-specific max_sim_seconds
                         if hasattr(env, "set_max_sim_seconds"):
                             env.set_max_sim_seconds(phase["max_sim_seconds"])
                         print(f"[Worker {worker_id}] === Switched to Phase {current_phase_idx} ({phase['name']}): {len(route_pool) if route_pool else 0} routes, max_sim={phase['max_sim_seconds']}s ===")

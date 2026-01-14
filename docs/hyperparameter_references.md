@@ -279,8 +279,7 @@ curriculum:
     - name: "phase1_warmup"      # 100 eps @ 400 veh/hr/lane (50%)
     - name: "phase2_moderate"    # 150 eps @ 600 veh/hr/lane (75%)
     - name: "phase3_baseline"    # 500 eps @ 800 veh/hr/lane (100%)
-    - name: "phase4_high"        # 200 eps @ 1000 veh/hr/lane (125%)
-    - name: "phase5_stress"      # 50 eps @ 1200 veh/hr/lane (150%)
+    - name: "phase4_high"        # 250 eps @ 1000 veh/hr/lane (125%)
 ```
 
 ### Theoretical Foundation
@@ -330,17 +329,16 @@ Several TSC papers have adopted curriculum learning:
 
 ### Episode Distribution Justification
 
-Your distribution (100 + 150 + 500 + 200 + 50 = 1000 episodes):
+Distribution (100 + 150 + 500 + 250 = 1000 episodes):
 
 | Phase | Episodes | % | Rationale |
 |-------|----------|---|-----------|
 | Warmup (50%) | 100 | 10% | Quick foundation learning |
 | Moderate (75%) | 150 | 15% | Transition phase |
 | **Baseline (100%)** | **500** | **50%** | Primary training - most samples |
-| High (125%) | 200 | 20% | Congestion handling |
-| Stress (150%) | 50 | 5% | Edge case robustness |
+| High (125%) | 250 | 25% | Congestion handling with significant allocation |
 
-This follows the principle of **allocating most training to the target difficulty** while using easier phases for initialization.
+This follows the principle of **allocating most training to the target difficulty** while using easier phases for initialization. The 1200 veh/hr stress phase was removed as it provided insufficient episodes (5%) for meaningful learning and risked destabilizing the model.
 
 ### Variable Episode Length / Horizon Curriculum (Advanced)
 
@@ -379,14 +377,9 @@ curriculum:
       max_sim_seconds: 3600         # 60 min - FULL
       
     - name: "phase4_high"
-      episodes: 200
+      episodes: 250
       demand_scale: 1.25
       max_sim_seconds: 3600         # 60 min - FULL
-      
-    - name: "phase5_stress"
-      episodes: 50
-      demand_scale: 1.50
-      max_sim_seconds: 1800         # 30 min
 ```
 
 #### Rationale by Phase
@@ -397,19 +390,17 @@ curriculum:
 | Moderate | 75% | 1800s | Queue dynamics observable within 30 min |
 | Baseline | 100% | 3600s | **Primary training** - requires full congestion dynamics |
 | High | 125% | 3600s | Spillback effects need full episode to manifest |
-| Stress | 150% | 1800s | Gridlock/deadlock appears within 10-20 min; extended simulation redundant |
 
-#### The Non-Monotonic Pattern
+#### The Horizon Curriculum Pattern
 
 ```
 Episode Length ∝ Time-to-Observable-Effect
 
 Low demand   → Moderate length (1800s) - effects appear quickly
 Medium/High  → Full length (3600s)     - complex dynamics need time
-Extreme      → Moderate length (1800s) - failure appears quickly
 ```
 
-This creates a **non-monotonic horizon curriculum** where episode length is determined by when meaningful learning signals emerge, not difficulty alone.
+With our 4-phase curriculum, episode length follows a monotonic pattern where baseline and high-demand phases use full-length episodes (3600s) to capture complex congestion dynamics.
 
 #### Academic Support
 

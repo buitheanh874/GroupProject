@@ -164,7 +164,7 @@ env:
         ew_green: 3
 
 normalization:
-  file: configs/norm_curriculum_v3_short.json
+  file: configs/norm_curriculum_v4.json
 
 agent:
   hidden_dims: [192, 192]
@@ -199,33 +199,27 @@ curriculum:
     - name: "phase1_warmup"
       episodes: 30
       demand_scale: 0.50
-      max_sim_seconds: 1800
+      max_sim_seconds: 1200
       route_pool_manifest: networks/variants/train/manifest_d400.txt
-      description: "400 veh/hr/lane - warmup"
-    - name: "phase2_rampup"
+      description: "400 veh/hr/lane - warmup (10%)"
+    - name: "phase2_moderate"
       episodes: 45
       demand_scale: 0.75
-      max_sim_seconds: 1800
+      max_sim_seconds: 1500
       route_pool_manifest: networks/variants/train/manifest_d600.txt
-      description: "600 veh/hr/lane - ramp up"
-    - name: "phase3_eval"
+      description: "600 veh/hr/lane - moderate (15%)"
+    - name: "phase3_baseline"
       episodes: 150
       demand_scale: 1.0
       max_sim_seconds: 1800
       route_pool_manifest: networks/variants/train/manifest_d800.txt
-      description: "800 veh/hr/lane - eval target"
-    - name: "phase4_stress"
-      episodes: 60
+      description: "800 veh/hr/lane - baseline (50%)"
+    - name: "phase4_high"
+      episodes: 75
       demand_scale: 1.25
       max_sim_seconds: 1800
       route_pool_manifest: networks/variants/train/manifest_d1000.txt
-      description: "1000 veh/hr/lane - stress test"
-    - name: "phase5_extreme"
-      episodes: 15
-      demand_scale: 1.5
-      max_sim_seconds: 1800
-      route_pool_manifest: networks/variants/train/manifest_d1200.txt
-      description: "1200 veh/hr/lane - extreme (optional)"
+      description: "1000 veh/hr/lane - high demand (25%)"
 
 logging:
   log_dir: logs/bignet_300ep

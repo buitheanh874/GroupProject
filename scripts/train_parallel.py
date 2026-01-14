@@ -24,10 +24,16 @@ def main(argv: List[str] = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str, required=True)
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--resume", type=str, default=None, help="Path to checkpoint to resume from")
+    parser.add_argument("--resume-episode", type=int, default=0, help="Starting episode for curriculum resume")
     args = parser.parse_args(argv)
     
     config = load_yaml_config(args.config)
     parallel_cfg = config.get("parallel", {})
+    
+    if args.resume_episode > 0:
+        parallel_cfg["resume_episode"] = args.resume_episode
+        config["parallel"] = parallel_cfg
     
     if not parallel_cfg.get("enabled", False):
         print("parallel.enabled is false or missing. Use scripts/train.py for standard training.")
@@ -89,6 +95,7 @@ def main(argv: List[str] = None) -> int:
         weight_queues=weight_queues,
         stop_event=stop_event,
         sync_every_updates=sync_every_updates,
+        resume_path=args.resume,
     )
     
     stop_event.set()
@@ -107,6 +114,7 @@ def _run_learner(
     weight_queues: List[Queue],
     stop_event: Event,
     sync_every_updates: int,
+    resume_path: str = None,
 ) -> None:
     from rl.agent import AgentConfig, DQNAgent
     
@@ -159,6 +167,31 @@ def _run_learner(
     pending_transitions = 0
     learning_started = False
     last_log_time = time.time()
+    last_logged_updates = -1
+    recent_losses = []  # Track losses between log intervals
+    
+    checkpoint_interval_sec = float(parallel_cfg.get("checkpoint_interval_sec", 300.0))
+    last_checkpoint_time = time.time()
+    last_ckpt_step = -1
+    
+    if resume_path and os.path.exists(resume_path):
+        print(f"Resuming from checkpoint: {resume_path}")
+        checkpoint = torch.load(resume_path, map_location=device)
+        agent.online_net.load_state_dict(checkpoint["online_state_dict"])
+        agent.target_net.load_state_dict(checkpoint["target_state_dict"])
+        agent.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+        
+        
+        learner_updates = checkpoint.get("learner_updates", 0)
+        agent_transitions_total = checkpoint.get("agent_transitions_total", 0)
+        global_env_steps_total = checkpoint.get("global_env_steps_total", 0)
+        last_ckpt_step = learner_updates
+        last_logged_updates = learner_updates
+        
+        if agent_transitions_total >= learning_starts:
+            learning_started = True
+        
+        print(f"Resumed: learner_updates={learner_updates}, transitions={agent_transitions_total}, global_steps={global_env_steps_total}")
     
     print(f"Learner config: learning_starts={learning_starts}, train_freq={train_freq}, "
           f"max_update_time_ms={max_update_time_ms}, num_tls={num_tls}")
@@ -217,19 +250,37 @@ def _run_learner(
                 if loss is not None:
                     learner_updates += 1
                     updates_this_iter += 1
+                    recent_losses.append(loss)
                 pending_transitions -= train_freq
                 
                 if learner_updates % sync_every_updates == 0:
                     _broadcast_weights(agent, weight_queues)
             
             now = time.time()
-            if now - last_log_time >= 10.0 and learner_updates > 0:
+            should_log_step = learner_updates > 0 and learner_updates % 100 == 0 and learner_updates != last_logged_updates
+            should_log_time = learner_updates > 0 and now - last_log_time >= 30.0 and learner_updates != last_logged_updates
+            
+            if should_log_step or should_log_time:
                 utd_agent = learner_updates / max(1, agent_transitions_total)
                 utd_global = learner_updates / max(1, global_env_steps_total)
+                avg_loss = sum(recent_losses) / len(recent_losses) if recent_losses else 0.0
                 print(f"Step {learner_updates} | Trans: {agent_transitions_total} | "
                       f"Global: {global_env_steps_total} | Pending: {pending_transitions} | "
-                      f"UTD_agent: {utd_agent:.4f} | UTD_global: {utd_global:.2f}")
+                      f"UTD_agent: {utd_agent:.4f} | UTD_global: {utd_global:.2f} | Loss: {avg_loss:.4f}")
+                recent_losses.clear()  # Reset for next interval
                 last_log_time = now
+                last_logged_updates = learner_updates
+            
+            if now - last_checkpoint_time >= checkpoint_interval_sec and learner_updates > 0 and learner_updates != last_ckpt_step:
+                ckpt_path = os.path.join(model_dir, f"parallel_ckpt_step{learner_updates}.pt")
+                agent.save_checkpoint(ckpt_path, {
+                    "learner_updates": learner_updates,
+                    "agent_transitions_total": agent_transitions_total,
+                    "global_env_steps_total": global_env_steps_total,
+                })
+                print(f"[Checkpoint] Saved: {ckpt_path}")
+                last_checkpoint_time = now
+                last_ckpt_step = learner_updates
                     
     except KeyboardInterrupt:
         pass
