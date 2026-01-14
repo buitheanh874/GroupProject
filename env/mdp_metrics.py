@@ -140,7 +140,10 @@ def compute_normalized_reward(
 ) -> float:
     """Compute normalized reward using simplified formula.
     
-    Formula: R = -(wait_total + spill_penalty) / T
+    Formula: R = -W/T - spill_penalty
+    
+    IMPORTANT: spill_penalty is NOT divided by T!
+    This ensures proper weighting between waiting time and congestion penalty.
     
     Based on Varaiya 2013 (Back-Pressure) and PressLight (KDD 2019).
     The spill_penalty uses squared occupancy for smooth gradient:
@@ -157,4 +160,4 @@ def compute_normalized_reward(
     """
     denom = float(t_step) if float(t_step) > 0.0 else float(decision_cycle_sec)
     denom = max(1.0, float(denom))
-    return -float(wait_total + spill_penalty) / float(denom)
+    return -float(wait_total) / float(denom) - float(spill_penalty)

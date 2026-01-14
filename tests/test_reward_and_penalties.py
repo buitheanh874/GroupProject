@@ -13,14 +13,15 @@ from rl.agent import AgentConfig, DQNAgent
 
 
 def test_compute_normalized_reward_time_scaling():
-    """Test simplified reward formula: R = -(wait_total + spill_penalty) / t_step"""
+    """Test simplified reward formula: R = -W/T - spill (spill NOT divided by T)"""
     reward = compute_normalized_reward(
         wait_total=120.0,
         spill_penalty=30.0,
         t_step=150.0,
         decision_cycle_sec=200.0,
     )
-    assert math.isclose(reward, -(120.0 + 30.0) / 150.0)
+    # R = -120/150 - 30 = -0.8 - 30 = -30.8
+    assert math.isclose(reward, -120.0 / 150.0 - 30.0)
 
 
 def test_compute_normalized_reward_with_variable_cycle():
@@ -42,14 +43,15 @@ def test_compute_normalized_reward_with_variable_cycle():
 
 
 def test_compute_normalized_reward_with_spill_penalty():
-    """Test that spill_penalty is correctly added to the total"""
+    """Test that spill_penalty is NOT divided by T (critical for proper weighting)"""
     reward = compute_normalized_reward(
         wait_total=50.0,
-        spill_penalty=10.0,
+        spill_penalty=2.0,  # e.g., alpha=1.0, sum(occ^2)=2.0
         t_step=60.0,
         decision_cycle_sec=60.0,
     )
-    assert math.isclose(reward, -60.0 / 60.0)
+    # R = -50/60 - 2.0 = -0.833 - 2.0 = -2.833
+    assert math.isclose(reward, -50.0 / 60.0 - 2.0)
 
 
 def test_time_aware_gamma_computation():

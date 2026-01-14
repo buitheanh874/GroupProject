@@ -114,8 +114,9 @@ def test_reward_normalization_basic():
     reward = compute_normalized_reward(wait_total=50.0, t_step=100.0, decision_cycle_sec=100.0)
     assert math.isclose(reward, -0.5)
 
+    # R = -W/T - spill (spill NOT divided by T)
     reward_penalized = compute_normalized_reward(wait_total=10.0, t_step=50.0, decision_cycle_sec=100.0, spill_penalty=5.0)
-    assert math.isclose(reward_penalized, -(10.0 + 5.0) / 50.0)
+    assert math.isclose(reward_penalized, -10.0 / 50.0 - 5.0)  # = -0.2 - 5.0 = -5.2
 
 
 def test_distinct_cycle_queue_no_leak():
