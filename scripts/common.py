@@ -1,0 +1,419 @@
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any, Dict, Tuple, List, Optional
+
+import numpy as np
+import torch
+
+from env.base_env import BaseEnv
+from env.normalization import StateNormalizer
+from env.sumo_env import (
+    DEFAULT_ACTION_SPLITS,
+    DEFAULT_CYCLE_OPTIONS_SEC,
+    SUMOEnv,
+    SumoEnvConfig,
+    SumoLaneGroups,
+    SumoPhaseProgram,
+    validate_downstream_links_config,
+)
+from scripts.validation import validate_action_table
+from rl.agent import AgentConfig, DQNAgent
+from rl.utils import resolve_device
+from scripts.sumo_network_tools import extract_tls_ids
+
+
+def resolve_allowed_action_ids(env: Any, target_action: Optional[int], fallback_action: Optional[int]) -> Optional[List[int]]:
+    """
+    Resolve the allowed action ids for a given target (or fallback) based on env.cycle_to_actions.
+
+    Returns:
+        - List of action ids in the matching cycle bucket, if found.
+        - First non-empty bucket when neither target nor fallback is found.
+        - None when cycle_to_actions is missing or empty.
+    """
+    if not hasattr(env, "cycle_to_actions"):
+        return None
+
+    cycle_map = getattr(env, "cycle_to_actions")
+    items: List[Tuple[Any, Any]] = []
+    try:
+        keys = sorted(cycle_map.keys())
+        for key in keys:
+            items.append((key, cycle_map.get(key, [])))
+    except Exception:
+        try:
+            items = list(cycle_map.items())
+        except Exception:
+            items = []
+
+    def _as_int_list(values: Any) -> List[int]:
+        try:
+            return [int(x) for x in values]
+        except Exception:
+            return []
+
+    if target_action is not None:
+        for _, ids in items:
+            ids_int = _as_int_list(ids)
+            if int(target_action) in ids_int:
+                return ids_int
+
+    if fallback_action is not None:
+        for _, ids in items:
+            ids_int = _as_int_list(ids)
+            if int(fallback_action) in ids_int:
+                return ids_int
+
+    for _, ids in items:
+        ids_int = _as_int_list(ids)
+        if len(ids_int) > 0:
+            return ids_int
+
+    return None
+
+
+def deep_merge(base: dict, override: dict) -> dict:
+    result = dict(base)
+    for key, value in override.items():
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            result[key] = deep_merge(result[key], value)
+        else:
+            result[key] = value
+    return result
+
+
+def load_config_with_inheritance(config_path: str) -> Dict[str, Any]:
+    from rl.utils import load_yaml_config
+    
+    config = load_yaml_config(config_path)
+    
+    if "_base" in config:
+        base_path = Path(config_path).parent / config["_base"]
+        base_config = load_yaml_config(str(base_path))
+        
+        merged = deep_merge(base_config, config)
+        merged.pop("_base", None)
+        return merged
+    
+    return config
+
+
+def _default_action_splits() -> List[Tuple[float, float]]:
+    return [(float(a), float(b)) for a, b in DEFAULT_ACTION_SPLITS]
+
+
+def resolve_tls_ids_from_sumo_cfg(sumo_cfg: Dict[str, Any], net_path: Path) -> Tuple[List[str], str]:
+    """Resolve tls_ids (with auto mode) and a valid center_tls_id from config."""
+    auto_tls_ids = bool(sumo_cfg.get("auto_tls_ids", False))
+    tls_ids_raw = sumo_cfg.get("tls_ids", [])
+    tls_ids: List[str] = []
+
+    if isinstance(tls_ids_raw, str):
+        if tls_ids_raw.strip().lower() == "auto":
+            auto_tls_ids = True
+        elif len(tls_ids_raw.strip()) > 0:
+            tls_ids = [tls_ids_raw.strip()]
+    elif isinstance(tls_ids_raw, (list, tuple)):
+        tls_ids = [str(x) for x in tls_ids_raw]
+
+    if auto_tls_ids:
+        tls_ids = extract_tls_ids(net_path)
+
+    if len(tls_ids) == 0:
+        fallback = str(sumo_cfg.get("tls_id", "CENTER"))
+        tls_ids = [fallback] if len(fallback) > 0 else []
+    if len(tls_ids) == 0:
+        raise ValueError("tls_ids must be non-empty; provide env.sumo.tls_ids or enable auto_tls_ids")
+
+    seen: set[str] = set()
+    duplicates = []
+    for tid in tls_ids:
+        if tid in seen:
+            duplicates.append(str(tid))
+        seen.add(str(tid))
+    if len(duplicates) > 0:
+        raise ValueError(f"tls_ids must be unique; duplicates found: {sorted(set(duplicates))}")
+
+    center_tls_id = sumo_cfg.get("center_tls_id")
+    center_tls_effective = str(center_tls_id) if center_tls_id is not None else str(tls_ids[0])
+    if center_tls_effective not in tls_ids:
+        raise ValueError(f"center_tls_id='{center_tls_effective}' must be in tls_ids={tls_ids}")
+
+    return tls_ids, center_tls_effective
+
+
+def build_env(config: Dict[str, Any]) -> BaseEnv:
+    env_config = config.get("env", {})
+    env_type = str(env_config.get("type", "")).strip().lower()
+
+    if env_type == "sumo":
+        sumo_cfg = env_config.get("sumo", {})
+        net_path = Path(sumo_cfg.get("net_file", ""))
+        route_path = Path(sumo_cfg.get("route_file", ""))
+        
+        if not net_path.exists():
+            raise FileNotFoundError(
+                f"Network file not found: {net_path}\n"
+                f"Current working directory: {Path.cwd()}\n"
+                f"Please check the path in config: env.sumo.net_file"
+            )
+        
+        if not route_path.exists():
+            raise FileNotFoundError(
+                f"Route file not found: {route_path}\n"
+                f"Current working directory: {Path.cwd()}\n"
+                f"Please check the path in config: env.sumo.route_file"
+            )
+        
+        route_file_str = str(route_path).lower()
+        if route_file_str.endswith(".txt"):
+            raise RuntimeError(
+                f"Invalid sumo.route_file: expected .rou.xml, got '{route_path}'\n"
+                f"Did you pass a manifest.txt file? SUMO cannot parse manifest files directly.\n"
+                f"Use route_pool_manifest in train/eval config section, or call resolve_route_file_if_manifest()."
+            )
+        if not (route_file_str.endswith(".rou.xml") or route_file_str.endswith(".xml")):
+            raise RuntimeError(
+                f"Invalid sumo.route_file: expected .rou.xml or .xml, got '{route_path}'\n"
+                f"SUMO requires an XML route file."
+            )
+        lane_cfg = sumo_cfg.get("lane_groups", {})
+        lane_cfg_by_tls = sumo_cfg.get("lane_groups_by_tls", {})
+        phase_cfg = sumo_cfg.get("phase_program", {})
+
+        lanes_by_tls: Dict[str, SumoLaneGroups] = {}
+        if isinstance(lane_cfg_by_tls, dict) and len(lane_cfg_by_tls) > 0:
+            for tls_key, cfg in lane_cfg_by_tls.items():
+                lanes_by_tls[str(tls_key)] = SumoLaneGroups(
+                    lanes_ns_ctrl=[str(x) for x in cfg.get("lanes_ns_ctrl", [])],
+                    lanes_ew_ctrl=[str(x) for x in cfg.get("lanes_ew_ctrl", [])],
+                    lanes_right_turn_slip_ns=[str(x) for x in cfg.get("lanes_right_turn_slip_ns", [])],
+                    lanes_right_turn_slip_ew=[str(x) for x in cfg.get("lanes_right_turn_slip_ew", [])],
+                    approach_lanes={str(k): [str(vv) for vv in v] for k, v in cfg.get("approach_lanes", {}).items()} if isinstance(cfg.get("approach_lanes", {}), dict) else {},
+                )
+        else:
+            lanes_by_tls[str(sumo_cfg.get("tls_id", "CENTER"))] = SumoLaneGroups(
+                lanes_ns_ctrl=[str(x) for x in lane_cfg.get("lanes_ns_ctrl", [])],
+                lanes_ew_ctrl=[str(x) for x in lane_cfg.get("lanes_ew_ctrl", [])],
+                lanes_right_turn_slip_ns=[str(x) for x in lane_cfg.get("lanes_right_turn_slip_ns", [])],
+                lanes_right_turn_slip_ew=[str(x) for x in lane_cfg.get("lanes_right_turn_slip_ew", [])],
+                approach_lanes={str(k): [str(vv) for vv in v] for k, v in lane_cfg.get("approach_lanes", {}).items()} if isinstance(lane_cfg.get("approach_lanes", {}), dict) else {},
+            )
+
+        phases = SumoPhaseProgram(
+            ns_green=int(phase_cfg.get("ns_green", 0)),
+            ew_green=int(phase_cfg.get("ew_green", 1)),
+            ns_yellow=phase_cfg.get("ns_yellow"),
+            ew_yellow=phase_cfg.get("ew_yellow"),
+            all_red=phase_cfg.get("all_red"),
+        )
+
+        tls_ids_effective, center_tls_effective = resolve_tls_ids_from_sumo_cfg(sumo_cfg, net_path)
+        downstream_links = {str(k).upper(): v for k, v in sumo_cfg.get("downstream_links", {}).items()}
+        vehicle_weights_raw = sumo_cfg.get("vehicle_weights", {})
+        vehicle_weights = {str(k): float(v) for k, v in vehicle_weights_raw.items()}
+        yellow_sec = int(sumo_cfg.get("yellow_sec", 0))
+        all_red_sec = int(sumo_cfg.get("all_red_sec", 0))
+        rho_min = float(sumo_cfg.get("rho_min", 0.1))
+        g_min_sec = int(sumo_cfg.get("min_green_sec", sumo_cfg.get("g_min_sec", 5)))
+        lambda_fairness = float(sumo_cfg.get("lambda_fairness", 0.12))
+        fairness_metric = str(sumo_cfg.get("fairness_metric", "max")).lower()
+        queue_count_mode = str(sumo_cfg.get("queue_count_mode", "distinct_cycle")).lower()
+        halt_speed_threshold = float(sumo_cfg.get("halt_speed_threshold", 0.1))
+        use_pcu_weighted_wait = sumo_cfg.get("use_pcu_weighted_wait")
+        use_enhanced_reward = bool(sumo_cfg.get("use_enhanced_reward", False))
+        reward_exponent = float(sumo_cfg.get("reward_exponent", 1.0))
+        enable_anti_flicker = bool(sumo_cfg.get("enable_anti_flicker", False))
+        kappa = float(sumo_cfg.get("kappa", 0.0))
+        enable_spillback_penalty = bool(sumo_cfg.get("enable_spillback_penalty", False))
+        beta = float(sumo_cfg.get("beta", 0.0))
+        occ_threshold = float(sumo_cfg.get("occ_threshold", 0.0))
+        allowed_cycles_cfg = sumo_cfg.get("allowed_cycles_sec")
+        cycle_options = [int(x) for x in sumo_cfg.get("cycle_options_sec", allowed_cycles_cfg if allowed_cycles_cfg is not None else DEFAULT_CYCLE_OPTIONS_SEC)]
+        allowed_cycles = list(cycle_options)
+
+        from scripts.validation import validate_scalar_params
+
+        validate_scalar_params(
+            yellow_sec=yellow_sec,
+            all_red_sec=all_red_sec,
+            rho_min=rho_min,
+            g_min_sec=g_min_sec,
+            lambda_fairness=lambda_fairness,
+            fairness_metric=fairness_metric,
+            queue_count_mode=queue_count_mode,
+            halt_speed_threshold=halt_speed_threshold,
+            use_enhanced_reward=use_enhanced_reward,
+            reward_exponent=reward_exponent,
+            enable_anti_flicker=enable_anti_flicker,
+            kappa=kappa,
+            enable_spillback_penalty=enable_spillback_penalty,
+            beta=beta,
+            occ_threshold=occ_threshold,
+            allowed_cycles=allowed_cycles,
+        )
+        action_table_global = config.get("action_table", [])
+        action_table_raw = action_table_global if isinstance(action_table_global, list) and len(action_table_global) > 0 else sumo_cfg.get("action_table", [])
+        action_splits_raw = sumo_cfg.get("action_splits", [])
+        action_splits = [(float(x[0]), float(x[1])) for x in action_splits_raw] if len(action_splits_raw) > 0 else _default_action_splits()
+
+        state_dim_default = 12 if (len(tls_ids_effective) > 1 or len(action_table_raw) > 0) else 4
+        state_dim = int(sumo_cfg.get("state_dim", state_dim_default))
+        normalize_state = bool(sumo_cfg.get("normalize_state", True))
+        occupancy_enabled = bool(sumo_cfg.get("enable_downstream_occupancy", True))
+
+        if state_dim == 12:
+            if occupancy_enabled:
+                validate_downstream_links_config(
+                    downstream_links=downstream_links,
+                    lane_id_set=set(),
+                    edge_id_set=set(),
+                    center_tls_id=center_tls_effective,
+                    validate_ids=False,
+                )
+            if len(tls_ids_effective) > 1:
+                if len(lane_cfg_by_tls) == 0:
+                    raise ValueError("lane_groups_by_tls must be provided for each tls_id when tls_ids has multiple entries")
+                missing_lane_defs = [tid for tid in tls_ids_effective if str(tid) not in lane_cfg_by_tls]
+                if len(missing_lane_defs) > 0:
+                    raise ValueError(f"lane_groups_by_tls missing definitions for tls_ids: {missing_lane_defs}")
+
+        if len(vehicle_weights) > 0:
+            bad_weights = {k: v for k, v in vehicle_weights.items() if v <= 0}
+            if len(bad_weights) > 0:
+                raise ValueError(f"vehicle_weights must be >0 for all entries, got invalid: {bad_weights}")
+
+        processed_action_table = validate_action_table(
+            action_table_raw=action_table_raw,
+            action_splits=action_splits,
+            state_dim=state_dim,
+            allowed_cycles=allowed_cycles,
+            rho_min=rho_min,
+            g_min_sec=g_min_sec,
+        )
+
+        sumo_env_config = SumoEnvConfig(
+            sumo_binary=str(sumo_cfg.get("sumo_binary", "sumo")),
+            net_file=str(sumo_cfg.get("net_file", "")),
+            route_file=str(sumo_cfg.get("route_file", "")),
+            additional_files=[str(x) for x in sumo_cfg.get("additional_files", [])],
+            route_pool=[str(x) for x in sumo_cfg.get("route_pool", [])],
+            tls_id=str(sumo_cfg.get("tls_id", "CENTER")),
+            tls_ids=tls_ids_effective,
+            center_tls_id=center_tls_effective,
+            downstream_links=downstream_links,
+            vehicle_weights=vehicle_weights,
+            step_length_sec=float(sumo_cfg.get("step_length_sec", 1.0)),
+            green_cycle_sec=int(sumo_cfg.get("green_cycle_sec", sumo_cfg.get("cycle_length_sec", 60))),
+            yellow_sec=yellow_sec,
+            all_red_sec=all_red_sec,
+            max_cycles=int(sumo_cfg.get("max_cycles", 60)),
+            max_sim_seconds=int(sumo_cfg["max_sim_seconds"]) if sumo_cfg.get("max_sim_seconds") is not None else None,
+            seed=int(config.get("run", {}).get("seed", 0)),
+            rho_min=rho_min,
+            g_min_sec=g_min_sec,
+            lambda_fairness=lambda_fairness,
+            fairness_metric=fairness_metric,
+            action_splits=action_splits,
+            action_table=processed_action_table,
+            queue_count_mode=queue_count_mode,
+            include_transition_in_waiting=bool(sumo_cfg.get("include_transition_in_waiting", False)),
+            use_pcu_weighted_wait=use_pcu_weighted_wait,
+            use_enhanced_reward=use_enhanced_reward,
+            reward_exponent=reward_exponent,
+            enable_anti_flicker=enable_anti_flicker,
+            kappa=kappa,
+            enable_spillback_penalty=enable_spillback_penalty,
+            beta=beta,
+            occ_threshold=occ_threshold,
+            halt_speed_threshold=halt_speed_threshold,
+            terminate_on_empty=bool(sumo_cfg.get("terminate_on_empty", True)),
+            sumo_extra_args=[str(x) for x in sumo_cfg.get("sumo_extra_args", [])],
+            normalize_state=normalize_state,
+            return_raw_state=bool(sumo_cfg.get("return_raw_state", False)),
+            enable_kpi_tracker=bool(sumo_cfg.get("enable_kpi_tracker", False)),
+            state_dim=state_dim,
+            enable_downstream_occupancy=occupancy_enabled,
+            deadlock_early_no_arrival_sec=float(sumo_cfg.get("deadlock_early_no_arrival_sec", 0.0)),
+            deadlock_no_arrival_sec=float(sumo_cfg.get("deadlock_no_arrival_sec", 0.0)),
+            deadlock_queue_threshold=float(sumo_cfg.get("deadlock_queue_threshold", 0.0)),
+            deadlock_downstream_occ_threshold=float(sumo_cfg.get("deadlock_downstream_occ_threshold", 0.0)),
+            deadlock_active_min=int(sumo_cfg.get("deadlock_active_min", 0)),
+            deadlock_early_penalty_max=float(sumo_cfg.get("deadlock_early_penalty_max", 0.0)),
+            deadlock_penalty=float(sumo_cfg.get("deadlock_penalty", 0.0)),
+            terminate_on_deadlock=bool(sumo_cfg.get("terminate_on_deadlock", False)),
+            teleport_failure_when_congested=bool(sumo_cfg.get("teleport_failure_when_congested", False)),
+            cycle_options_sec=cycle_options,
+            reward_time_normalize=bool(sumo_cfg.get("reward_time_normalize", False)),
+            tls_phase_overrides={str(k): {str(kk): int(vv) for kk, vv in v.items()} for k, v in sumo_cfg.get("tls_phase_overrides", {}).items()},
+        )
+
+        normalization_cfg = config.get("normalization", {})
+        mean: Any = normalization_cfg.get("mean")
+        std: Any = normalization_cfg.get("std")
+        norm_file = normalization_cfg.get("file")
+
+        if normalize_state and norm_file:
+            import json
+
+            with open(str(norm_file), "r", encoding="utf-8") as f:
+                data = json.load(f)
+            mean = data.get("mean", mean)
+            std = data.get("std", std)
+
+        if not normalize_state:
+            mean = [0.0 for _ in range(state_dim)]
+            std = [1.0 for _ in range(state_dim)]
+        else:
+            if mean is None or std is None:
+                raise ValueError("Normalization stats are required when normalize_state is True. Provide mean/std or a file path.")
+            mean_arr = np.asarray(mean, dtype=np.float32).reshape(-1)
+            std_arr = np.asarray(std, dtype=np.float32).reshape(-1)
+            if mean_arr.size != state_dim or std_arr.size != state_dim:
+                raise ValueError(f"Normalization mean/std must match state_dim={state_dim}, got mean={mean_arr.size}, std={std_arr.size}")
+            mean = mean_arr.tolist()
+            std = std_arr.tolist()
+
+        normalizer = StateNormalizer(mean=mean, std=std, expected_dim=state_dim)
+
+        return SUMOEnv(config=sumo_env_config, lanes=lanes_by_tls, phases=phases, normalizer=normalizer)
+
+    raise ValueError(f"Unsupported env type: {env_type}")
+
+
+def build_agent(config: Dict[str, Any], env: BaseEnv) -> Tuple[DQNAgent, torch.device]:
+    run_cfg = config.get("run", {})
+    device = resolve_device(str(run_cfg.get("device", "cpu")))
+
+    agent_cfg = config.get("agent", {})
+    hidden_dims = agent_cfg.get("hidden_dims", [128, 128])
+    use_time_aware_gamma = bool(agent_cfg.get("use_time_aware_gamma", False))
+    gamma_0 = float(agent_cfg.get("gamma_0", agent_cfg.get("gamma", 0.98)))
+    t_ref = float(agent_cfg.get("T_ref", agent_cfg.get("t_ref", 60.0)))
+    if use_time_aware_gamma and t_ref <= 0.0:
+        raise ValueError("T_ref must be >0 when use_time_aware_gamma is True")
+
+    agent_config = AgentConfig(
+        state_dim=int(env.state_dim),
+        action_dim=int(env.action_dim),
+        hidden_dims=[int(x) for x in hidden_dims],
+        gamma=float(agent_cfg.get("gamma", 0.98)),
+        use_time_aware_gamma=use_time_aware_gamma,
+        gamma_0=gamma_0,
+        t_ref=t_ref,
+        learning_rate=float(agent_cfg.get("learning_rate", 1e-3)),
+        batch_size=int(agent_cfg.get("batch_size", 64)),
+        replay_buffer_size=int(agent_cfg.get("replay_buffer_size", 100000)),
+        target_update_freq=int(agent_cfg.get("target_update_freq", 1000)),
+        seed=int(run_cfg.get("seed", 0)),
+        clip_grad_norm=float(agent_cfg.get("clip_grad_norm", 10.0)) if agent_cfg.get("clip_grad_norm") is not None else 10.0,
+    )
+
+    agent = DQNAgent(config=agent_config, device=device)
+    return agent, device
+
+
+def format_state(state: np.ndarray) -> str:
+    values = [float(x) for x in np.asarray(state).reshape(-1).tolist()]
+    return "[" + ", ".join([f"{v:.3f}" for v in values]) + "]"

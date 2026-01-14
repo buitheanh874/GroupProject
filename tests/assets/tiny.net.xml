@@ -1,0 +1,18 @@
+<net>
+    <node id="n0" x="0.0" y="0.0" />
+    <node id="n1" x="100.0" y="0.0" />
+    <node id="n2" x="200.0" y="0.0" />
+    <node id="dead" x="100.0" y="50.0" type="dead_end" />
+
+    <edge id="e_in" from="n0" to="n1" priority="1">
+        <lane id="e_in_0" index="0" speed="13.9" length="100.0" />
+    </edge>
+
+    <edge id="e_mid" from="n1" to="n2" priority="1">
+        <lane id="e_mid_0" index="0" speed="13.9" length="100.0" />
+    </edge>
+
+    <edge id="e_dead" from="n1" to="dead" priority="1">
+        <lane id="e_dead_0" index="0" speed="13.9" length="50.0" />
+    </edge>
+</net>

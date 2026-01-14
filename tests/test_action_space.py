@@ -1,0 +1,77 @@
+from __future__ import annotations
+
+
+def test_rho_min_enforcement():
+    action_splits = [
+        (0.30, 0.70),
+        (0.40, 0.60),
+        (0.50, 0.50),
+        (0.60, 0.40),
+        (0.70, 0.30),
+    ]
+    
+    C = 60
+    rho_min = 0.1
+    g_min = int(rho_min * C)
+    
+    for i, (rho_ns, rho_ew) in enumerate(action_splits):
+        g_ns = int(round(rho_ns * C))
+        g_ns = max(g_min, g_ns)
+        g_ns = min(g_ns, max(g_min, C - g_min))
+        g_ew = C - g_ns
+        
+        assert g_ns >= g_min, f"Action {i}: g_ns={g_ns} < {g_min}"
+        assert g_ew >= g_min, f"Action {i}: g_ew={g_ew} < {g_min}"
+        assert g_ns + g_ew == C, f"Action {i}: g_ns+g_ew != {C}"
+        
+        print(f"Action {i}: ({rho_ns:.1f}, {rho_ew:.1f}) -> g_ns={g_ns}s, g_ew={g_ew}s")
+
+
+def test_multi_cycle_enforcement():
+    action_splits = [
+        (0.30, 0.70),
+        (0.40, 0.60),
+        (0.50, 0.50),
+        (0.60, 0.40),
+        (0.70, 0.30),
+    ]
+
+    cycles = [60, 90, 120]
+    rho_min = 0.1
+
+    for cycle in cycles:
+        g_min = int(rho_min * cycle)
+        for i, (rho_ns, rho_ew) in enumerate(action_splits):
+            g_ns = int(round(rho_ns * cycle))
+            g_ns = max(g_min, g_ns)
+            g_ns = min(g_ns, max(g_min, cycle - g_min))
+            g_ew = cycle - g_ns
+            assert g_ns >= g_min, f"Cycle {cycle} action {i}: g_ns={g_ns} < {g_min}"
+            assert g_ew >= g_min, f"Cycle {cycle} action {i}: g_ew={g_ew} < {g_min}"
+            assert g_ns + g_ew == cycle, f"Cycle {cycle} action {i}: g_ns+g_ew != {cycle}"
+
+
+def test_action_table_size_default_multi():
+    splits = [
+        (0.30, 0.70),
+        (0.40, 0.60),
+        (0.50, 0.50),
+        (0.60, 0.40),
+        (0.70, 0.30),
+    ]
+    cycles = [60, 90, 120]
+    expected = len(splits) * len(cycles)
+    generated = []
+    for cycle in cycles:
+        for rho_ns, rho_ew in splits:
+            generated.append({"cycle_sec": cycle, "rho_ns": rho_ns, "rho_ew": rho_ew})
+    assert len(generated) == expected
+    for entry in generated:
+        assert abs(entry["rho_ns"] + entry["rho_ew"] - 1.0) < 1e-6
+
+
+if __name__ == "__main__":
+    test_rho_min_enforcement()
+    test_multi_cycle_enforcement()
+    test_action_table_size_default_multi()
+    print("\nAll action space tests passed")
