@@ -83,8 +83,6 @@ def _make_env(step_length: float = 1.0, yellow_sec: int = 0, all_red_sec: int = 
         seed=0,
         rho_min=0.1,
         g_min_sec=5,
-        lambda_fairness=0.0,
-        fairness_metric="max",
         action_splits=[],
         action_table=[],
         include_transition_in_waiting=False,
@@ -92,11 +90,8 @@ def _make_env(step_length: float = 1.0, yellow_sec: int = 0, all_red_sec: int = 
         use_pcu_weighted_wait=False,
         use_enhanced_reward=False,
         reward_exponent=1.0,
-        enable_anti_flicker=False,
-        kappa=0.0,
         enable_spillback_penalty=False,
-        beta=0.0,
-        occ_threshold=0.0,
+        alpha_spillback=1.0,
         terminate_on_empty=False,
         sumo_extra_args=[],
         normalize_state=True,
@@ -149,7 +144,7 @@ def test_t_step_includes_transitions(monkeypatch):
 
     captured = {}
 
-    def fake_reward(wait_total, t_step, decision_cycle_sec, fairness_penalty, spill_penalty, anti_flicker_penalty):
+    def fake_reward(wait_total, t_step, decision_cycle_sec, spill_penalty):
         captured["t_step"] = t_step
         captured["decision_cycle_sec"] = decision_cycle_sec
         return float(t_step)

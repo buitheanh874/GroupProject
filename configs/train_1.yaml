@@ -32,7 +32,6 @@ env:
     terminate_on_empty: false
     rho_min: 0.1
     g_min_sec: 10
-    lambda_fairness: 0.0
     cycle_options_sec: [60, 90, 120]
     action_splits:
       - [0.30, 0.70]
@@ -58,8 +57,7 @@ env:
     state_dim: 12
     enable_downstream_occupancy: true
     enable_spillback_penalty: true
-    occ_threshold: 0.65
-    beta: 1.0
+    alpha_spillback: 1.0
 
     deadlock_early_no_arrival_sec: 0
     deadlock_no_arrival_sec: 0
@@ -326,30 +324,47 @@ baseline:
 curriculum:
   enabled: true
   phases:
-    - name: "phase1_warmup"
+    - name: "phase1_easy"
       episodes: 100
       demand_scale: 0.50
-      max_sim_seconds: 1800 
+      max_sim_seconds: 1800
       route_pool_manifest: networks/variants/train/manifest_d400.txt
-      description: "400 veh/hr/lane (50%) - warmup (10%)"
+      description: "400 veh/hr/lane - easy warmup (10%)"
+
     - name: "phase2_moderate"
       episodes: 150
       demand_scale: 0.75
-      max_sim_seconds: 1800 
+      max_sim_seconds: 1800
       route_pool_manifest: networks/variants/train/manifest_d600.txt
-      description: "600 veh/hr/lane (75%) - moderate (15%)"
-    - name: "phase3_baseline"
-      episodes: 500
-      demand_scale: 1.00
-      max_sim_seconds: 3600 
+      description: "600 veh/hr/lane - moderate (15%)"
+
+    - name: "phase3a_hard_short"
+      episodes: 375
+      demand_scale: 1.0
+      max_sim_seconds: 1800
       route_pool_manifest: networks/variants/train/manifest_d800.txt
-      description: "800 veh/hr/lane (100%) - primary baseline (50%)"
-    - name: "phase4_high"
-      episodes: 250
+      description: "800 veh/hr/lane - hard 30min (37.5%)"
+
+    - name: "phase3b_hard_long"
+      episodes: 125
+      demand_scale: 1.0
+      max_sim_seconds: 3600
+      route_pool_manifest: networks/variants/train/manifest_d800.txt
+      description: "800 veh/hr/lane - hard 60min (12.5%)"
+
+    - name: "phase4a_challenge_short"
+      episodes: 150
       demand_scale: 1.25
-      max_sim_seconds: 3600 
+      max_sim_seconds: 1800
       route_pool_manifest: networks/variants/train/manifest_d1000.txt
-      description: "1000 veh/hr/lane (125%) - high demand (25%)"
+      description: "1000 veh/hr/lane - challenge 30min (15%)"
+
+    - name: "phase4b_challenge_long"
+      episodes: 100
+      demand_scale: 1.25
+      max_sim_seconds: 3600
+      route_pool_manifest: networks/variants/train/manifest_d1000.txt
+      description: "1000 veh/hr/lane - challenge 60min (10%)"
 
 logging:
   log_dir: logs/1

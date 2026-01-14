@@ -135,17 +135,12 @@ def validate_scalar_params(
     all_red_sec: int,
     rho_min: float,
     g_min_sec: int,
-    lambda_fairness: float,
-    fairness_metric: str,
     queue_count_mode: str,
     halt_speed_threshold: float,
     use_enhanced_reward: bool,
     reward_exponent: float,
-    enable_anti_flicker: bool,
-    kappa: float,
     enable_spillback_penalty: bool,
-    beta: float,
-    occ_threshold: float,
+    alpha_spillback: float,
     allowed_cycles: List[int],
 ) -> None:
     mode = str(queue_count_mode).lower()
@@ -158,10 +153,6 @@ def validate_scalar_params(
         raise ValueError("rho_min must be in (0, 0.5]")
     if g_min_sec < 0:
         raise ValueError("g_min_sec must be >=0")
-    if lambda_fairness < 0.0:
-        raise ValueError("lambda_fairness must be >=0")
-    if fairness_metric not in {"max", "p95"}:
-        raise ValueError("fairness_metric must be max or p95")
     if mode == "snapshot_last_step":
         raise ValueError(
             "queue_count_mode='snapshot_last_step' is no longer supported.\n"
@@ -174,12 +165,7 @@ def validate_scalar_params(
         raise ValueError("halt_speed_threshold must be >=0")
     if use_enhanced_reward and reward_exponent < 1.0:
         raise ValueError("reward_exponent must be >=1 when use_enhanced_reward is True")
-    if enable_anti_flicker and kappa < 0.0:
-        raise ValueError("kappa must be >=0 when enable_anti_flicker is True")
-    if enable_spillback_penalty:
-        if beta < 0.0:
-            raise ValueError("beta must be >=0 when enable_spillback_penalty is True")
-        if occ_threshold < 0.0 or occ_threshold > 1.0:
-            raise ValueError("occ_threshold must be in [0,1] when enable_spillback_penalty is True")
+    if enable_spillback_penalty and alpha_spillback < 0.0:
+        raise ValueError("alpha_spillback must be >=0 when enable_spillback_penalty is True")
     if len(allowed_cycles) == 0 or any(cycle <= 0 for cycle in allowed_cycles):
         raise ValueError("allowed_cycles_sec must contain positive cycle lengths")

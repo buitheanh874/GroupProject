@@ -224,11 +224,8 @@ def build_env(config: Dict[str, Any]) -> BaseEnv:
         use_pcu_weighted_wait = sumo_cfg.get("use_pcu_weighted_wait")
         use_enhanced_reward = bool(sumo_cfg.get("use_enhanced_reward", False))
         reward_exponent = float(sumo_cfg.get("reward_exponent", 1.0))
-        enable_anti_flicker = bool(sumo_cfg.get("enable_anti_flicker", False))
-        kappa = float(sumo_cfg.get("kappa", 0.0))
         enable_spillback_penalty = bool(sumo_cfg.get("enable_spillback_penalty", False))
-        beta = float(sumo_cfg.get("beta", 0.0))
-        occ_threshold = float(sumo_cfg.get("occ_threshold", 0.0))
+        alpha_spillback = float(sumo_cfg.get("alpha_spillback", 1.0))
         allowed_cycles_cfg = sumo_cfg.get("allowed_cycles_sec")
         cycle_options = [int(x) for x in sumo_cfg.get("cycle_options_sec", allowed_cycles_cfg if allowed_cycles_cfg is not None else DEFAULT_CYCLE_OPTIONS_SEC)]
         allowed_cycles = list(cycle_options)
@@ -240,17 +237,12 @@ def build_env(config: Dict[str, Any]) -> BaseEnv:
             all_red_sec=all_red_sec,
             rho_min=rho_min,
             g_min_sec=g_min_sec,
-            lambda_fairness=lambda_fairness,
-            fairness_metric=fairness_metric,
             queue_count_mode=queue_count_mode,
             halt_speed_threshold=halt_speed_threshold,
             use_enhanced_reward=use_enhanced_reward,
             reward_exponent=reward_exponent,
-            enable_anti_flicker=enable_anti_flicker,
-            kappa=kappa,
             enable_spillback_penalty=enable_spillback_penalty,
-            beta=beta,
-            occ_threshold=occ_threshold,
+            alpha_spillback=alpha_spillback,
             allowed_cycles=allowed_cycles,
         )
         action_table_global = config.get("action_table", [])
@@ -313,8 +305,6 @@ def build_env(config: Dict[str, Any]) -> BaseEnv:
             seed=int(config.get("run", {}).get("seed", 0)),
             rho_min=rho_min,
             g_min_sec=g_min_sec,
-            lambda_fairness=lambda_fairness,
-            fairness_metric=fairness_metric,
             action_splits=action_splits,
             action_table=processed_action_table,
             queue_count_mode=queue_count_mode,
@@ -322,11 +312,8 @@ def build_env(config: Dict[str, Any]) -> BaseEnv:
             use_pcu_weighted_wait=use_pcu_weighted_wait,
             use_enhanced_reward=use_enhanced_reward,
             reward_exponent=reward_exponent,
-            enable_anti_flicker=enable_anti_flicker,
-            kappa=kappa,
             enable_spillback_penalty=enable_spillback_penalty,
-            beta=beta,
-            occ_threshold=occ_threshold,
+            alpha_spillback=alpha_spillback,
             halt_speed_threshold=halt_speed_threshold,
             terminate_on_empty=bool(sumo_cfg.get("terminate_on_empty", True)),
             sumo_extra_args=[str(x) for x in sumo_cfg.get("sumo_extra_args", [])],

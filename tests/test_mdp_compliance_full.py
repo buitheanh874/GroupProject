@@ -46,8 +46,6 @@ def _base_multi_config(**overrides: object) -> dict:
         seed=0,
         rho_min=0.1,
         g_min_sec=5,
-        lambda_fairness=0.0,
-        fairness_metric="max",
         action_splits=[],
         action_table=[],
         include_transition_in_waiting=False,
@@ -55,11 +53,8 @@ def _base_multi_config(**overrides: object) -> dict:
         use_pcu_weighted_wait=False,
         use_enhanced_reward=False,
         reward_exponent=1.0,
-        enable_anti_flicker=False,
-        kappa=0.0,
         enable_spillback_penalty=False,
-        beta=0.0,
-        occ_threshold=0.0,
+        alpha_spillback=1.0,
         terminate_on_empty=True,
         sumo_extra_args=[],
         normalize_state=True,
@@ -119,7 +114,7 @@ def test_reward_normalization_basic():
     reward = compute_normalized_reward(wait_total=50.0, t_step=100.0, decision_cycle_sec=100.0)
     assert math.isclose(reward, -0.5)
 
-    reward_penalized = compute_normalized_reward(wait_total=10.0, t_step=50.0, decision_cycle_sec=100.0, fairness_penalty=5.0)
+    reward_penalized = compute_normalized_reward(wait_total=10.0, t_step=50.0, decision_cycle_sec=100.0, spill_penalty=5.0)
     assert math.isclose(reward_penalized, -(10.0 + 5.0) / 50.0)
 
 

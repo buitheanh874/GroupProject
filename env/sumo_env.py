@@ -166,8 +166,6 @@ class SumoEnvConfig:
     seed: int = 0
     rho_min: float = 0.1
     g_min_sec: int = 5
-    lambda_fairness: float = 0.12
-    fairness_metric: str = "max"
     action_splits: List[Tuple[float, float]] = field(default_factory=list)
     action_table: List[Dict[str, Any]] = field(default_factory=list)
     include_transition_in_waiting: bool = False
@@ -175,11 +173,8 @@ class SumoEnvConfig:
     use_pcu_weighted_wait: Optional[bool] = None
     use_enhanced_reward: bool = False
     reward_exponent: float = 1.0
-    enable_anti_flicker: bool = False
-    kappa: float = 0.0
     enable_spillback_penalty: bool = False
-    beta: float = 0.0
-    occ_threshold: float = 0.0
+    alpha_spillback: float = 1.0
     terminate_on_empty: bool = True
     sumo_extra_args: List[str] = field(default_factory=list)
     normalize_state: bool = True
@@ -310,16 +305,10 @@ class SUMOEnv(BaseEnv):
         if self._queue_count_mode not in {"distinct_cycle"}:
             raise ValueError(f"queue_count_mode must be 'distinct_cycle', got '{self._queue_count_mode}'")
         self._halt_speed_threshold = float(self._config.halt_speed_threshold)
-        self._fairness_metric = str(self._config.fairness_metric or "max").lower()
-        if self._fairness_metric not in {"max", "p95"}:
-            raise ValueError("fairness_metric must be max or p95")
         self._use_enhanced_reward = bool(self._config.use_enhanced_reward)
         self._reward_exponent = float(self._config.reward_exponent)
-        self._enable_anti_flicker = bool(self._config.enable_anti_flicker)
-        self._kappa = float(self._config.kappa)
         self._enable_spillback_penalty = bool(self._config.enable_spillback_penalty)
-        self._beta = float(self._config.beta)
-        self._occ_threshold = float(self._config.occ_threshold)
+        self._alpha_spillback = float(self._config.alpha_spillback)
 
         self._vehicle_weights = {str(k): float(v) for k, v in self._config.vehicle_weights.items()}
         if self._config.use_pcu_weighted_wait is None:
@@ -678,23 +667,13 @@ class SUMOEnv(BaseEnv):
         total_wait = agg.waiting_total(exponent=wait_exponent, use_weights=self._use_pcu_weighted_wait)
         transition_total_sec = 2 * int(self._config.yellow_sec) + 2 * int(self._config.all_red_sec)
 
-        lambda_fairness = float(self._config.lambda_fairness)
-        fairness_value = 0.0
-        fairness_penalty = 0.0
-        if lambda_fairness > 1e-9:
-            fairness_value = float(agg.fairness_value(metric=self._fairness_metric))
-            fairness_penalty = float(lambda_fairness) * float(fairness_value)
-
         spill_penalty = self._compute_spillback_penalty()
-        anti_flicker_penalty = self._compute_anti_flicker_penalty(cycle_sec=cycle_sec)
         
         reward = compute_normalized_reward(
             wait_total=total_wait,
             t_step=float(t_step_value),
             decision_cycle_sec=float(decision_cycle_sec),
-            fairness_penalty=float(fairness_penalty),
             spill_penalty=float(spill_penalty),
-            anti_flicker_penalty=float(anti_flicker_penalty),
         )
 
         if float(self._teleport_penalty_lambda) > 0.0:
@@ -756,9 +735,6 @@ class SUMOEnv(BaseEnv):
             "yellow_sec": int(self._config.yellow_sec),
             "all_red_sec": int(self._config.all_red_sec),
             "t_step": float(t_step_value),
-            "fairness_penalty": float(fairness_penalty),
-            "fairness_value": float(fairness_value),
-            "anti_flicker_penalty": float(anti_flicker_penalty),
             "spill_penalty": float(spill_penalty),
             "total_wait_reward": float(total_wait),
             "wait_ns": float(w_ns),
@@ -939,12 +915,10 @@ class SUMOEnv(BaseEnv):
         wait_exponent = float(self._reward_exponent if self._use_enhanced_reward else 1.0)
         wait_totals: Dict[str, float] = {}
         w_dir: Dict[str, np.ndarray] = {}
-        fairness_values: Dict[str, float] = {}
         for tls_id in self._tls_ids:
             agg = agg_by_tls[tls_id]
             last_q_dir[tls_id] = agg.queue_counts(order=["N", "E", "S", "W"])
             wait_totals[tls_id] = agg.waiting_total(exponent=wait_exponent, use_weights=self._use_pcu_weighted_wait)
-            fairness_values[tls_id] = agg.fairness_value(metric=self._fairness_metric)
             w_dir[tls_id] = agg.waiting_sums(order=["N", "E", "S", "W"])
 
         if traci_error is None and self._traci is not None:
@@ -958,22 +932,14 @@ class SUMOEnv(BaseEnv):
         decision_cycle_sec = float(cycle_sec)
         t_step_value = float(cycle_sec + 2 * int(self._config.yellow_sec) + 2 * int(self._config.all_red_sec))
         transition_total_sec = 2 * int(self._config.yellow_sec) + 2 * int(self._config.all_red_sec)
-        lambda_fairness = float(self._config.lambda_fairness)
         spill_penalty = self._compute_spillback_penalty()
-        anti_flicker_penalty = self._compute_anti_flicker_penalty(cycle_sec=cycle_sec)
 
         for tls_id in self._tls_ids:
-            fairness_penalty_tls = 0.0
-            if lambda_fairness > 0.0:
-                fairness_penalty_tls = float(lambda_fairness) * float(fairness_values.get(tls_id, 0.0))
-            
             rewards[tls_id] = compute_normalized_reward(
                 wait_total=float(wait_totals[tls_id]),
                 t_step=float(t_step_value),
                 decision_cycle_sec=float(decision_cycle_sec),
-                fairness_penalty=float(fairness_penalty_tls),
                 spill_penalty=float(spill_penalty),
-                anti_flicker_penalty=float(anti_flicker_penalty),
             )
             if float(self._teleport_penalty_lambda) > 0.0:
                 num_tls = max(1, len(self._tls_ids))
@@ -1023,9 +989,6 @@ class SUMOEnv(BaseEnv):
             except Exception:
                 pass
 
-        fairness_value_info = float(max(fairness_values.values()) if len(fairness_values) > 0 else 0.0)
-        fairness_penalty_info = float(lambda_fairness) * float(fairness_value_info) if lambda_fairness > 0.0 else 0.0
-
         info: Dict[str, Any] = {
             "cycle_index": int(self._cycle_index),
             "action_ids": {tls: int(action_map[tls]) for tls in self._tls_ids},
@@ -1038,10 +1001,7 @@ class SUMOEnv(BaseEnv):
             "decision_duration_sec": float(decision_duration_sec),
             "step_length_sec": float(self._config.step_length_sec),
             "t_step": float(t_step_value),
-            "fairness_penalty": float(fairness_penalty_info),
-            "fairness_value": float(fairness_value_info),
             "spill_penalty": float(spill_penalty),
-            "anti_flicker_penalty": float(anti_flicker_penalty),
             "total_wait_reward": float(sum(wait_totals.values())),
             "mean_reward": float(np.mean(list(rewards.values()))),
             "state_raw": {tls: state.tolist() for tls, state in ((k, self._last_state_raw[k]) for k in self._tls_ids)},
@@ -1374,18 +1334,11 @@ class SUMOEnv(BaseEnv):
             return 0.0
     
         occupancy = self._read_downstream_occupancy()
-        occ_threshold = float(np.clip(self._occ_threshold, 0.0, 1.0))
-        over_thresh = np.maximum(occupancy - occ_threshold, 0.0)
-        penalty = float(self._beta) * float(np.sum(over_thresh))
+        # Squared occupancy creates smooth gradient (soft barrier) per Varaiya 2013
+        # penalty = α * ∑(occupancy²)
+        penalty = float(self._alpha_spillback) * float(np.sum(occupancy ** 2))
     
         return penalty
-
-    def _compute_anti_flicker_penalty(self, cycle_sec: int) -> float:
-        if not self._enable_anti_flicker:
-            return 0.0
-        if self._prev_cycle_sec is None:
-            return 0.0
-        return float(self._kappa) if int(cycle_sec) != int(self._prev_cycle_sec) else 0.0
 
     def _read_queue_ns(self) -> float:
         total = 0.0

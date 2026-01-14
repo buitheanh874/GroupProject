@@ -136,18 +136,25 @@ def compute_normalized_reward(
     wait_total: float,
     t_step: float,
     decision_cycle_sec: float,
-    fairness_penalty: float = 0.0,
     spill_penalty: float = 0.0,
-    anti_flicker_penalty: float = 0.0,
 ) -> float:
+    """Compute normalized reward using simplified formula.
+    
+    Formula: R = -(wait_total + spill_penalty) / T
+    
+    Based on Varaiya 2013 (Back-Pressure) and PressLight (KDD 2019).
+    The spill_penalty uses squared occupancy for smooth gradient:
+    spill_penalty = alpha * sum(downstream_occupancy^2)
+    
+    Args:
+        wait_total: Total accumulated waiting time in the cycle
+        t_step: Normalization factor (cycle_sec + transitions)
+        decision_cycle_sec: Actual cycle duration in seconds
+        spill_penalty: Anti-congestion penalty from downstream occupancy
+        
+    Returns:
+        Normalized reward (negative value, higher is better)
+    """
     denom = float(t_step) if float(t_step) > 0.0 else float(decision_cycle_sec)
     denom = max(1.0, float(denom))
-    return -float(wait_total + fairness_penalty + spill_penalty + anti_flicker_penalty) / float(denom)
-
-
-def compute_anti_flicker_penalty(prev_cycle_sec: Optional[int], cycle_sec: int, enabled: bool, kappa: float) -> float:
-    if not enabled:
-        return 0.0
-    if prev_cycle_sec is None:
-        return 0.0
-    return float(kappa) if int(cycle_sec) != int(prev_cycle_sec) else 0.0
+    return -float(wait_total + spill_penalty) / float(denom)
