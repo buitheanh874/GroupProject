@@ -347,6 +347,8 @@ def build_env(config: Dict[str, Any]) -> BaseEnv:
             cycle_options_sec=cycle_options,
             reward_time_normalize=bool(sumo_cfg.get("reward_time_normalize", False)),
             tls_phase_overrides={str(k): {str(kk): int(vv) for kk, vv in v.items()} for k, v in sumo_cfg.get("tls_phase_overrides", {}).items()},
+            worker_id=sumo_cfg.get("worker_id"),
+            base_port=int(sumo_cfg.get("base_port", 8800)),
         )
 
         normalization_cfg = config.get("normalization", {})

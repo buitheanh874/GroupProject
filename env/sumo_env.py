@@ -201,6 +201,8 @@ class SumoEnvConfig:
     cycle_options_sec: List[int] = field(default_factory=list)
     reward_time_normalize: bool = False
     tls_phase_overrides: Dict[str, Dict[str, int]] = field(default_factory=dict)
+    worker_id: Optional[int] = None
+    base_port: int = 8800
 
 
 class SUMOEnv(BaseEnv):
@@ -427,6 +429,18 @@ class SUMOEnv(BaseEnv):
 
     def set_route_file(self, route_file: str) -> None:
         self._config.route_file = str(route_file)
+
+    def set_max_sim_seconds(self, max_sim_seconds: int) -> None:
+        """Set the maximum simulation time for episodes.
+        
+        This enables variable horizon curriculum learning where different
+        phases can have different episode lengths.
+        
+        Args:
+            max_sim_seconds: Maximum simulation time in seconds
+        """
+        self._config.max_sim_seconds = int(max_sim_seconds)
+        print(f"[SUMOEnv] max_sim_seconds updated to {max_sim_seconds}s")
 
     def get_ns_ew_phase_indices(self, tls_id: str) -> Tuple[int, int]:
         tls_key = str(tls_id)
@@ -1561,6 +1575,9 @@ class SUMOEnv(BaseEnv):
         return defs
 
     def _get_free_port(self) -> int:
+        if self._config.worker_id is not None:
+            return int(self._config.base_port) + int(self._config.worker_id)
+        
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             sock.bind(("", 0))

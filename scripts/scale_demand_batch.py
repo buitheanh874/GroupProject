@@ -33,6 +33,24 @@ def _scale_depart_times(tree: ET.ElementTree, scale_factor: float) -> ET.Element
     
     flow_demand_keys = {"probability", "vehsPerHour", "number"}
     for elem in root.iter("flow"):
+        begin_val = elem.get("begin")
+        if begin_val is not None:
+            try:
+                begin_float = float(begin_val)
+                if begin_float < 0:
+                    elem.set("begin", "0.0")
+            except (ValueError, TypeError):
+                pass
+        
+        end_val = elem.get("end")
+        if end_val is not None:
+            try:
+                end_float = float(end_val)
+                if end_float < 0:
+                    elem.set("end", "3600.0")
+            except (ValueError, TypeError):
+                pass
+        
         for key in list(elem.attrib.keys()):
             if key not in flow_demand_keys:
                 continue
@@ -56,7 +74,7 @@ def _scale_depart_times(tree: ET.ElementTree, scale_factor: float) -> ET.Element
             continue
         try:
             depart_val = float(depart)
-            new_depart = depart_val / max(0.01, scale_factor)
+            new_depart = max(0.0, depart_val / max(0.01, scale_factor))
             elem.set("depart", f"{new_depart:.2f}")
         except (ValueError, TypeError):
             pass

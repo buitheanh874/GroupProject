@@ -50,6 +50,7 @@ env:
       - "--time-to-teleport"
       - "300"
       - "--no-warnings"
+      - "true"
 
     enable_kpi_tracker: true
     normalize_state: true
@@ -293,7 +294,7 @@ env:
         ew_green: 3
 
 normalization:
-  file: configs/norm_curriculum_v3.json
+  file: configs/norm_curriculum_v4.json
 
 agent:
   hidden_dims: [256, 256]
@@ -305,11 +306,14 @@ agent:
   replay_buffer_size: 200000
   target_update_freq: 5000
   clip_grad_norm: 10.0
+  learning_starts: 2000     
+  train_freq: 4            
+  use_huber_loss: true       
 
 exploration:
   eps_start: 1.0
   eps_end: 0.02
-  eps_decay_steps: 50000
+  eps_decay_steps: 200000
 
 train:
   episodes: 1000
@@ -325,30 +329,44 @@ curriculum:
     - name: "phase1_warmup"
       episodes: 100
       demand_scale: 0.50
-      route_pool_manifest: networks/variants/train/manifest_scale50.txt
-      description: "600 veh/hr/lane - warmup"
+      max_sim_seconds: 1800 
+      route_pool_manifest: networks/variants/train/manifest_d400.txt
+      description: "400 veh/hr/lane (50%) - warmup (10%)"
     - name: "phase2_moderate"
       episodes: 150
-      demand_scale: 0.70
-      route_pool_manifest: networks/variants/train/manifest_scale70.txt
-      description: "840 veh/hr/lane - moderate"
-    - name: "phase3_eval"
-      episodes: 450
-      demand_scale: 1.0
-      route_pool_manifest: networks/variants/train/manifest_scale100.txt
-      description: "1200 veh/hr/lane - primary eval"
-    - name: "phase4_deadlock"
-      episodes: 200
+      demand_scale: 0.75
+      max_sim_seconds: 1800 
+      route_pool_manifest: networks/variants/train/manifest_d600.txt
+      description: "600 veh/hr/lane (75%) - moderate (15%)"
+    - name: "phase3_baseline"
+      episodes: 500
+      demand_scale: 1.00
+      max_sim_seconds: 3600 
+      route_pool_manifest: networks/variants/train/manifest_d800.txt
+      description: "800 veh/hr/lane (100%) - primary baseline (50%)"
+    - name: "phase4_high"
+      episodes: 250
       demand_scale: 1.25
-      route_pool_manifest: networks/variants/train/manifest_scale125.txt
-      description: "1500 veh/hr/lane - gridlock training"
-    - name: "phase5_stress"
-      episodes: 100
-      demand_scale: 1.50
-      route_pool_manifest: networks/variants/train/manifest_scale150.txt
-      description: "1800 veh/hr/lane - extreme stress"
+      max_sim_seconds: 3600 
+      route_pool_manifest: networks/variants/train/manifest_d1000.txt
+      description: "1000 veh/hr/lane (125%) - high demand (25%)"
 
 logging:
   log_dir: logs/1
   model_dir: models/1
   results_dir: results/1
+
+parallel:
+  enabled: true
+  num_actors: 2
+  base_port: 9500
+  base_seed: 42
+  chunk_size: 256
+  queue_max_chunks: 200
+  sync_every_updates: 100
+  epsilon_base: 0.2
+  epsilon_worker_delta: 0.02
+  reset_max_retries: 3
+  reset_backoff_base_sec: 1.0
+  reset_backoff_cap_sec: 8.0
+  max_update_time_ms: 50.0

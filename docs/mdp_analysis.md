@@ -165,6 +165,16 @@ if float(self._teleport_penalty_lambda) > 0.0:
 
 $$P_{\text{teleport}} = \lambda_{\text{tele}} \cdot n_{\text{teleported}}$$
 
+### 4. Deadlock Penalty ($P_{\text{deadlock}}$)
+
+From [sumo_env.py L688-693](file:///c:/Users/Dell/GroupProject2/env/sumo_env.py#L688-693):
+```python
+if float(self._deadlock_penalty) > 0.0 and self._is_deadlocked:
+    reward = reward - float(self._deadlock_penalty)
+```
+
+$$P_{\text{deadlock}} = \begin{cases} \omega_{\text{deadlock}} & \text{if deadlocked} \\ 0 & \text{otherwise} \end{cases}$$
+
 ---
 
 ## MDP Summary
