@@ -8,7 +8,7 @@ os.environ["OPENBLAS_NUM_THREADS"] = "1"
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
-from multiprocessing import Queue, Event
+from multiprocessing import Queue, Event, Value
 from queue import Empty, Full
 import time
 
@@ -23,12 +23,52 @@ sys.path.insert(0, str(project_root))
 from rl.dueling_dqn import DuelingDQN
 
 
+def compute_epsilon(
+    global_step: int,
+    eps_start: float,
+    eps_end: float,
+    warmup_steps: int,
+    decay_steps: int,
+    worker_multiplier: float = 1.0,
+) -> float:
+    """
+    Compute epsilon with warmup, linear decay, and per-worker multiplier.
+    
+    Formula:
+        If t < W (warmup): ε = eps_start × worker_multiplier
+        If t >= W: 
+            p = min(1, (t - W) / T)
+            ε_base = eps_start - p × (eps_start - eps_end)
+            ε = clip(ε_base × worker_multiplier, 0, 1)
+    
+    Args:
+        global_step: Shared global decision steps across all workers
+        eps_start: Starting epsilon (e.g., 0.60)
+        eps_end: Ending epsilon (e.g., 0.05)
+        warmup_steps: Steps to keep eps_start (e.g., 8000)
+        decay_steps: Steps for linear decay after warmup (e.g., 60000)
+        worker_multiplier: Per-worker multiplier for diversity (e.g., 0.85-1.15)
+    
+    Returns:
+        Epsilon value for action selection
+    """
+    if global_step < warmup_steps:
+        eps_base = eps_start
+    else:
+        progress = min(1.0, (global_step - warmup_steps) / max(1, decay_steps))
+        eps_base = eps_start - progress * (eps_start - eps_end)
+    
+    eps_worker = eps_base * worker_multiplier
+    return max(0.0, min(1.0, eps_worker))
+
+
 def collector_process(
     worker_id: int,
     config: Dict[str, Any],
     experience_queue: Queue,
     weight_queue: Queue,
     stop_event: Event,
+    global_step_counter: Value = None,  # Shared counter for epsilon decay
 ) -> None:
     from scripts.common import build_env
     from scripts.route_pool_loader import load_route_pool_from_config
@@ -37,14 +77,27 @@ def collector_process(
     import random
     
     parallel_cfg = config.get("parallel", {})
+    exploration_cfg = config.get("exploration", {})
+    
     base_port = int(parallel_cfg.get("base_port", 8813))
     base_seed = int(parallel_cfg.get("base_seed", 42))
     chunk_size = int(parallel_cfg.get("chunk_size", 256))
-    epsilon_base = float(parallel_cfg.get("epsilon_base", 0.2))
-    epsilon_delta = float(parallel_cfg.get("epsilon_worker_delta", 0.02))
     reset_max_retries = int(parallel_cfg.get("reset_max_retries", 3))
     reset_backoff_base_sec = float(parallel_cfg.get("reset_backoff_base_sec", 1.0))
     reset_backoff_cap_sec = float(parallel_cfg.get("reset_backoff_cap_sec", 8.0))
+    
+    # Epsilon schedule parameters (from exploration config)
+    eps_start = float(exploration_cfg.get("eps_start", 0.60))
+    eps_end = float(exploration_cfg.get("eps_end", 0.05))
+    warmup_steps = int(exploration_cfg.get("warmup_global_steps", 8000))
+    decay_steps = int(exploration_cfg.get("eps_decay_steps", 60000))
+    
+    # Per-worker diversity multipliers
+    worker_multipliers = parallel_cfg.get("epsilon_worker_multipliers", [0.85, 0.95, 1.05, 1.15])
+    if isinstance(worker_multipliers, list) and len(worker_multipliers) > 0:
+        worker_multiplier = worker_multipliers[worker_id % len(worker_multipliers)]
+    else:
+        worker_multiplier = 1.0
     
     sumo_cfg = config.get("env", {}).get("sumo", {})
     tls_ids = sumo_cfg.get("tls_ids", [])
@@ -52,7 +105,9 @@ def collector_process(
     
     worker_seed = base_seed + worker_id
     worker_port = base_port + worker_id
-    epsilon = min(1.0, max(0.0, epsilon_base + epsilon_delta * worker_id))
+    
+    print(f"[Worker {worker_id}] Epsilon schedule: start={eps_start:.2f}, end={eps_end:.2f}, "
+          f"warmup={warmup_steps}, decay={decay_steps}, multiplier={worker_multiplier:.2f}")
     
     set_global_seed(worker_seed)
     env_config = config.copy()
@@ -116,6 +171,12 @@ def collector_process(
     phase_episode_count = 0
     reset_fail_count = 0
     step_error_count = 0
+    
+    # Logging counters for diversity and fairness analysis
+    episode_random_actions = 0
+    episode_total_actions = 0
+    cumulative_sim_time = 0.0  # Track total simulation time for fairness analysis
+    cumulative_worker_steps = 0  # Track this worker's total steps
 
     if curriculum_enabled and phase_info:
         total_episodes = sum(p["episodes"] for p in phase_info)
@@ -125,13 +186,10 @@ def collector_process(
         resume_episode = int(parallel_cfg.get("resume_episode", 0))
         episode_offset = int(parallel_cfg.get("episode_offset", 0))
         
-        # Determine starting episode count (display)
-        # If resume_episode is set, it takes precedence for start state
         start_episode = max(resume_episode, episode_offset)
         
         if start_episode > 0:
             episode_count = start_episode
-            # Effective progress for curriculum is relative to offset
             curriculum_progress = max(0, start_episode - episode_offset)
             
             cumulative = 0
@@ -196,16 +254,40 @@ def collector_process(
             done = False
             episode_reward = 0.0
             episode_steps = 0
+            episode_random_actions = 0
+            episode_total_actions = 0
             
             while not done and not stop_event.is_set():
+                # Get global step from shared counter
+                if global_step_counter is not None:
+                    current_global_step = global_step_counter.value
+                else:
+                    current_global_step = local_step
+                
+                # Compute epsilon with decay
+                epsilon = compute_epsilon(
+                    global_step=current_global_step,
+                    eps_start=eps_start,
+                    eps_end=eps_end,
+                    warmup_steps=warmup_steps,
+                    decay_steps=decay_steps,
+                    worker_multiplier=worker_multiplier,
+                )
+                
                 if isinstance(state, dict):
                     first_key = list(state.keys())[0]
                     first_state = state[first_key]
-                    action_id = _select_action(policy_net, first_state, action_dim, epsilon)
+                    action_id, was_random = _select_action_with_tracking(policy_net, first_state, action_dim, epsilon)
                     actions = {tls_id: action_id for tls_id in state.keys()}
+                    episode_total_actions += 1
+                    if was_random:
+                        episode_random_actions += 1
                 else:
-                    action_id = _select_action(policy_net, state, action_dim, epsilon)
+                    action_id, was_random = _select_action_with_tracking(policy_net, state, action_dim, epsilon)
                     actions = action_id
+                    episode_total_actions += 1
+                    if was_random:
+                        episode_random_actions += 1
                 
                 try:
                     next_state, reward, done, info = env.step(actions)
@@ -241,6 +323,11 @@ def collector_process(
                     local_buffer.append(transition)
                     global_steps_in_buffer += 1
                 
+                # Increment shared global counter
+                if global_step_counter is not None:
+                    with global_step_counter.get_lock():
+                        global_step_counter.value += 1
+                
                 state = next_state
                 local_step += 1
                 
@@ -256,7 +343,19 @@ def collector_process(
             
             episode_count += 1
             phase_episode_count += 1
-            print(f"[Worker {worker_id}] Episode {episode_count} done | Steps: {episode_steps} | Reward: {episode_reward:.2f}")
+            
+            # Calculate episode sim_time (approximate: steps × avg_cycle)
+            # Note: Actual cycle depends on action chosen; default ~90s average
+            episode_sim_time = episode_steps * 90.0  # Approximate, for fairness logging
+            cumulative_sim_time += episode_sim_time
+            cumulative_worker_steps += episode_steps
+            
+            # Log episode stats with epsilon, frac_random, sim_time for diversity analysis
+            frac_random = episode_random_actions / max(1, episode_total_actions)
+            current_global = global_step_counter.value if global_step_counter else local_step
+            print(f"[Worker {worker_id}] Ep {episode_count} | steps={episode_steps} | "
+                  f"reward={episode_reward:.2f} | ε={epsilon:.3f} | frac_random={frac_random:.2f} | "
+                  f"global={current_global} | worker_total_steps={cumulative_worker_steps}")
 
             if curriculum_enabled and phase_info and current_phase_idx < len(phase_info) - 1:
                 target_eps = worker_episodes_per_phase[current_phase_idx]
@@ -285,7 +384,23 @@ def collector_process(
             env.close()
         except Exception:
             pass
-        print(f"[Worker {worker_id}] Finished. Total episodes: {episode_count}")
+        # Log worker summary for diversity/fairness verification
+        print(f"[Worker {worker_id}] === SUMMARY ===")
+        print(f"[Worker {worker_id}]   Total episodes: {episode_count}")
+        print(f"[Worker {worker_id}]   Total steps: {cumulative_worker_steps}")
+        print(f"[Worker {worker_id}]   Approx sim_time: {cumulative_sim_time/3600:.2f} hours")
+        print(f"[Worker {worker_id}]   Multiplier: {worker_multiplier:.2f}")
+
+
+def _select_action_with_tracking(policy_net: DuelingDQN, state: np.ndarray, action_dim: int, epsilon: float) -> Tuple[int, bool]:
+    """Select action and track if it was random."""
+    if np.random.random() < epsilon:
+        return np.random.randint(action_dim), True
+    
+    with torch.no_grad():
+        state_tensor = torch.as_tensor(state, dtype=torch.float32).unsqueeze(0)
+        q_values = policy_net(state_tensor)
+        return int(q_values.argmax(dim=1).item()), False
 
 
 def _select_action(policy_net: DuelingDQN, state: np.ndarray, action_dim: int, epsilon: float) -> int:

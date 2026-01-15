@@ -214,33 +214,19 @@ curriculum:
       route_pool_manifest: networks/variants/train/manifest_d600.txt
       description: "600 veh/hr/lane - moderate (15%)"
 
-    - name: "phase3a_hard_short"
-      episodes: 112
+    - name: "phase3"
+      episodes: 150
       demand_scale: 1.0
       max_sim_seconds: 1800
       route_pool_manifest: networks/variants/train/manifest_d800.txt
-      description: "800 veh/hr/lane - hard 30min (37.5%)"
-
-    - name: "phase3b_hard_long"
-      episodes: 38
-      demand_scale: 1.0
-      max_sim_seconds: 3600
-      route_pool_manifest: networks/variants/train/manifest_d800.txt
-      description: "800 veh/hr/lane - hard 60min (12.5%)"
+      description: "800 veh/hr/lane - hard(50%)"
 
     - name: "phase4a_challenge_short"
-      episodes: 55
+      episodes: 75
       demand_scale: 1.25
       max_sim_seconds: 1800
       route_pool_manifest: networks/variants/train/manifest_d1000.txt
-      description: "1000 veh/hr/lane - challenge 30min (15%)"
-    
-    - name: "phase4b_challenge_long"
-      episodes: 20
-      demand_scale: 1.25
-      max_sim_seconds: 3600
-      route_pool_manifest: networks/variants/train/manifest_d1000.txt
-      description: "1000 veh/hr/lane - challenge 60min (10%)"
+      description: "1000 veh/hr/lane - challenge(25%)"
 
 logging:
   log_dir: logs/independent
