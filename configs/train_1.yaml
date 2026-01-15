@@ -10,7 +10,7 @@ env:
     teleport_time_cap_sec: null
     sumo_binary: sumo
     net_file: networks/BIGNET.net.xml
-    route_file: networks/variants/train/bignet_train_seed00042.rou.xml 
+    route_file: networks/variants/train/800/bignet_train_seed00042_d800.rou.xml 
     additional_files: []
     tls_ids: ["J0", "J1", "J2", "J3", "J4", "J6", "J7", "J14", "J17"]
     center_tls_id: "J0"
@@ -309,12 +309,12 @@ agent:
   use_huber_loss: true       
 
 exploration:
-  eps_start: 1.0
+  eps_start: 0.50
   eps_end: 0.02
-  eps_decay_steps: 180000  
+  eps_decay_steps: 20000  
 
 train:
-  episodes: 1200
+  episodes: 1500
   save_every_episodes: 50
   print_every_episodes: 10
 
@@ -324,23 +324,23 @@ baseline:
 curriculum:
   enabled: true
   phases:
-    - name: "phase1_warmup"
-      episodes: 200
+    - name: "phase1_short"
+      episodes: 300
       max_sim_seconds: 1200
-      route_pool_manifest: networks/variants/train/manifest_d2000.txt
-      description: "2000 veh/hr/lane - 20min early congestion (17%)"
+      route_pool_manifest: networks/variants/train/manifest_d800.txt
+      description: "800 veh/hr/lane - 20min (27%)"
 
-    - name: "phase2_learn"
-      episodes: 400
+    - name: "phase2_medium"
+      episodes: 350
       max_sim_seconds: 1500
-      route_pool_manifest: networks/variants/train/manifest_d2000.txt
-      description: "2000 veh/hr/lane - 25min moderate (33%)"
+      route_pool_manifest: networks/variants/train/manifest_d800.txt
+      description: "800 veh/hr/lane - 25min (32%)"
 
-    - name: "phase3_master"
-      episodes: 600
+    - name: "phase3_full"
+      episodes: 450
       max_sim_seconds: 1800
-      route_pool_manifest: networks/variants/train/manifest_d2000.txt
-      description: "2000 veh/hr/lane - 30min before severe gridlock (50%)"
+      route_pool_manifest: networks/variants/train/manifest_d800.txt
+      description: "800 veh/hr/lane - 30min (41%)"
 
 logging:
   log_dir: logs/1
@@ -348,7 +348,7 @@ logging:
   results_dir: results/1
 
 parallel:
-  enabled: false  # Using sequential training for better exploration
+  enabled: false  
   base_port: 9500
   base_seed: 42
   chunk_size: 256

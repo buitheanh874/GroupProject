@@ -1458,8 +1458,25 @@ class SUMOEnv(BaseEnv):
     def _build_action_definitions(self) -> List[SumoActionDefinition]:
         splits = self._resolve_action_splits()
         cycles = self._resolve_cycle_options()
-        if len(cycles) != 3 or len(splits) != 5:
-            raise ValueError(f"action space must use 3 cycles and 5 splits, got cycles={len(cycles)} splits={len(splits)}")
+        
+        # Support both standard (3×5=15) and 9-button baseline (1×9=9) configurations
+        valid_configs = [
+            (3, 5, 15),  # Standard: 3 cycles × 5 splits = 15 actions
+            (1, 9, 9),   # 9-button baseline: 1 cycle × 9 splits = 9 actions
+        ]
+        
+        actual_total = len(cycles) * len(splits)
+        config_valid = any(
+            len(cycles) == c and len(splits) == s and actual_total == total
+            for c, s, total in valid_configs
+        )
+        
+        if not config_valid:
+            valid_str = ", ".join(f"{c}×{s}={t}" for c, s, t in valid_configs)
+            raise ValueError(
+                f"Invalid action space configuration: {len(cycles)} cycles × {len(splits)} splits = {actual_total} actions.\n"
+                f"Supported configurations: {valid_str}"
+            )
 
         expected_total = len(cycles) * len(splits)
         if len(self._config.action_table) > 0:

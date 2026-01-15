@@ -1,1312 +1,1287 @@
-<?xml version="1.0" encoding="UTF-8"?>
-
-<!-- generated on 2026-01-15T17:25:09.678412+07:00 by Eclipse SUMO duarouter 1.25.0
-<duarouterConfiguration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/duarouterConfiguration.xsd">
-
-    <input>
-        <net-file value="C:\Users\Dell\GroupProject2\networks\BIGNET.net.xml"/>
-        <route-files value="C:\Users\Dell\GroupProject2\networks\variants\train\2000\temp_jtr\flows_68.xml"/>
-    </input>
-
-    <output>
-        <output-file value="C:\Users\Dell\GroupProject2\networks\variants\train\2000\bignet_train_seed00068_d2000.rou.xml"/>
-    </output>
-
-    <processing>
-        <route-steps value="3600"/>
-        <keep-flows value="true"/>
-    </processing>
-
-    <report>
-        <ignore-errors value="true"/>
-    </report>
-
-</duarouterConfiguration>
--->
-
+<?xml version='1.0' encoding='utf-8'?>
 <routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/routes_file.xsd">
-    <vType id="bus" length="12.00" minGap="2.50" maxSpeed="10.00" vClass="bus" width="2.50" accel="1.2" decel="2.5" sigma="0.1"/>
-    <flow id="f_-E29_E29_bus" type="bus" begin="0.00" end="3600.00" perHour="15.52" departLane="best" departSpeed="max">
-        <route edges="-E29 -E28 -E6 -E0 E2 E26 E28 E29"/>
+    <vType id="bus_bignet_train_seed00068_d2000.rou" length="12.00" minGap="2.50" maxSpeed="10.00" vClass="bus" width="2.50" accel="1.2" decel="2.5" sigma="0.1" />
+    <flow id="f_-E29_E29_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="15.52" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E6 -E0 E2 E26 E28 E29" />
     </flow>
-    <vType id="motorcycle" length="2.00" minGap="0.50" maxSpeed="13.89" vClass="motorcycle" width="0.80" latAlignment="right" accel="3.5" decel="4.0" sigma="0.8"/>
-    <flow id="f_-E29_E29_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="667.28" departLane="best" departSpeed="max">
-        <route edges="-E29 -E28 -E6 -E0 E2 E26 E28 E29"/>
+    <vType id="motorcycle_bignet_train_seed00068_d2000.rou" length="2.00" minGap="0.50" maxSpeed="13.89" vClass="motorcycle" width="0.80" latAlignment="right" accel="3.5" decel="4.0" sigma="0.8" />
+    <flow id="f_-E29_E29_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="667.28" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E6 -E0 E2 E26 E28 E29" />
     </flow>
-    <vType id="passenger" length="4.50" minGap="2.00" maxSpeed="13.89" vClass="passenger" width="1.80" accel="2.5" decel="4.5" sigma="0.3"/>
-    <flow id="f_-E29_E29_passenger" type="passenger" begin="0.00" end="3600.00" perHour="93.11" departLane="best" departSpeed="max">
-        <route edges="-E29 -E28 -E6 -E0 E2 E26 E28 E29"/>
+    <vType id="passenger_bignet_train_seed00068_d2000.rou" length="4.50" minGap="2.00" maxSpeed="13.89" vClass="passenger" width="1.80" accel="2.5" decel="4.5" sigma="0.3" />
+    <flow id="f_-E29_E29_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="93.11" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E6 -E0 E2 E26 E28 E29" />
     </flow>
-    <flow id="f_-E29_E30_bus" type="bus" begin="0.00" end="3600.00" perHour="12.33" departLane="best" departSpeed="max">
-        <route edges="-E29 -E28 -E26 -E24 E23 E30"/>
+    <flow id="f_-E29_E30_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="12.33" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E26 -E24 E23 E30" />
     </flow>
-    <flow id="f_-E29_E30_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="530.11" departLane="best" departSpeed="max">
-        <route edges="-E29 -E28 -E26 -E24 E23 E30"/>
+    <flow id="f_-E29_E30_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="530.11" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E26 -E24 E23 E30" />
     </flow>
-    <flow id="f_-E29_E30_passenger" type="passenger" begin="0.00" end="3600.00" perHour="73.97" departLane="best" departSpeed="max">
-        <route edges="-E29 -E28 -E26 -E24 E23 E30"/>
+    <flow id="f_-E29_E30_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="73.97" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E26 -E24 E23 E30" />
     </flow>
-    <flow id="f_-E29_E31_bus" type="bus" begin="0.00" end="3600.00" perHour="14.98" departLane="best" departSpeed="max">
-        <route edges="-E29 -E28 -E6 -E0 E3 E15 E20 E31"/>
+    <flow id="f_-E29_E31_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="14.98" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E6 -E0 E3 E15 E20 E31" />
     </flow>
-    <flow id="f_-E29_E31_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="644.12" departLane="best" departSpeed="max">
-        <route edges="-E29 -E28 -E6 E5 E14 E15 E20 E31"/>
+    <flow id="f_-E29_E31_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="644.12" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E6 E5 E14 E15 E20 E31" />
     </flow>
-    <flow id="f_-E29_E31_passenger" type="passenger" begin="0.00" end="3600.00" perHour="89.88" departLane="best" departSpeed="max">
-        <route edges="-E29 -E28 -E6 E5 E14 E15 E20 E31"/>
+    <flow id="f_-E29_E31_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="89.88" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E6 E5 E14 E15 E20 E31" />
     </flow>
-    <flow id="f_-E29_E32_bus" type="bus" begin="0.00" end="3600.00" perHour="1.83" departLane="best" departSpeed="max">
-        <route edges="-E29 -E28 -E6 E5 E12 E32"/>
+    <flow id="f_-E29_E32_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="1.83" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E6 E5 E12 E32" />
     </flow>
-    <flow id="f_-E29_E32_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="78.71" departLane="best" departSpeed="max">
-        <route edges="-E29 -E28 -E6 E5 E12 E32"/>
+    <flow id="f_-E29_E32_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="78.71" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E6 E5 E12 E32" />
     </flow>
-    <flow id="f_-E29_E32_passenger" type="passenger" begin="0.00" end="3600.00" perHour="10.98" departLane="best" departSpeed="max">
-        <route edges="-E29 -E28 -E6 E5 E12 E32"/>
+    <flow id="f_-E29_E32_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="10.98" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E6 E5 E12 E32" />
     </flow>
-    <flow id="f_-E29_E33_bus" type="bus" begin="0.00" end="3600.00" perHour="9.56" departLane="best" departSpeed="max">
-        <route edges="-E29 -E28 -E6 E4 E33"/>
+    <flow id="f_-E29_E33_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="9.56" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E6 E4 E33" />
     </flow>
-    <flow id="f_-E29_E33_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="411.24" departLane="best" departSpeed="max">
-        <route edges="-E29 -E28 -E6 E4 E33"/>
+    <flow id="f_-E29_E33_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="411.24" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E6 E4 E33" />
     </flow>
-    <flow id="f_-E29_E33_passenger" type="passenger" begin="0.00" end="3600.00" perHour="57.38" departLane="best" departSpeed="max">
-        <route edges="-E29 -E28 -E6 E4 E33"/>
+    <flow id="f_-E29_E33_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="57.38" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E6 E4 E33" />
     </flow>
-    <flow id="f_-E29_E34_bus" type="bus" begin="0.00" end="3600.00" perHour="7.12" departLane="best" departSpeed="max">
-        <route edges="-E29 -E28 -E6 -E0 E1 E17 E34"/>
+    <flow id="f_-E29_E34_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="7.12" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E6 -E0 E1 E17 E34" />
     </flow>
-    <flow id="f_-E29_E34_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="306.30" departLane="best" departSpeed="max">
-        <route edges="-E29 -E28 -E6 -E0 E1 E17 E34"/>
+    <flow id="f_-E29_E34_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="306.30" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E6 -E0 E1 E17 E34" />
     </flow>
-    <flow id="f_-E29_E34_passenger" type="passenger" begin="0.00" end="3600.00" perHour="42.74" departLane="best" departSpeed="max">
-        <route edges="-E29 -E28 -E6 -E0 E1 E17 E34"/>
+    <flow id="f_-E29_E34_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="42.74" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E6 -E0 E1 E17 E34" />
     </flow>
-    <flow id="f_-E29_E35_bus" type="bus" begin="0.00" end="3600.00" perHour="4.38" departLane="best" departSpeed="max">
-        <route edges="-E29 -E28 -E6 -E0 E3 E15 E21 E35"/>
+    <flow id="f_-E29_E35_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="4.38" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E6 -E0 E3 E15 E21 E35" />
     </flow>
-    <flow id="f_-E29_E35_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="188.31" departLane="best" departSpeed="max">
-        <route edges="-E29 -E28 -E26 -E24 -E19 E18 E21 E35"/>
+    <flow id="f_-E29_E35_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="188.31" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E26 -E24 -E19 E18 E21 E35" />
     </flow>
-    <flow id="f_-E29_E35_passenger" type="passenger" begin="0.00" end="3600.00" perHour="26.28" departLane="best" departSpeed="max">
-        <route edges="-E29 -E28 -E26 -E24 -E19 E18 E21 E35"/>
+    <flow id="f_-E29_E35_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="26.28" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E26 -E24 -E19 E18 E21 E35" />
     </flow>
-    <flow id="f_-E29_E36_bus" type="bus" begin="0.00" end="3600.00" perHour="14.19" departLane="best" departSpeed="max">
-        <route edges="-E29 -E28 -E6 E5 E14 E16 E36"/>
+    <flow id="f_-E29_E36_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="14.19" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E6 E5 E14 E16 E36" />
     </flow>
-    <flow id="f_-E29_E36_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="610.27" departLane="best" departSpeed="max">
-        <route edges="-E29 -E28 -E26 -E2 E3 E16 E36"/>
+    <flow id="f_-E29_E36_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="610.27" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E26 -E2 E3 E16 E36" />
     </flow>
-    <flow id="f_-E29_E36_passenger" type="passenger" begin="0.00" end="3600.00" perHour="85.15" departLane="best" departSpeed="max">
-        <route edges="-E29 -E28 -E26 -E2 E3 E16 E36"/>
+    <flow id="f_-E29_E36_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="85.15" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E26 -E2 E3 E16 E36" />
     </flow>
-    <flow id="f_-E29_E37_bus" type="bus" begin="0.00" end="3600.00" perHour="5.43" departLane="best" departSpeed="max">
-        <route edges="-E29 -E28 -E6 E5 E13 E37"/>
+    <flow id="f_-E29_E37_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="5.43" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E6 E5 E13 E37" />
     </flow>
-    <flow id="f_-E29_E37_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="233.64" departLane="best" departSpeed="max">
-        <route edges="-E29 -E28 -E6 E5 E13 E37"/>
+    <flow id="f_-E29_E37_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="233.64" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E6 E5 E13 E37" />
     </flow>
-    <flow id="f_-E29_E37_passenger" type="passenger" begin="0.00" end="3600.00" perHour="32.60" departLane="best" departSpeed="max">
-        <route edges="-E29 -E28 -E6 E5 E13 E37"/>
+    <flow id="f_-E29_E37_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="32.60" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E6 E5 E13 E37" />
     </flow>
-    <flow id="f_-E29_E38_bus" type="bus" begin="0.00" end="3600.00" perHour="16.06" departLane="best" departSpeed="max">
-        <route edges="-E29 -E28 E27 E38"/>
+    <flow id="f_-E29_E38_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="16.06" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 E27 E38" />
     </flow>
-    <flow id="f_-E29_E38_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="690.58" departLane="best" departSpeed="max">
-        <route edges="-E29 -E28 E27 E38"/>
+    <flow id="f_-E29_E38_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="690.58" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 E27 E38" />
     </flow>
-    <flow id="f_-E29_E38_passenger" type="passenger" begin="0.00" end="3600.00" perHour="96.36" departLane="best" departSpeed="max">
-        <route edges="-E29 -E28 E27 E38"/>
+    <flow id="f_-E29_E38_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="96.36" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 E27 E38" />
     </flow>
-    <flow id="f_-E29_E39_bus" type="bus" begin="0.00" end="3600.00" perHour="5.96" departLane="best" departSpeed="max">
-        <route edges="-E29 -E28 -E26 E25 E39"/>
+    <flow id="f_-E29_E39_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="5.96" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E26 E25 E39" />
     </flow>
-    <flow id="f_-E29_E39_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="256.23" departLane="best" departSpeed="max">
-        <route edges="-E29 -E28 -E26 E25 E39"/>
+    <flow id="f_-E29_E39_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="256.23" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E26 E25 E39" />
     </flow>
-    <flow id="f_-E29_E39_passenger" type="passenger" begin="0.00" end="3600.00" perHour="35.75" departLane="best" departSpeed="max">
-        <route edges="-E29 -E28 -E26 E25 E39"/>
+    <flow id="f_-E29_E39_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="35.75" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E26 E25 E39" />
     </flow>
-    <flow id="f_-E29_E40_bus" type="bus" begin="0.00" end="3600.00" perHour="9.13" departLane="best" departSpeed="max">
-        <route edges="-E29 -E28 -E26 -E24 E22 E40"/>
+    <flow id="f_-E29_E40_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="9.13" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E26 -E24 E22 E40" />
     </flow>
-    <flow id="f_-E29_E40_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="392.67" departLane="best" departSpeed="max">
-        <route edges="-E29 -E28 -E26 -E24 E22 E40"/>
+    <flow id="f_-E29_E40_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="392.67" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E26 -E24 E22 E40" />
     </flow>
-    <flow id="f_-E29_E40_passenger" type="passenger" begin="0.00" end="3600.00" perHour="54.79" departLane="best" departSpeed="max">
-        <route edges="-E29 -E28 -E26 -E24 E22 E40"/>
+    <flow id="f_-E29_E40_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="54.79" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E26 -E24 E22 E40" />
     </flow>
-    <flow id="f_-E30_E29_bus" type="bus" begin="0.00" end="3600.00" perHour="20.22" departLane="best" departSpeed="max">
-        <route edges="-E30 -E23 E24 E26 E28 E29"/>
+    <flow id="f_-E30_E29_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="20.22" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 E24 E26 E28 E29" />
     </flow>
-    <flow id="f_-E30_E29_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="869.57" departLane="best" departSpeed="max">
-        <route edges="-E30 -E23 E24 E26 E28 E29"/>
+    <flow id="f_-E30_E29_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="869.57" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 E24 E26 E28 E29" />
     </flow>
-    <flow id="f_-E30_E29_passenger" type="passenger" begin="0.00" end="3600.00" perHour="121.32" departLane="best" departSpeed="max">
-        <route edges="-E30 -E23 E24 E26 E28 E29"/>
+    <flow id="f_-E30_E29_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="121.32" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 E24 E26 E28 E29" />
     </flow>
-    <flow id="f_-E30_E30_bus" type="bus" begin="0.00" end="3600.00" perHour="1.08" departLane="best" departSpeed="max">
-        <route edges="-E30 -E23 E24 -E2 E1 E19 E23 E30"/>
+    <flow id="f_-E30_E30_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="1.08" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 E24 -E2 E1 E19 E23 E30" />
     </flow>
-    <flow id="f_-E30_E30_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="46.48" departLane="best" departSpeed="max">
-        <route edges="-E30 -E23 E24 -E2 E1 E19 E23 E30"/>
+    <flow id="f_-E30_E30_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="46.48" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 E24 -E2 E1 E19 E23 E30" />
     </flow>
-    <flow id="f_-E30_E30_passenger" type="passenger" begin="0.00" end="3600.00" perHour="6.48" departLane="best" departSpeed="max">
-        <route edges="-E30 -E23 E24 -E2 E1 E19 E23 E30"/>
+    <flow id="f_-E30_E30_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="6.48" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 E24 -E2 E1 E19 E23 E30" />
     </flow>
-    <flow id="f_-E30_E31_bus" type="bus" begin="0.00" end="3600.00" perHour="18.97" departLane="best" departSpeed="max">
-        <route edges="-E30 -E23 -E19 E18 E20 E31"/>
+    <flow id="f_-E30_E31_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="18.97" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 -E19 E18 E20 E31" />
     </flow>
-    <flow id="f_-E30_E31_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="815.77" departLane="best" departSpeed="max">
-        <route edges="-E30 -E23 -E19 E18 E20 E31"/>
+    <flow id="f_-E30_E31_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="815.77" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 -E19 E18 E20 E31" />
     </flow>
-    <flow id="f_-E30_E31_passenger" type="passenger" begin="0.00" end="3600.00" perHour="113.84" departLane="best" departSpeed="max">
-        <route edges="-E30 -E23 -E19 E18 E20 E31"/>
+    <flow id="f_-E30_E31_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="113.84" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 -E19 E18 E20 E31" />
     </flow>
-    <flow id="f_-E30_E32_bus" type="bus" begin="0.00" end="3600.00" perHour="2.74" departLane="best" departSpeed="max">
-        <route edges="-E30 -E23 -E19 -E1 E0 E5 E12 E32"/>
+    <flow id="f_-E30_E32_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="2.74" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 -E19 -E1 E0 E5 E12 E32" />
     </flow>
-    <flow id="f_-E30_E32_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="117.97" departLane="best" departSpeed="max">
-        <route edges="-E30 -E23 E24 E26 -E6 E5 E12 E32"/>
+    <flow id="f_-E30_E32_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="117.97" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 E24 E26 -E6 E5 E12 E32" />
     </flow>
-    <flow id="f_-E30_E32_passenger" type="passenger" begin="0.00" end="3600.00" perHour="16.46" departLane="best" departSpeed="max">
-        <route edges="-E30 -E23 E24 E26 -E6 E5 E12 E32"/>
+    <flow id="f_-E30_E32_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="16.46" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 E24 E26 -E6 E5 E12 E32" />
     </flow>
-    <flow id="f_-E30_E33_bus" type="bus" begin="0.00" end="3600.00" perHour="8.86" departLane="best" departSpeed="max">
-        <route edges="-E30 -E23 -E19 -E1 E0 E4 E33"/>
+    <flow id="f_-E30_E33_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="8.86" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 -E19 -E1 E0 E4 E33" />
     </flow>
-    <flow id="f_-E30_E33_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="380.87" departLane="best" departSpeed="max">
-        <route edges="-E30 -E23 E24 E26 -E6 E4 E33"/>
+    <flow id="f_-E30_E33_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="380.87" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 E24 E26 -E6 E4 E33" />
     </flow>
-    <flow id="f_-E30_E33_passenger" type="passenger" begin="0.00" end="3600.00" perHour="53.15" departLane="best" departSpeed="max">
-        <route edges="-E30 -E23 E24 E26 -E6 E4 E33"/>
+    <flow id="f_-E30_E33_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="53.15" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 E24 E26 -E6 E4 E33" />
     </flow>
-    <flow id="f_-E30_E34_bus" type="bus" begin="0.00" end="3600.00" perHour="2.42" departLane="best" departSpeed="max">
-        <route edges="-E30 -E23 -E19 E17 E34"/>
+    <flow id="f_-E30_E34_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="2.42" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 -E19 E17 E34" />
     </flow>
-    <flow id="f_-E30_E34_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="103.87" departLane="best" departSpeed="max">
-        <route edges="-E30 -E23 -E19 E17 E34"/>
+    <flow id="f_-E30_E34_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="103.87" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 -E19 E17 E34" />
     </flow>
-    <flow id="f_-E30_E34_passenger" type="passenger" begin="0.00" end="3600.00" perHour="14.49" departLane="best" departSpeed="max">
-        <route edges="-E30 -E23 -E19 E17 E34"/>
+    <flow id="f_-E30_E34_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="14.49" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 -E19 E17 E34" />
     </flow>
-    <flow id="f_-E30_E35_bus" type="bus" begin="0.00" end="3600.00" perHour="15.66" departLane="best" departSpeed="max">
-        <route edges="-E30 -E23 -E19 E18 E21 E35"/>
+    <flow id="f_-E30_E35_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="15.66" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 -E19 E18 E21 E35" />
     </flow>
-    <flow id="f_-E30_E35_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="673.27" departLane="best" departSpeed="max">
-        <route edges="-E30 -E23 -E19 E18 E21 E35"/>
+    <flow id="f_-E30_E35_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="673.27" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 -E19 E18 E21 E35" />
     </flow>
-    <flow id="f_-E30_E35_passenger" type="passenger" begin="0.00" end="3600.00" perHour="93.95" departLane="best" departSpeed="max">
-        <route edges="-E30 -E23 -E19 E18 E21 E35"/>
+    <flow id="f_-E30_E35_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="93.95" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 -E19 E18 E21 E35" />
     </flow>
-    <flow id="f_-E30_E36_bus" type="bus" begin="0.00" end="3600.00" perHour="5.05" departLane="best" departSpeed="max">
-        <route edges="-E30 -E23 -E19 -E1 E3 E16 E36"/>
+    <flow id="f_-E30_E36_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="5.05" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 -E19 -E1 E3 E16 E36" />
     </flow>
-    <flow id="f_-E30_E36_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="217.02" departLane="best" departSpeed="max">
-        <route edges="-E30 -E23 E24 -E2 E3 E16 E36"/>
+    <flow id="f_-E30_E36_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="217.02" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 E24 -E2 E3 E16 E36" />
     </flow>
-    <flow id="f_-E30_E36_passenger" type="passenger" begin="0.00" end="3600.00" perHour="30.28" departLane="best" departSpeed="max">
-        <route edges="-E30 -E23 E24 -E2 E3 E16 E36"/>
+    <flow id="f_-E30_E36_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="30.28" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 E24 -E2 E3 E16 E36" />
     </flow>
-    <flow id="f_-E30_E37_bus" type="bus" begin="0.00" end="3600.00" perHour="4.96" departLane="best" departSpeed="max">
-        <route edges="-E30 -E23 -E19 -E1 E3 -E14 E13 E37"/>
+    <flow id="f_-E30_E37_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="4.96" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 -E19 -E1 E3 -E14 E13 E37" />
     </flow>
-    <flow id="f_-E30_E37_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="213.47" departLane="best" departSpeed="max">
-        <route edges="-E30 -E23 E24 E26 -E6 E5 E13 E37"/>
+    <flow id="f_-E30_E37_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="213.47" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 E24 E26 -E6 E5 E13 E37" />
     </flow>
-    <flow id="f_-E30_E37_passenger" type="passenger" begin="0.00" end="3600.00" perHour="29.79" departLane="best" departSpeed="max">
-        <route edges="-E30 -E23 E24 E26 -E6 E5 E13 E37"/>
+    <flow id="f_-E30_E37_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="29.79" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 E24 E26 -E6 E5 E13 E37" />
     </flow>
-    <flow id="f_-E30_E38_bus" type="bus" begin="0.00" end="3600.00" perHour="13.66" departLane="best" departSpeed="max">
-        <route edges="-E30 -E23 E24 E26 E27 E38"/>
+    <flow id="f_-E30_E38_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="13.66" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 E24 E26 E27 E38" />
     </flow>
-    <flow id="f_-E30_E38_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="587.47" departLane="best" departSpeed="max">
-        <route edges="-E30 -E23 E24 E26 E27 E38"/>
+    <flow id="f_-E30_E38_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="587.47" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 E24 E26 E27 E38" />
     </flow>
-    <flow id="f_-E30_E38_passenger" type="passenger" begin="0.00" end="3600.00" perHour="81.98" departLane="best" departSpeed="max">
-        <route edges="-E30 -E23 E24 E26 E27 E38"/>
+    <flow id="f_-E30_E38_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="81.98" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 E24 E26 E27 E38" />
     </flow>
-    <flow id="f_-E30_E39_bus" type="bus" begin="0.00" end="3600.00" perHour="10.97" departLane="best" departSpeed="max">
-        <route edges="-E30 -E23 E24 E25 E39"/>
+    <flow id="f_-E30_E39_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="10.97" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 E24 E25 E39" />
     </flow>
-    <flow id="f_-E30_E39_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="471.64" departLane="best" departSpeed="max">
-        <route edges="-E30 -E23 E24 E25 E39"/>
+    <flow id="f_-E30_E39_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="471.64" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 E24 E25 E39" />
     </flow>
-    <flow id="f_-E30_E39_passenger" type="passenger" begin="0.00" end="3600.00" perHour="65.81" departLane="best" departSpeed="max">
-        <route edges="-E30 -E23 E24 E25 E39"/>
+    <flow id="f_-E30_E39_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="65.81" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 E24 E25 E39" />
     </flow>
-    <flow id="f_-E30_E40_bus" type="bus" begin="0.00" end="3600.00" perHour="13.86" departLane="best" departSpeed="max">
-        <route edges="-E30 -E23 E22 E40"/>
+    <flow id="f_-E30_E40_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="13.86" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 E22 E40" />
     </flow>
-    <flow id="f_-E30_E40_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="596.03" departLane="best" departSpeed="max">
-        <route edges="-E30 -E23 E22 E40"/>
+    <flow id="f_-E30_E40_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="596.03" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 E22 E40" />
     </flow>
-    <flow id="f_-E30_E40_passenger" type="passenger" begin="0.00" end="3600.00" perHour="83.16" departLane="best" departSpeed="max">
-        <route edges="-E30 -E23 E22 E40"/>
+    <flow id="f_-E30_E40_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="83.16" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 E22 E40" />
     </flow>
-    <flow id="f_-E31_E29_bus" type="bus" begin="0.00" end="3600.00" perHour="9.30" departLane="best" departSpeed="max">
-        <route edges="-E31 -E20 -E18 -E1 E2 E26 E28 E29"/>
+    <flow id="f_-E31_E29_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="9.30" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E18 -E1 E2 E26 E28 E29" />
     </flow>
-    <flow id="f_-E31_E29_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="400.00" departLane="best" departSpeed="max">
-        <route edges="-E31 -E20 -E18 E19 E24 E26 E28 E29"/>
+    <flow id="f_-E31_E29_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="400.00" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E18 E19 E24 E26 E28 E29" />
     </flow>
-    <flow id="f_-E31_E29_passenger" type="passenger" begin="0.00" end="3600.00" perHour="55.81" departLane="best" departSpeed="max">
-        <route edges="-E31 -E20 -E18 E19 E24 E26 E28 E29"/>
+    <flow id="f_-E31_E29_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="55.81" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E18 E19 E24 E26 E28 E29" />
     </flow>
-    <flow id="f_-E31_E30_bus" type="bus" begin="0.00" end="3600.00" perHour="11.92" departLane="best" departSpeed="max">
-        <route edges="-E31 -E20 -E18 E19 E23 E30"/>
+    <flow id="f_-E31_E30_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="11.92" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E18 E19 E23 E30" />
     </flow>
-    <flow id="f_-E31_E30_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="512.38" departLane="best" departSpeed="max">
-        <route edges="-E31 -E20 -E18 E19 E23 E30"/>
+    <flow id="f_-E31_E30_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="512.38" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E18 E19 E23 E30" />
     </flow>
-    <flow id="f_-E31_E30_passenger" type="passenger" begin="0.00" end="3600.00" perHour="71.49" departLane="best" departSpeed="max">
-        <route edges="-E31 -E20 -E18 E19 E23 E30"/>
+    <flow id="f_-E31_E30_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="71.49" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E18 E19 E23 E30" />
     </flow>
-    <flow id="f_-E31_E31_bus" type="bus" begin="0.00" end="3600.00" perHour="12.86" departLane="best" departSpeed="max">
-        <route edges="-E31 -E20 -E18 -E1 E3 E15 E20 E31"/>
+    <flow id="f_-E31_E31_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="12.86" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E18 -E1 E3 E15 E20 E31" />
     </flow>
-    <flow id="f_-E31_E31_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="553.08" departLane="best" departSpeed="max">
-        <route edges="-E31 -E20 -E18 -E1 E3 E15 E20 E31"/>
+    <flow id="f_-E31_E31_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="553.08" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E18 -E1 E3 E15 E20 E31" />
     </flow>
-    <flow id="f_-E31_E31_passenger" type="passenger" begin="0.00" end="3600.00" perHour="77.17" departLane="best" departSpeed="max">
-        <route edges="-E31 -E20 -E18 -E1 E3 E15 E20 E31"/>
+    <flow id="f_-E31_E31_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="77.17" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E18 -E1 E3 E15 E20 E31" />
     </flow>
-    <flow id="f_-E31_E32_bus" type="bus" begin="0.00" end="3600.00" perHour="7.82" departLane="best" departSpeed="max">
-        <route edges="-E31 -E20 -E15 -E14 E12 E32"/>
+    <flow id="f_-E31_E32_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="7.82" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E15 -E14 E12 E32" />
     </flow>
-    <flow id="f_-E31_E32_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="336.20" departLane="best" departSpeed="max">
-        <route edges="-E31 -E20 -E15 -E14 E12 E32"/>
+    <flow id="f_-E31_E32_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="336.20" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E15 -E14 E12 E32" />
     </flow>
-    <flow id="f_-E31_E32_passenger" type="passenger" begin="0.00" end="3600.00" perHour="46.91" departLane="best" departSpeed="max">
-        <route edges="-E31 -E20 -E15 -E14 E12 E32"/>
+    <flow id="f_-E31_E32_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="46.91" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E15 -E14 E12 E32" />
     </flow>
-    <flow id="f_-E31_E33_bus" type="bus" begin="0.00" end="3600.00" perHour="8.30" departLane="best" departSpeed="max">
-        <route edges="-E31 -E20 -E18 -E1 E0 E4 E33"/>
+    <flow id="f_-E31_E33_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="8.30" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E18 -E1 E0 E4 E33" />
     </flow>
-    <flow id="f_-E31_E33_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="357.04" departLane="best" departSpeed="max">
-        <route edges="-E31 -E20 -E18 -E1 E0 E4 E33"/>
+    <flow id="f_-E31_E33_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="357.04" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E18 -E1 E0 E4 E33" />
     </flow>
-    <flow id="f_-E31_E33_passenger" type="passenger" begin="0.00" end="3600.00" perHour="49.82" departLane="best" departSpeed="max">
-        <route edges="-E31 -E20 -E18 -E1 E0 E4 E33"/>
+    <flow id="f_-E31_E33_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="49.82" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E18 -E1 E0 E4 E33" />
     </flow>
-    <flow id="f_-E31_E34_bus" type="bus" begin="0.00" end="3600.00" perHour="7.85" departLane="best" departSpeed="max">
-        <route edges="-E31 -E20 -E18 E17 E34"/>
+    <flow id="f_-E31_E34_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="7.85" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E18 E17 E34" />
     </flow>
-    <flow id="f_-E31_E34_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="337.71" departLane="best" departSpeed="max">
-        <route edges="-E31 -E20 -E18 E17 E34"/>
+    <flow id="f_-E31_E34_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="337.71" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E18 E17 E34" />
     </flow>
-    <flow id="f_-E31_E34_passenger" type="passenger" begin="0.00" end="3600.00" perHour="47.12" departLane="best" departSpeed="max">
-        <route edges="-E31 -E20 -E18 E17 E34"/>
+    <flow id="f_-E31_E34_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="47.12" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E18 E17 E34" />
     </flow>
-    <flow id="f_-E31_E35_bus" type="bus" begin="0.00" end="3600.00" perHour="4.59" departLane="best" departSpeed="max">
-        <route edges="-E31 -E20 E21 E35"/>
+    <flow id="f_-E31_E35_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="4.59" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 E21 E35" />
     </flow>
-    <flow id="f_-E31_E35_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="197.36" departLane="best" departSpeed="max">
-        <route edges="-E31 -E20 E21 E35"/>
+    <flow id="f_-E31_E35_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="197.36" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 E21 E35" />
     </flow>
-    <flow id="f_-E31_E35_passenger" type="passenger" begin="0.00" end="3600.00" perHour="27.54" departLane="best" departSpeed="max">
-        <route edges="-E31 -E20 E21 E35"/>
+    <flow id="f_-E31_E35_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="27.54" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 E21 E35" />
     </flow>
-    <flow id="f_-E31_E36_bus" type="bus" begin="0.00" end="3600.00" perHour="10.39" departLane="best" departSpeed="max">
-        <route edges="-E31 -E20 -E15 E16 E36"/>
+    <flow id="f_-E31_E36_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="10.39" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E15 E16 E36" />
     </flow>
-    <flow id="f_-E31_E36_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="446.71" departLane="best" departSpeed="max">
-        <route edges="-E31 -E20 -E15 E16 E36"/>
+    <flow id="f_-E31_E36_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="446.71" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E15 E16 E36" />
     </flow>
-    <flow id="f_-E31_E36_passenger" type="passenger" begin="0.00" end="3600.00" perHour="62.33" departLane="best" departSpeed="max">
-        <route edges="-E31 -E20 -E15 E16 E36"/>
+    <flow id="f_-E31_E36_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="62.33" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E15 E16 E36" />
     </flow>
-    <flow id="f_-E31_E37_bus" type="bus" begin="0.00" end="3600.00" perHour="1.64" departLane="best" departSpeed="max">
-        <route edges="-E31 -E20 -E15 -E14 E13 E37"/>
+    <flow id="f_-E31_E37_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="1.64" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E15 -E14 E13 E37" />
     </flow>
-    <flow id="f_-E31_E37_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="70.57" departLane="best" departSpeed="max">
-        <route edges="-E31 -E20 -E15 -E14 E13 E37"/>
+    <flow id="f_-E31_E37_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="70.57" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E15 -E14 E13 E37" />
     </flow>
-    <flow id="f_-E31_E37_passenger" type="passenger" begin="0.00" end="3600.00" perHour="9.85" departLane="best" departSpeed="max">
-        <route edges="-E31 -E20 -E15 -E14 E13 E37"/>
+    <flow id="f_-E31_E37_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="9.85" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E15 -E14 E13 E37" />
     </flow>
-    <flow id="f_-E31_E38_bus" type="bus" begin="0.00" end="3600.00" perHour="12.46" departLane="best" departSpeed="max">
-        <route edges="-E31 -E20 -E18 -E1 E2 E26 E27 E38"/>
+    <flow id="f_-E31_E38_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="12.46" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E18 -E1 E2 E26 E27 E38" />
     </flow>
-    <flow id="f_-E31_E38_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="535.63" departLane="best" departSpeed="max">
-        <route edges="-E31 -E20 -E15 -E14 -E5 E6 E27 E38"/>
+    <flow id="f_-E31_E38_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="535.63" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E15 -E14 -E5 E6 E27 E38" />
     </flow>
-    <flow id="f_-E31_E38_passenger" type="passenger" begin="0.00" end="3600.00" perHour="74.75" departLane="best" departSpeed="max">
-        <route edges="-E31 -E20 -E15 -E14 -E5 E6 E27 E38"/>
+    <flow id="f_-E31_E38_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="74.75" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E15 -E14 -E5 E6 E27 E38" />
     </flow>
-    <flow id="f_-E31_E39_bus" type="bus" begin="0.00" end="3600.00" perHour="6.33" departLane="best" departSpeed="max">
-        <route edges="-E31 -E20 -E18 E19 E24 E25 E39"/>
+    <flow id="f_-E31_E39_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="6.33" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E18 E19 E24 E25 E39" />
     </flow>
-    <flow id="f_-E31_E39_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="272.29" departLane="best" departSpeed="max">
-        <route edges="-E31 -E20 -E15 -E3 E2 E25 E39"/>
+    <flow id="f_-E31_E39_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="272.29" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E15 -E3 E2 E25 E39" />
     </flow>
-    <flow id="f_-E31_E39_passenger" type="passenger" begin="0.00" end="3600.00" perHour="38.00" departLane="best" departSpeed="max">
-        <route edges="-E31 -E20 -E15 -E3 E2 E25 E39"/>
+    <flow id="f_-E31_E39_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="38.00" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E15 -E3 E2 E25 E39" />
     </flow>
-    <flow id="f_-E31_E40_bus" type="bus" begin="0.00" end="3600.00" perHour="9.97" departLane="best" departSpeed="max">
-        <route edges="-E31 -E20 -E18 E19 E22 E40"/>
+    <flow id="f_-E31_E40_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="9.97" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E18 E19 E22 E40" />
     </flow>
-    <flow id="f_-E31_E40_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="428.62" departLane="best" departSpeed="max">
-        <route edges="-E31 -E20 -E18 E19 E22 E40"/>
+    <flow id="f_-E31_E40_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="428.62" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E18 E19 E22 E40" />
     </flow>
-    <flow id="f_-E31_E40_passenger" type="passenger" begin="0.00" end="3600.00" perHour="59.81" departLane="best" departSpeed="max">
-        <route edges="-E31 -E20 -E18 E19 E22 E40"/>
+    <flow id="f_-E31_E40_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="59.81" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E18 E19 E22 E40" />
     </flow>
-    <flow id="f_-E32_E29_bus" type="bus" begin="0.00" end="3600.00" perHour="1.56" departLane="best" departSpeed="max">
-        <route edges="-E32 -E12 -E5 E6 E28 E29"/>
+    <flow id="f_-E32_E29_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="1.56" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 -E5 E6 E28 E29" />
     </flow>
-    <flow id="f_-E32_E29_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="67.26" departLane="best" departSpeed="max">
-        <route edges="-E32 -E12 -E5 E6 E28 E29"/>
+    <flow id="f_-E32_E29_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="67.26" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 -E5 E6 E28 E29" />
     </flow>
-    <flow id="f_-E32_E29_passenger" type="passenger" begin="0.00" end="3600.00" perHour="9.38" departLane="best" departSpeed="max">
-        <route edges="-E32 -E12 -E5 E6 E28 E29"/>
+    <flow id="f_-E32_E29_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="9.38" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 -E5 E6 E28 E29" />
     </flow>
-    <flow id="f_-E32_E30_bus" type="bus" begin="0.00" end="3600.00" perHour="8.27" departLane="best" departSpeed="max">
-        <route edges="-E32 -E12 -E5 -E0 E1 E19 E23 E30"/>
+    <flow id="f_-E32_E30_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="8.27" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 -E5 -E0 E1 E19 E23 E30" />
     </flow>
-    <flow id="f_-E32_E30_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="355.42" departLane="best" departSpeed="max">
-        <route edges="-E32 -E12 E14 E15 -E18 E19 E23 E30"/>
+    <flow id="f_-E32_E30_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="355.42" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 E14 E15 -E18 E19 E23 E30" />
     </flow>
-    <flow id="f_-E32_E30_passenger" type="passenger" begin="0.00" end="3600.00" perHour="49.59" departLane="best" departSpeed="max">
-        <route edges="-E32 -E12 E14 E15 -E18 E19 E23 E30"/>
+    <flow id="f_-E32_E30_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="49.59" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 E14 E15 -E18 E19 E23 E30" />
     </flow>
-    <flow id="f_-E32_E31_bus" type="bus" begin="0.00" end="3600.00" perHour="7.49" departLane="best" departSpeed="max">
-        <route edges="-E32 -E12 E14 E15 E20 E31"/>
+    <flow id="f_-E32_E31_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="7.49" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 E14 E15 E20 E31" />
     </flow>
-    <flow id="f_-E32_E31_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="322.23" departLane="best" departSpeed="max">
-        <route edges="-E32 -E12 E14 E15 E20 E31"/>
+    <flow id="f_-E32_E31_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="322.23" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 E14 E15 E20 E31" />
     </flow>
-    <flow id="f_-E32_E31_passenger" type="passenger" begin="0.00" end="3600.00" perHour="44.96" departLane="best" departSpeed="max">
-        <route edges="-E32 -E12 E14 E15 E20 E31"/>
+    <flow id="f_-E32_E31_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="44.96" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 E14 E15 E20 E31" />
     </flow>
-    <flow id="f_-E32_E32_bus" type="bus" begin="0.00" end="3600.00" perHour="2.39" departLane="best" departSpeed="max">
-        <route edges="-E32 -E12 E14 -E3 E0 E5 E12 E32"/>
+    <flow id="f_-E32_E32_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="2.39" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 E14 -E3 E0 E5 E12 E32" />
     </flow>
-    <flow id="f_-E32_E32_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="102.80" departLane="best" departSpeed="max">
-        <route edges="-E32 -E12 E14 -E3 E0 E5 E12 E32"/>
+    <flow id="f_-E32_E32_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="102.80" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 E14 -E3 E0 E5 E12 E32" />
     </flow>
-    <flow id="f_-E32_E32_passenger" type="passenger" begin="0.00" end="3600.00" perHour="14.34" departLane="best" departSpeed="max">
-        <route edges="-E32 -E12 E14 -E3 E0 E5 E12 E32"/>
+    <flow id="f_-E32_E32_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="14.34" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 E14 -E3 E0 E5 E12 E32" />
     </flow>
-    <flow id="f_-E32_E33_bus" type="bus" begin="0.00" end="3600.00" perHour="14.47" departLane="best" departSpeed="max">
-        <route edges="-E32 -E12 -E5 E4 E33"/>
+    <flow id="f_-E32_E33_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="14.47" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 -E5 E4 E33" />
     </flow>
-    <flow id="f_-E32_E33_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="622.08" departLane="best" departSpeed="max">
-        <route edges="-E32 -E12 -E5 E4 E33"/>
+    <flow id="f_-E32_E33_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="622.08" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 -E5 E4 E33" />
     </flow>
-    <flow id="f_-E32_E33_passenger" type="passenger" begin="0.00" end="3600.00" perHour="86.80" departLane="best" departSpeed="max">
-        <route edges="-E32 -E12 -E5 E4 E33"/>
+    <flow id="f_-E32_E33_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="86.80" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 -E5 E4 E33" />
     </flow>
-    <flow id="f_-E32_E34_bus" type="bus" begin="0.00" end="3600.00" perHour="8.14" departLane="best" departSpeed="max">
-        <route edges="-E32 -E12 -E5 -E0 E1 E17 E34"/>
+    <flow id="f_-E32_E34_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="8.14" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 -E5 -E0 E1 E17 E34" />
     </flow>
-    <flow id="f_-E32_E34_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="350.23" departLane="best" departSpeed="max">
-        <route edges="-E32 -E12 E14 E15 -E18 E17 E34"/>
+    <flow id="f_-E32_E34_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="350.23" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 E14 E15 -E18 E17 E34" />
     </flow>
-    <flow id="f_-E32_E34_passenger" type="passenger" begin="0.00" end="3600.00" perHour="48.87" departLane="best" departSpeed="max">
-        <route edges="-E32 -E12 E14 E15 -E18 E17 E34"/>
+    <flow id="f_-E32_E34_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="48.87" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 E14 E15 -E18 E17 E34" />
     </flow>
-    <flow id="f_-E32_E35_bus" type="bus" begin="0.00" end="3600.00" perHour="12.90" departLane="best" departSpeed="max">
-        <route edges="-E32 -E12 E14 E15 E21 E35"/>
+    <flow id="f_-E32_E35_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="12.90" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 E14 E15 E21 E35" />
     </flow>
-    <flow id="f_-E32_E35_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="554.79" departLane="best" departSpeed="max">
-        <route edges="-E32 -E12 E14 E15 E21 E35"/>
+    <flow id="f_-E32_E35_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="554.79" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 E14 E15 E21 E35" />
     </flow>
-    <flow id="f_-E32_E35_passenger" type="passenger" begin="0.00" end="3600.00" perHour="77.41" departLane="best" departSpeed="max">
-        <route edges="-E32 -E12 E14 E15 E21 E35"/>
+    <flow id="f_-E32_E35_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="77.41" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 E14 E15 E21 E35" />
     </flow>
-    <flow id="f_-E32_E36_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="35.11" departLane="best" departSpeed="max">
-        <route edges="-E32 -E12 E14 E16 E36"/>
+    <flow id="f_-E32_E36_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="35.11" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 E14 E16 E36" />
     </flow>
-    <flow id="f_-E32_E36_passenger" type="passenger" begin="0.00" end="3600.00" perHour="4.90" departLane="best" departSpeed="max">
-        <route edges="-E32 -E12 E14 E16 E36"/>
+    <flow id="f_-E32_E36_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="4.90" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 E14 E16 E36" />
     </flow>
-    <flow id="f_-E32_E37_bus" type="bus" begin="0.00" end="3600.00" perHour="18.32" departLane="best" departSpeed="max">
-        <route edges="-E32 -E12 E13 E37"/>
+    <flow id="f_-E32_E37_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="18.32" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 E13 E37" />
     </flow>
-    <flow id="f_-E32_E37_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="787.57" departLane="best" departSpeed="max">
-        <route edges="-E32 -E12 E13 E37"/>
+    <flow id="f_-E32_E37_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="787.57" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 E13 E37" />
     </flow>
-    <flow id="f_-E32_E37_passenger" type="passenger" begin="0.00" end="3600.00" perHour="109.90" departLane="best" departSpeed="max">
-        <route edges="-E32 -E12 E13 E37"/>
+    <flow id="f_-E32_E37_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="109.90" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 E13 E37" />
     </flow>
-    <flow id="f_-E32_E38_bus" type="bus" begin="0.00" end="3600.00" perHour="8.02" departLane="best" departSpeed="max">
-        <route edges="-E32 -E12 -E5 E6 E27 E38"/>
+    <flow id="f_-E32_E38_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="8.02" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 -E5 E6 E27 E38" />
     </flow>
-    <flow id="f_-E32_E38_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="344.99" departLane="best" departSpeed="max">
-        <route edges="-E32 -E12 -E5 E6 E27 E38"/>
+    <flow id="f_-E32_E38_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="344.99" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 -E5 E6 E27 E38" />
     </flow>
-    <flow id="f_-E32_E38_passenger" type="passenger" begin="0.00" end="3600.00" perHour="48.14" departLane="best" departSpeed="max">
-        <route edges="-E32 -E12 -E5 E6 E27 E38"/>
+    <flow id="f_-E32_E38_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="48.14" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 -E5 E6 E27 E38" />
     </flow>
-    <flow id="f_-E32_E39_bus" type="bus" begin="0.00" end="3600.00" perHour="16.30" departLane="best" departSpeed="max">
-        <route edges="-E32 -E12 -E5 -E0 E2 E25 E39"/>
+    <flow id="f_-E32_E39_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="16.30" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 -E5 -E0 E2 E25 E39" />
     </flow>
-    <flow id="f_-E32_E39_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="700.80" departLane="best" departSpeed="max">
-        <route edges="-E32 -E12 E14 -E3 E2 E25 E39"/>
+    <flow id="f_-E32_E39_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="700.80" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 E14 -E3 E2 E25 E39" />
     </flow>
-    <flow id="f_-E32_E39_passenger" type="passenger" begin="0.00" end="3600.00" perHour="97.79" departLane="best" departSpeed="max">
-        <route edges="-E32 -E12 E14 -E3 E2 E25 E39"/>
+    <flow id="f_-E32_E39_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="97.79" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 E14 -E3 E2 E25 E39" />
     </flow>
-    <flow id="f_-E32_E40_bus" type="bus" begin="0.00" end="3600.00" perHour="14.91" departLane="best" departSpeed="max">
-        <route edges="-E32 -E12 -E5 -E0 E2 -E24 E22 E40"/>
+    <flow id="f_-E32_E40_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="14.91" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 -E5 -E0 E2 -E24 E22 E40" />
     </flow>
-    <flow id="f_-E32_E40_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="641.03" departLane="best" departSpeed="max">
-        <route edges="-E32 -E12 E14 E15 -E18 E19 E22 E40"/>
+    <flow id="f_-E32_E40_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="641.03" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 E14 E15 -E18 E19 E22 E40" />
     </flow>
-    <flow id="f_-E32_E40_passenger" type="passenger" begin="0.00" end="3600.00" perHour="89.44" departLane="best" departSpeed="max">
-        <route edges="-E32 -E12 E14 E15 -E18 E19 E22 E40"/>
+    <flow id="f_-E32_E40_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="89.44" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 E14 E15 -E18 E19 E22 E40" />
     </flow>
-    <flow id="f_-E33_E29_bus" type="bus" begin="0.00" end="3600.00" perHour="8.00" departLane="best" departSpeed="max">
-        <route edges="-E33 -E4 E6 E28 E29"/>
+    <flow id="f_-E33_E29_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="8.00" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 E6 E28 E29" />
     </flow>
-    <flow id="f_-E33_E29_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="344.10" departLane="best" departSpeed="max">
-        <route edges="-E33 -E4 E6 E28 E29"/>
+    <flow id="f_-E33_E29_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="344.10" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 E6 E28 E29" />
     </flow>
-    <flow id="f_-E33_E29_passenger" type="passenger" begin="0.00" end="3600.00" perHour="48.01" departLane="best" departSpeed="max">
-        <route edges="-E33 -E4 E6 E28 E29"/>
+    <flow id="f_-E33_E29_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="48.01" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 E6 E28 E29" />
     </flow>
-    <flow id="f_-E33_E30_bus" type="bus" begin="0.00" end="3600.00" perHour="7.59" departLane="best" departSpeed="max">
-        <route edges="-E33 -E4 -E0 E1 E19 E23 E30"/>
+    <flow id="f_-E33_E30_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="7.59" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 -E0 E1 E19 E23 E30" />
     </flow>
-    <flow id="f_-E33_E30_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="326.38" departLane="best" departSpeed="max">
-        <route edges="-E33 -E4 -E0 E1 E19 E23 E30"/>
+    <flow id="f_-E33_E30_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="326.38" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 -E0 E1 E19 E23 E30" />
     </flow>
-    <flow id="f_-E33_E30_passenger" type="passenger" begin="0.00" end="3600.00" perHour="45.54" departLane="best" departSpeed="max">
-        <route edges="-E33 -E4 -E0 E1 E19 E23 E30"/>
+    <flow id="f_-E33_E30_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="45.54" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 -E0 E1 E19 E23 E30" />
     </flow>
-    <flow id="f_-E33_E31_bus" type="bus" begin="0.00" end="3600.00" perHour="8.58" departLane="best" departSpeed="max">
-        <route edges="-E33 -E4 -E0 E3 E15 E20 E31"/>
+    <flow id="f_-E33_E31_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="8.58" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 -E0 E3 E15 E20 E31" />
     </flow>
-    <flow id="f_-E33_E31_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="369.04" departLane="best" departSpeed="max">
-        <route edges="-E33 -E4 -E0 E3 E15 E20 E31"/>
+    <flow id="f_-E33_E31_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="369.04" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 -E0 E3 E15 E20 E31" />
     </flow>
-    <flow id="f_-E33_E31_passenger" type="passenger" begin="0.00" end="3600.00" perHour="51.49" departLane="best" departSpeed="max">
-        <route edges="-E33 -E4 -E0 E3 E15 E20 E31"/>
+    <flow id="f_-E33_E31_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="51.49" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 -E0 E3 E15 E20 E31" />
     </flow>
-    <flow id="f_-E33_E32_bus" type="bus" begin="0.00" end="3600.00" perHour="8.34" departLane="best" departSpeed="max">
-        <route edges="-E33 -E4 E5 E12 E32"/>
+    <flow id="f_-E33_E32_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="8.34" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 E5 E12 E32" />
     </flow>
-    <flow id="f_-E33_E32_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="358.42" departLane="best" departSpeed="max">
-        <route edges="-E33 -E4 E5 E12 E32"/>
+    <flow id="f_-E33_E32_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="358.42" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 E5 E12 E32" />
     </flow>
-    <flow id="f_-E33_E32_passenger" type="passenger" begin="0.00" end="3600.00" perHour="50.01" departLane="best" departSpeed="max">
-        <route edges="-E33 -E4 E5 E12 E32"/>
+    <flow id="f_-E33_E32_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="50.01" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 E5 E12 E32" />
     </flow>
-    <flow id="f_-E33_E33_bus" type="bus" begin="0.00" end="3600.00" perHour="2.78" departLane="best" departSpeed="max">
-        <route edges="-E33 -E4 -E0 E2 E26 -E6 E4 E33"/>
+    <flow id="f_-E33_E33_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="2.78" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 -E0 E2 E26 -E6 E4 E33" />
     </flow>
-    <flow id="f_-E33_E33_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="119.36" departLane="best" departSpeed="max">
-        <route edges="-E33 -E4 -E0 E2 E26 -E6 E4 E33"/>
+    <flow id="f_-E33_E33_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="119.36" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 -E0 E2 E26 -E6 E4 E33" />
     </flow>
-    <flow id="f_-E33_E33_passenger" type="passenger" begin="0.00" end="3600.00" perHour="16.65" departLane="best" departSpeed="max">
-        <route edges="-E33 -E4 -E0 E2 E26 -E6 E4 E33"/>
+    <flow id="f_-E33_E33_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="16.65" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 -E0 E2 E26 -E6 E4 E33" />
     </flow>
-    <flow id="f_-E33_E34_bus" type="bus" begin="0.00" end="3600.00" perHour="6.30" departLane="best" departSpeed="max">
-        <route edges="-E33 -E4 -E0 E1 E17 E34"/>
+    <flow id="f_-E33_E34_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="6.30" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 -E0 E1 E17 E34" />
     </flow>
-    <flow id="f_-E33_E34_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="271.10" departLane="best" departSpeed="max">
-        <route edges="-E33 -E4 -E0 E1 E17 E34"/>
+    <flow id="f_-E33_E34_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="271.10" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 -E0 E1 E17 E34" />
     </flow>
-    <flow id="f_-E33_E34_passenger" type="passenger" begin="0.00" end="3600.00" perHour="37.83" departLane="best" departSpeed="max">
-        <route edges="-E33 -E4 -E0 E1 E17 E34"/>
+    <flow id="f_-E33_E34_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="37.83" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 -E0 E1 E17 E34" />
     </flow>
-    <flow id="f_-E33_E35_bus" type="bus" begin="0.00" end="3600.00" perHour="10.34" departLane="best" departSpeed="max">
-        <route edges="-E33 -E4 -E0 E3 E15 E21 E35"/>
+    <flow id="f_-E33_E35_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="10.34" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 -E0 E3 E15 E21 E35" />
     </flow>
-    <flow id="f_-E33_E35_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="444.55" departLane="best" departSpeed="max">
-        <route edges="-E33 -E4 -E0 E1 E18 E21 E35"/>
+    <flow id="f_-E33_E35_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="444.55" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 -E0 E1 E18 E21 E35" />
     </flow>
-    <flow id="f_-E33_E35_passenger" type="passenger" begin="0.00" end="3600.00" perHour="62.03" departLane="best" departSpeed="max">
-        <route edges="-E33 -E4 -E0 E1 E18 E21 E35"/>
+    <flow id="f_-E33_E35_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="62.03" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 -E0 E1 E18 E21 E35" />
     </flow>
-    <flow id="f_-E33_E36_bus" type="bus" begin="0.00" end="3600.00" perHour="2.59" departLane="best" departSpeed="max">
-        <route edges="-E33 -E4 E5 E14 E16 E36"/>
+    <flow id="f_-E33_E36_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="2.59" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 E5 E14 E16 E36" />
     </flow>
-    <flow id="f_-E33_E36_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="111.26" departLane="best" departSpeed="max">
-        <route edges="-E33 -E4 -E0 E3 E16 E36"/>
+    <flow id="f_-E33_E36_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="111.26" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 -E0 E3 E16 E36" />
     </flow>
-    <flow id="f_-E33_E36_passenger" type="passenger" begin="0.00" end="3600.00" perHour="15.52" departLane="best" departSpeed="max">
-        <route edges="-E33 -E4 -E0 E3 E16 E36"/>
+    <flow id="f_-E33_E36_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="15.52" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 -E0 E3 E16 E36" />
     </flow>
-    <flow id="f_-E33_E37_bus" type="bus" begin="0.00" end="3600.00" perHour="4.01" departLane="best" departSpeed="max">
-        <route edges="-E33 -E4 E5 E13 E37"/>
+    <flow id="f_-E33_E37_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="4.01" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 E5 E13 E37" />
     </flow>
-    <flow id="f_-E33_E37_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="172.34" departLane="best" departSpeed="max">
-        <route edges="-E33 -E4 E5 E13 E37"/>
+    <flow id="f_-E33_E37_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="172.34" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 E5 E13 E37" />
     </flow>
-    <flow id="f_-E33_E37_passenger" type="passenger" begin="0.00" end="3600.00" perHour="24.05" departLane="best" departSpeed="max">
-        <route edges="-E33 -E4 E5 E13 E37"/>
+    <flow id="f_-E33_E37_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="24.05" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 E5 E13 E37" />
     </flow>
-    <flow id="f_-E33_E38_bus" type="bus" begin="0.00" end="3600.00" perHour="4.89" departLane="best" departSpeed="max">
-        <route edges="-E33 -E4 E6 E27 E38"/>
+    <flow id="f_-E33_E38_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="4.89" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 E6 E27 E38" />
     </flow>
-    <flow id="f_-E33_E38_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="210.29" departLane="best" departSpeed="max">
-        <route edges="-E33 -E4 E6 E27 E38"/>
+    <flow id="f_-E33_E38_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="210.29" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 E6 E27 E38" />
     </flow>
-    <flow id="f_-E33_E38_passenger" type="passenger" begin="0.00" end="3600.00" perHour="29.34" departLane="best" departSpeed="max">
-        <route edges="-E33 -E4 E6 E27 E38"/>
+    <flow id="f_-E33_E38_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="29.34" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 E6 E27 E38" />
     </flow>
-    <flow id="f_-E33_E39_bus" type="bus" begin="0.00" end="3600.00" perHour="5.94" departLane="best" departSpeed="max">
-        <route edges="-E33 -E4 E6 -E26 E25 E39"/>
+    <flow id="f_-E33_E39_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="5.94" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 E6 -E26 E25 E39" />
     </flow>
-    <flow id="f_-E33_E39_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="255.37" departLane="best" departSpeed="max">
-        <route edges="-E33 -E4 -E0 E2 E25 E39"/>
+    <flow id="f_-E33_E39_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="255.37" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 -E0 E2 E25 E39" />
     </flow>
-    <flow id="f_-E33_E39_passenger" type="passenger" begin="0.00" end="3600.00" perHour="35.64" departLane="best" departSpeed="max">
-        <route edges="-E33 -E4 -E0 E2 E25 E39"/>
+    <flow id="f_-E33_E39_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="35.64" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 -E0 E2 E25 E39" />
     </flow>
-    <flow id="f_-E33_E40_bus" type="bus" begin="0.00" end="3600.00" perHour="8.11" departLane="best" departSpeed="max">
-        <route edges="-E33 -E4 -E0 E2 -E24 E22 E40"/>
+    <flow id="f_-E33_E40_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="8.11" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 -E0 E2 -E24 E22 E40" />
     </flow>
-    <flow id="f_-E33_E40_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="348.57" departLane="best" departSpeed="max">
-        <route edges="-E33 -E4 -E0 E1 E19 E22 E40"/>
+    <flow id="f_-E33_E40_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="348.57" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 -E0 E1 E19 E22 E40" />
     </flow>
-    <flow id="f_-E33_E40_passenger" type="passenger" begin="0.00" end="3600.00" perHour="48.64" departLane="best" departSpeed="max">
-        <route edges="-E33 -E4 -E0 E1 E19 E22 E40"/>
+    <flow id="f_-E33_E40_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="48.64" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 -E0 E1 E19 E22 E40" />
     </flow>
-    <flow id="f_-E34_E29_bus" type="bus" begin="0.00" end="3600.00" perHour="9.95" departLane="best" departSpeed="max">
-        <route edges="-E34 -E17 -E1 E2 E26 E28 E29"/>
+    <flow id="f_-E34_E29_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="9.95" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 -E1 E2 E26 E28 E29" />
     </flow>
-    <flow id="f_-E34_E29_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="427.86" departLane="best" departSpeed="max">
-        <route edges="-E34 -E17 -E1 E2 E26 E28 E29"/>
+    <flow id="f_-E34_E29_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="427.86" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 -E1 E2 E26 E28 E29" />
     </flow>
-    <flow id="f_-E34_E29_passenger" type="passenger" begin="0.00" end="3600.00" perHour="59.70" departLane="best" departSpeed="max">
-        <route edges="-E34 -E17 -E1 E2 E26 E28 E29"/>
+    <flow id="f_-E34_E29_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="59.70" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 -E1 E2 E26 E28 E29" />
     </flow>
-    <flow id="f_-E34_E30_bus" type="bus" begin="0.00" end="3600.00" perHour="13.27" departLane="best" departSpeed="max">
-        <route edges="-E34 -E17 E19 E23 E30"/>
+    <flow id="f_-E34_E30_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="13.27" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 E19 E23 E30" />
     </flow>
-    <flow id="f_-E34_E30_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="570.52" departLane="best" departSpeed="max">
-        <route edges="-E34 -E17 E19 E23 E30"/>
+    <flow id="f_-E34_E30_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="570.52" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 E19 E23 E30" />
     </flow>
-    <flow id="f_-E34_E30_passenger" type="passenger" begin="0.00" end="3600.00" perHour="79.61" departLane="best" departSpeed="max">
-        <route edges="-E34 -E17 E19 E23 E30"/>
+    <flow id="f_-E34_E30_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="79.61" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 E19 E23 E30" />
     </flow>
-    <flow id="f_-E34_E31_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="18.56" departLane="best" departSpeed="max">
-        <route edges="-E34 -E17 E18 E20 E31"/>
+    <flow id="f_-E34_E31_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="18.56" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 E18 E20 E31" />
     </flow>
-    <flow id="f_-E34_E31_passenger" type="passenger" begin="0.00" end="3600.00" perHour="2.59" departLane="best" departSpeed="max">
-        <route edges="-E34 -E17 E18 E20 E31"/>
+    <flow id="f_-E34_E31_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="2.59" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 E18 E20 E31" />
     </flow>
-    <flow id="f_-E34_E32_bus" type="bus" begin="0.00" end="3600.00" perHour="8.21" departLane="best" departSpeed="max">
-        <route edges="-E34 -E17 -E1 E0 E5 E12 E32"/>
+    <flow id="f_-E34_E32_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="8.21" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 -E1 E0 E5 E12 E32" />
     </flow>
-    <flow id="f_-E34_E32_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="353.11" departLane="best" departSpeed="max">
-        <route edges="-E34 -E17 -E1 E0 E5 E12 E32"/>
+    <flow id="f_-E34_E32_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="353.11" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 -E1 E0 E5 E12 E32" />
     </flow>
-    <flow id="f_-E34_E32_passenger" type="passenger" begin="0.00" end="3600.00" perHour="49.27" departLane="best" departSpeed="max">
-        <route edges="-E34 -E17 -E1 E0 E5 E12 E32"/>
+    <flow id="f_-E34_E32_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="49.27" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 -E1 E0 E5 E12 E32" />
     </flow>
-    <flow id="f_-E34_E33_bus" type="bus" begin="0.00" end="3600.00" perHour="1.57" departLane="best" departSpeed="max">
-        <route edges="-E34 -E17 -E1 E0 E4 E33"/>
+    <flow id="f_-E34_E33_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="1.57" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 -E1 E0 E4 E33" />
     </flow>
-    <flow id="f_-E34_E33_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="67.54" departLane="best" departSpeed="max">
-        <route edges="-E34 -E17 -E1 E0 E4 E33"/>
+    <flow id="f_-E34_E33_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="67.54" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 -E1 E0 E4 E33" />
     </flow>
-    <flow id="f_-E34_E33_passenger" type="passenger" begin="0.00" end="3600.00" perHour="9.42" departLane="best" departSpeed="max">
-        <route edges="-E34 -E17 -E1 E0 E4 E33"/>
+    <flow id="f_-E34_E33_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="9.42" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 -E1 E0 E4 E33" />
     </flow>
-    <flow id="f_-E34_E34_bus" type="bus" begin="0.00" end="3600.00" perHour="13.43" departLane="best" departSpeed="max">
-        <route edges="-E34 -E17 -E1 E3 E15 -E18 E17 E34"/>
+    <flow id="f_-E34_E34_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="13.43" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 -E1 E3 E15 -E18 E17 E34" />
     </flow>
-    <flow id="f_-E34_E34_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="577.39" departLane="best" departSpeed="max">
-        <route edges="-E34 -E17 -E1 E3 E15 -E18 E17 E34"/>
+    <flow id="f_-E34_E34_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="577.39" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 -E1 E3 E15 -E18 E17 E34" />
     </flow>
-    <flow id="f_-E34_E34_passenger" type="passenger" begin="0.00" end="3600.00" perHour="80.56" departLane="best" departSpeed="max">
-        <route edges="-E34 -E17 -E1 E3 E15 -E18 E17 E34"/>
+    <flow id="f_-E34_E34_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="80.56" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 -E1 E3 E15 -E18 E17 E34" />
     </flow>
-    <flow id="f_-E34_E35_bus" type="bus" begin="0.00" end="3600.00" perHour="8.96" departLane="best" departSpeed="max">
-        <route edges="-E34 -E17 E18 E21 E35"/>
+    <flow id="f_-E34_E35_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="8.96" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 E18 E21 E35" />
     </flow>
-    <flow id="f_-E34_E35_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="385.48" departLane="best" departSpeed="max">
-        <route edges="-E34 -E17 E18 E21 E35"/>
+    <flow id="f_-E34_E35_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="385.48" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 E18 E21 E35" />
     </flow>
-    <flow id="f_-E34_E35_passenger" type="passenger" begin="0.00" end="3600.00" perHour="53.79" departLane="best" departSpeed="max">
-        <route edges="-E34 -E17 E18 E21 E35"/>
+    <flow id="f_-E34_E35_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="53.79" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 E18 E21 E35" />
     </flow>
-    <flow id="f_-E34_E36_bus" type="bus" begin="0.00" end="3600.00" perHour="3.92" departLane="best" departSpeed="max">
-        <route edges="-E34 -E17 E18 -E15 E16 E36"/>
+    <flow id="f_-E34_E36_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="3.92" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 E18 -E15 E16 E36" />
     </flow>
-    <flow id="f_-E34_E36_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="168.54" departLane="best" departSpeed="max">
-        <route edges="-E34 -E17 -E1 E3 E16 E36"/>
+    <flow id="f_-E34_E36_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="168.54" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 -E1 E3 E16 E36" />
     </flow>
-    <flow id="f_-E34_E36_passenger" type="passenger" begin="0.00" end="3600.00" perHour="23.52" departLane="best" departSpeed="max">
-        <route edges="-E34 -E17 -E1 E3 E16 E36"/>
+    <flow id="f_-E34_E36_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="23.52" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 -E1 E3 E16 E36" />
     </flow>
-    <flow id="f_-E34_E37_bus" type="bus" begin="0.00" end="3600.00" perHour="12.60" departLane="best" departSpeed="max">
-        <route edges="-E34 -E17 -E1 E3 -E14 E13 E37"/>
+    <flow id="f_-E34_E37_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="12.60" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 -E1 E3 -E14 E13 E37" />
     </flow>
-    <flow id="f_-E34_E37_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="542.01" departLane="best" departSpeed="max">
-        <route edges="-E34 -E17 -E1 E0 E5 E13 E37"/>
+    <flow id="f_-E34_E37_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="542.01" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 -E1 E0 E5 E13 E37" />
     </flow>
-    <flow id="f_-E34_E37_passenger" type="passenger" begin="0.00" end="3600.00" perHour="75.63" departLane="best" departSpeed="max">
-        <route edges="-E34 -E17 -E1 E0 E5 E13 E37"/>
+    <flow id="f_-E34_E37_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="75.63" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 -E1 E0 E5 E13 E37" />
     </flow>
-    <flow id="f_-E34_E38_bus" type="bus" begin="0.00" end="3600.00" perHour="3.30" departLane="best" departSpeed="max">
-        <route edges="-E34 -E17 -E1 E2 E26 E27 E38"/>
+    <flow id="f_-E34_E38_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="3.30" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 -E1 E2 E26 E27 E38" />
     </flow>
-    <flow id="f_-E34_E38_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="141.95" departLane="best" departSpeed="max">
-        <route edges="-E34 -E17 -E1 E0 E6 E27 E38"/>
+    <flow id="f_-E34_E38_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="141.95" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 -E1 E0 E6 E27 E38" />
     </flow>
-    <flow id="f_-E34_E38_passenger" type="passenger" begin="0.00" end="3600.00" perHour="19.81" departLane="best" departSpeed="max">
-        <route edges="-E34 -E17 -E1 E0 E6 E27 E38"/>
+    <flow id="f_-E34_E38_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="19.81" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 -E1 E0 E6 E27 E38" />
     </flow>
-    <flow id="f_-E34_E39_bus" type="bus" begin="0.00" end="3600.00" perHour="5.47" departLane="best" departSpeed="max">
-        <route edges="-E34 -E17 E19 E24 E25 E39"/>
+    <flow id="f_-E34_E39_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="5.47" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 E19 E24 E25 E39" />
     </flow>
-    <flow id="f_-E34_E39_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="235.20" departLane="best" departSpeed="max">
-        <route edges="-E34 -E17 -E1 E2 E25 E39"/>
+    <flow id="f_-E34_E39_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="235.20" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 -E1 E2 E25 E39" />
     </flow>
-    <flow id="f_-E34_E39_passenger" type="passenger" begin="0.00" end="3600.00" perHour="32.82" departLane="best" departSpeed="max">
-        <route edges="-E34 -E17 -E1 E2 E25 E39"/>
+    <flow id="f_-E34_E39_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="32.82" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 -E1 E2 E25 E39" />
     </flow>
-    <flow id="f_-E34_E40_bus" type="bus" begin="0.00" end="3600.00" perHour="13.70" departLane="best" departSpeed="max">
-        <route edges="-E34 -E17 E19 E22 E40"/>
+    <flow id="f_-E34_E40_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="13.70" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 E19 E22 E40" />
     </flow>
-    <flow id="f_-E34_E40_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="588.91" departLane="best" departSpeed="max">
-        <route edges="-E34 -E17 E19 E22 E40"/>
+    <flow id="f_-E34_E40_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="588.91" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 E19 E22 E40" />
     </flow>
-    <flow id="f_-E34_E40_passenger" type="passenger" begin="0.00" end="3600.00" perHour="82.18" departLane="best" departSpeed="max">
-        <route edges="-E34 -E17 E19 E22 E40"/>
+    <flow id="f_-E34_E40_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="82.18" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 E19 E22 E40" />
     </flow>
-    <flow id="f_-E35_E29_bus" type="bus" begin="0.00" end="3600.00" perHour="13.16" departLane="best" departSpeed="max">
-        <route edges="-E35 -E21 -E15 -E3 E0 E6 E28 E29"/>
+    <flow id="f_-E35_E29_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="13.16" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E15 -E3 E0 E6 E28 E29" />
     </flow>
-    <flow id="f_-E35_E29_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="565.86" departLane="best" departSpeed="max">
-        <route edges="-E35 -E21 -E18 E19 E24 E26 E28 E29"/>
+    <flow id="f_-E35_E29_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="565.86" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E18 E19 E24 E26 E28 E29" />
     </flow>
-    <flow id="f_-E35_E29_passenger" type="passenger" begin="0.00" end="3600.00" perHour="78.96" departLane="best" departSpeed="max">
-        <route edges="-E35 -E21 -E18 E19 E24 E26 E28 E29"/>
+    <flow id="f_-E35_E29_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="78.96" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E18 E19 E24 E26 E28 E29" />
     </flow>
-    <flow id="f_-E35_E30_bus" type="bus" begin="0.00" end="3600.00" perHour="1.17" departLane="best" departSpeed="max">
-        <route edges="-E35 -E21 -E18 E19 E23 E30"/>
+    <flow id="f_-E35_E30_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="1.17" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E18 E19 E23 E30" />
     </flow>
-    <flow id="f_-E35_E30_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="50.30" departLane="best" departSpeed="max">
-        <route edges="-E35 -E21 -E18 E19 E23 E30"/>
+    <flow id="f_-E35_E30_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="50.30" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E18 E19 E23 E30" />
     </flow>
-    <flow id="f_-E35_E30_passenger" type="passenger" begin="0.00" end="3600.00" perHour="7.02" departLane="best" departSpeed="max">
-        <route edges="-E35 -E21 -E18 E19 E23 E30"/>
+    <flow id="f_-E35_E30_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="7.02" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E18 E19 E23 E30" />
     </flow>
-    <flow id="f_-E35_E31_bus" type="bus" begin="0.00" end="3600.00" perHour="4.68" departLane="best" departSpeed="max">
-        <route edges="-E35 -E21 E20 E31"/>
+    <flow id="f_-E35_E31_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="4.68" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 E20 E31" />
     </flow>
-    <flow id="f_-E35_E31_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="201.21" departLane="best" departSpeed="max">
-        <route edges="-E35 -E21 E20 E31"/>
+    <flow id="f_-E35_E31_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="201.21" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 E20 E31" />
     </flow>
-    <flow id="f_-E35_E31_passenger" type="passenger" begin="0.00" end="3600.00" perHour="28.08" departLane="best" departSpeed="max">
-        <route edges="-E35 -E21 E20 E31"/>
+    <flow id="f_-E35_E31_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="28.08" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 E20 E31" />
     </flow>
-    <flow id="f_-E35_E32_bus" type="bus" begin="0.00" end="3600.00" perHour="13.34" departLane="best" departSpeed="max">
-        <route edges="-E35 -E21 -E15 -E14 E12 E32"/>
+    <flow id="f_-E35_E32_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="13.34" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E15 -E14 E12 E32" />
     </flow>
-    <flow id="f_-E35_E32_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="573.71" departLane="best" departSpeed="max">
-        <route edges="-E35 -E21 -E15 -E14 E12 E32"/>
+    <flow id="f_-E35_E32_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="573.71" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E15 -E14 E12 E32" />
     </flow>
-    <flow id="f_-E35_E32_passenger" type="passenger" begin="0.00" end="3600.00" perHour="80.05" departLane="best" departSpeed="max">
-        <route edges="-E35 -E21 -E15 -E14 E12 E32"/>
+    <flow id="f_-E35_E32_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="80.05" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E15 -E14 E12 E32" />
     </flow>
-    <flow id="f_-E35_E33_bus" type="bus" begin="0.00" end="3600.00" perHour="16.11" departLane="best" departSpeed="max">
-        <route edges="-E35 -E21 -E15 -E3 E0 E4 E33"/>
+    <flow id="f_-E35_E33_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="16.11" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E15 -E3 E0 E4 E33" />
     </flow>
-    <flow id="f_-E35_E33_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="692.57" departLane="best" departSpeed="max">
-        <route edges="-E35 -E21 -E18 -E1 E0 E4 E33"/>
+    <flow id="f_-E35_E33_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="692.57" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E18 -E1 E0 E4 E33" />
     </flow>
-    <flow id="f_-E35_E33_passenger" type="passenger" begin="0.00" end="3600.00" perHour="96.63" departLane="best" departSpeed="max">
-        <route edges="-E35 -E21 -E18 -E1 E0 E4 E33"/>
+    <flow id="f_-E35_E33_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="96.63" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E18 -E1 E0 E4 E33" />
     </flow>
-    <flow id="f_-E35_E34_bus" type="bus" begin="0.00" end="3600.00" perHour="5.84" departLane="best" departSpeed="max">
-        <route edges="-E35 -E21 -E18 E17 E34"/>
+    <flow id="f_-E35_E34_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="5.84" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E18 E17 E34" />
     </flow>
-    <flow id="f_-E35_E34_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="251.01" departLane="best" departSpeed="max">
-        <route edges="-E35 -E21 -E18 E17 E34"/>
+    <flow id="f_-E35_E34_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="251.01" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E18 E17 E34" />
     </flow>
-    <flow id="f_-E35_E34_passenger" type="passenger" begin="0.00" end="3600.00" perHour="35.03" departLane="best" departSpeed="max">
-        <route edges="-E35 -E21 -E18 E17 E34"/>
+    <flow id="f_-E35_E34_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="35.03" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E18 E17 E34" />
     </flow>
-    <flow id="f_-E35_E35_bus" type="bus" begin="0.00" end="3600.00" perHour="4.87" departLane="best" departSpeed="max">
-        <route edges="-E35 -E21 -E18 -E1 E3 E15 E21 E35"/>
+    <flow id="f_-E35_E35_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="4.87" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E18 -E1 E3 E15 E21 E35" />
     </flow>
-    <flow id="f_-E35_E35_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="209.57" departLane="best" departSpeed="max">
-        <route edges="-E35 -E21 -E18 -E1 E3 E15 E21 E35"/>
+    <flow id="f_-E35_E35_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="209.57" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E18 -E1 E3 E15 E21 E35" />
     </flow>
-    <flow id="f_-E35_E35_passenger" type="passenger" begin="0.00" end="3600.00" perHour="29.24" departLane="best" departSpeed="max">
-        <route edges="-E35 -E21 -E18 -E1 E3 E15 E21 E35"/>
+    <flow id="f_-E35_E35_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="29.24" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E18 -E1 E3 E15 E21 E35" />
     </flow>
-    <flow id="f_-E35_E36_bus" type="bus" begin="0.00" end="3600.00" perHour="9.84" departLane="best" departSpeed="max">
-        <route edges="-E35 -E21 -E15 E16 E36"/>
+    <flow id="f_-E35_E36_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="9.84" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E15 E16 E36" />
     </flow>
-    <flow id="f_-E35_E36_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="422.98" departLane="best" departSpeed="max">
-        <route edges="-E35 -E21 -E15 E16 E36"/>
+    <flow id="f_-E35_E36_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="422.98" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E15 E16 E36" />
     </flow>
-    <flow id="f_-E35_E36_passenger" type="passenger" begin="0.00" end="3600.00" perHour="59.02" departLane="best" departSpeed="max">
-        <route edges="-E35 -E21 -E15 E16 E36"/>
+    <flow id="f_-E35_E36_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="59.02" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E15 E16 E36" />
     </flow>
-    <flow id="f_-E35_E37_bus" type="bus" begin="0.00" end="3600.00" perHour="7.17" departLane="best" departSpeed="max">
-        <route edges="-E35 -E21 -E15 -E14 E13 E37"/>
+    <flow id="f_-E35_E37_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="7.17" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E15 -E14 E13 E37" />
     </flow>
-    <flow id="f_-E35_E37_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="308.51" departLane="best" departSpeed="max">
-        <route edges="-E35 -E21 -E15 -E14 E13 E37"/>
+    <flow id="f_-E35_E37_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="308.51" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E15 -E14 E13 E37" />
     </flow>
-    <flow id="f_-E35_E37_passenger" type="passenger" begin="0.00" end="3600.00" perHour="43.05" departLane="best" departSpeed="max">
-        <route edges="-E35 -E21 -E15 -E14 E13 E37"/>
+    <flow id="f_-E35_E37_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="43.05" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E15 -E14 E13 E37" />
     </flow>
-    <flow id="f_-E35_E38_bus" type="bus" begin="0.00" end="3600.00" perHour="9.03" departLane="best" departSpeed="max">
-        <route edges="-E35 -E21 -E15 -E3 E2 E26 E27 E38"/>
+    <flow id="f_-E35_E38_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="9.03" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E15 -E3 E2 E26 E27 E38" />
     </flow>
-    <flow id="f_-E35_E38_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="388.31" departLane="best" departSpeed="max">
-        <route edges="-E35 -E21 -E18 E19 E24 E26 E27 E38"/>
+    <flow id="f_-E35_E38_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="388.31" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E18 E19 E24 E26 E27 E38" />
     </flow>
-    <flow id="f_-E35_E38_passenger" type="passenger" begin="0.00" end="3600.00" perHour="54.18" departLane="best" departSpeed="max">
-        <route edges="-E35 -E21 -E18 E19 E24 E26 E27 E38"/>
+    <flow id="f_-E35_E38_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="54.18" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E18 E19 E24 E26 E27 E38" />
     </flow>
-    <flow id="f_-E35_E39_bus" type="bus" begin="0.00" end="3600.00" perHour="12.62" departLane="best" departSpeed="max">
-        <route edges="-E35 -E21 -E15 -E3 E2 E25 E39"/>
+    <flow id="f_-E35_E39_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="12.62" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E15 -E3 E2 E25 E39" />
     </flow>
-    <flow id="f_-E35_E39_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="542.74" departLane="best" departSpeed="max">
-        <route edges="-E35 -E21 -E18 E19 E24 E25 E39"/>
+    <flow id="f_-E35_E39_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="542.74" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E18 E19 E24 E25 E39" />
     </flow>
-    <flow id="f_-E35_E39_passenger" type="passenger" begin="0.00" end="3600.00" perHour="75.73" departLane="best" departSpeed="max">
-        <route edges="-E35 -E21 -E18 E19 E24 E25 E39"/>
+    <flow id="f_-E35_E39_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="75.73" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E18 E19 E24 E25 E39" />
     </flow>
-    <flow id="f_-E35_E40_bus" type="bus" begin="0.00" end="3600.00" perHour="14.63" departLane="best" departSpeed="max">
-        <route edges="-E35 -E21 -E18 E19 E22 E40"/>
+    <flow id="f_-E35_E40_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="14.63" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E18 E19 E22 E40" />
     </flow>
-    <flow id="f_-E35_E40_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="628.93" departLane="best" departSpeed="max">
-        <route edges="-E35 -E21 -E18 E19 E22 E40"/>
+    <flow id="f_-E35_E40_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="628.93" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E18 E19 E22 E40" />
     </flow>
-    <flow id="f_-E35_E40_passenger" type="passenger" begin="0.00" end="3600.00" perHour="87.76" departLane="best" departSpeed="max">
-        <route edges="-E35 -E21 -E18 E19 E22 E40"/>
+    <flow id="f_-E35_E40_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="87.76" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E18 E19 E22 E40" />
     </flow>
-    <flow id="f_-E36_E29_bus" type="bus" begin="0.00" end="3600.00" perHour="3.37" departLane="best" departSpeed="max">
-        <route edges="-E36 -E16 -E14 -E5 E6 E28 E29"/>
+    <flow id="f_-E36_E29_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="3.37" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 -E14 -E5 E6 E28 E29" />
     </flow>
-    <flow id="f_-E36_E29_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="144.80" departLane="best" departSpeed="max">
-        <route edges="-E36 -E16 -E3 E2 E26 E28 E29"/>
+    <flow id="f_-E36_E29_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="144.80" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 -E3 E2 E26 E28 E29" />
     </flow>
-    <flow id="f_-E36_E29_passenger" type="passenger" begin="0.00" end="3600.00" perHour="20.20" departLane="best" departSpeed="max">
-        <route edges="-E36 -E16 -E3 E2 E26 E28 E29"/>
+    <flow id="f_-E36_E29_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="20.20" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 -E3 E2 E26 E28 E29" />
     </flow>
-    <flow id="f_-E36_E30_bus" type="bus" begin="0.00" end="3600.00" perHour="5.62" departLane="best" departSpeed="max">
-        <route edges="-E36 -E16 E15 -E18 E19 E23 E30"/>
+    <flow id="f_-E36_E30_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="5.62" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 E15 -E18 E19 E23 E30" />
     </flow>
-    <flow id="f_-E36_E30_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="241.59" departLane="best" departSpeed="max">
-        <route edges="-E36 -E16 -E3 E2 -E24 E23 E30"/>
+    <flow id="f_-E36_E30_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="241.59" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 -E3 E2 -E24 E23 E30" />
     </flow>
-    <flow id="f_-E36_E30_passenger" type="passenger" begin="0.00" end="3600.00" perHour="33.71" departLane="best" departSpeed="max">
-        <route edges="-E36 -E16 -E3 E2 -E24 E23 E30"/>
+    <flow id="f_-E36_E30_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="33.71" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 -E3 E2 -E24 E23 E30" />
     </flow>
-    <flow id="f_-E36_E31_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="41.88" departLane="best" departSpeed="max">
-        <route edges="-E36 -E16 E15 E20 E31"/>
+    <flow id="f_-E36_E31_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="41.88" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 E15 E20 E31" />
     </flow>
-    <flow id="f_-E36_E31_passenger" type="passenger" begin="0.00" end="3600.00" perHour="5.84" departLane="best" departSpeed="max">
-        <route edges="-E36 -E16 E15 E20 E31"/>
+    <flow id="f_-E36_E31_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="5.84" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 E15 E20 E31" />
     </flow>
-    <flow id="f_-E36_E32_bus" type="bus" begin="0.00" end="3600.00" perHour="9.92" departLane="best" departSpeed="max">
-        <route edges="-E36 -E16 -E14 E12 E32"/>
+    <flow id="f_-E36_E32_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="9.92" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 -E14 E12 E32" />
     </flow>
-    <flow id="f_-E36_E32_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="426.74" departLane="best" departSpeed="max">
-        <route edges="-E36 -E16 -E14 E12 E32"/>
+    <flow id="f_-E36_E32_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="426.74" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 -E14 E12 E32" />
     </flow>
-    <flow id="f_-E36_E32_passenger" type="passenger" begin="0.00" end="3600.00" perHour="59.55" departLane="best" departSpeed="max">
-        <route edges="-E36 -E16 -E14 E12 E32"/>
+    <flow id="f_-E36_E32_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="59.55" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 -E14 E12 E32" />
     </flow>
-    <flow id="f_-E36_E33_bus" type="bus" begin="0.00" end="3600.00" perHour="2.74" departLane="best" departSpeed="max">
-        <route edges="-E36 -E16 -E14 -E5 E4 E33"/>
+    <flow id="f_-E36_E33_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="2.74" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 -E14 -E5 E4 E33" />
     </flow>
-    <flow id="f_-E36_E33_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="117.77" departLane="best" departSpeed="max">
-        <route edges="-E36 -E16 -E3 E0 E4 E33"/>
+    <flow id="f_-E36_E33_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="117.77" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 -E3 E0 E4 E33" />
     </flow>
-    <flow id="f_-E36_E33_passenger" type="passenger" begin="0.00" end="3600.00" perHour="16.43" departLane="best" departSpeed="max">
-        <route edges="-E36 -E16 -E3 E0 E4 E33"/>
+    <flow id="f_-E36_E33_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="16.43" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 -E3 E0 E4 E33" />
     </flow>
-    <flow id="f_-E36_E34_bus" type="bus" begin="0.00" end="3600.00" perHour="10.73" departLane="best" departSpeed="max">
-        <route edges="-E36 -E16 E15 -E18 E17 E34"/>
+    <flow id="f_-E36_E34_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="10.73" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 E15 -E18 E17 E34" />
     </flow>
-    <flow id="f_-E36_E34_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="461.18" departLane="best" departSpeed="max">
-        <route edges="-E36 -E16 -E3 E1 E17 E34"/>
+    <flow id="f_-E36_E34_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="461.18" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 -E3 E1 E17 E34" />
     </flow>
-    <flow id="f_-E36_E34_passenger" type="passenger" begin="0.00" end="3600.00" perHour="64.35" departLane="best" departSpeed="max">
-        <route edges="-E36 -E16 -E3 E1 E17 E34"/>
+    <flow id="f_-E36_E34_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="64.35" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 -E3 E1 E17 E34" />
     </flow>
-    <flow id="f_-E36_E35_bus" type="bus" begin="0.00" end="3600.00" perHour="4.43" departLane="best" departSpeed="max">
-        <route edges="-E36 -E16 E15 E21 E35"/>
+    <flow id="f_-E36_E35_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="4.43" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 E15 E21 E35" />
     </flow>
-    <flow id="f_-E36_E35_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="190.46" departLane="best" departSpeed="max">
-        <route edges="-E36 -E16 E15 E21 E35"/>
+    <flow id="f_-E36_E35_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="190.46" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 E15 E21 E35" />
     </flow>
-    <flow id="f_-E36_E35_passenger" type="passenger" begin="0.00" end="3600.00" perHour="26.58" departLane="best" departSpeed="max">
-        <route edges="-E36 -E16 E15 E21 E35"/>
+    <flow id="f_-E36_E35_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="26.58" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 E15 E21 E35" />
     </flow>
-    <flow id="f_-E36_E36_bus" type="bus" begin="0.00" end="3600.00" perHour="9.10" departLane="best" departSpeed="max">
-        <route edges="-E36 -E16 -E3 E0 E5 E14 E16 E36"/>
+    <flow id="f_-E36_E36_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="9.10" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 -E3 E0 E5 E14 E16 E36" />
     </flow>
-    <flow id="f_-E36_E36_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="391.18" departLane="best" departSpeed="max">
-        <route edges="-E36 -E16 -E3 E0 E5 E14 E16 E36"/>
+    <flow id="f_-E36_E36_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="391.18" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 -E3 E0 E5 E14 E16 E36" />
     </flow>
-    <flow id="f_-E36_E36_passenger" type="passenger" begin="0.00" end="3600.00" perHour="54.58" departLane="best" departSpeed="max">
-        <route edges="-E36 -E16 -E3 E0 E5 E14 E16 E36"/>
+    <flow id="f_-E36_E36_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="54.58" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 -E3 E0 E5 E14 E16 E36" />
     </flow>
-    <flow id="f_-E36_E37_bus" type="bus" begin="0.00" end="3600.00" perHour="8.15" departLane="best" departSpeed="max">
-        <route edges="-E36 -E16 -E14 E13 E37"/>
+    <flow id="f_-E36_E37_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="8.15" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 -E14 E13 E37" />
     </flow>
-    <flow id="f_-E36_E37_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="350.43" departLane="best" departSpeed="max">
-        <route edges="-E36 -E16 -E14 E13 E37"/>
+    <flow id="f_-E36_E37_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="350.43" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 -E14 E13 E37" />
     </flow>
-    <flow id="f_-E36_E37_passenger" type="passenger" begin="0.00" end="3600.00" perHour="48.90" departLane="best" departSpeed="max">
-        <route edges="-E36 -E16 -E14 E13 E37"/>
+    <flow id="f_-E36_E37_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="48.90" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 -E14 E13 E37" />
     </flow>
-    <flow id="f_-E36_E38_bus" type="bus" begin="0.00" end="3600.00" perHour="5.58" departLane="best" departSpeed="max">
-        <route edges="-E36 -E16 -E14 -E5 E6 E27 E38"/>
+    <flow id="f_-E36_E38_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="5.58" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 -E14 -E5 E6 E27 E38" />
     </flow>
-    <flow id="f_-E36_E38_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="240.05" departLane="best" departSpeed="max">
-        <route edges="-E36 -E16 -E3 E2 E26 E27 E38"/>
+    <flow id="f_-E36_E38_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="240.05" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 -E3 E2 E26 E27 E38" />
     </flow>
-    <flow id="f_-E36_E38_passenger" type="passenger" begin="0.00" end="3600.00" perHour="33.50" departLane="best" departSpeed="max">
-        <route edges="-E36 -E16 -E3 E2 E26 E27 E38"/>
+    <flow id="f_-E36_E38_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="33.50" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 -E3 E2 E26 E27 E38" />
     </flow>
-    <flow id="f_-E36_E39_bus" type="bus" begin="0.00" end="3600.00" perHour="6.53" departLane="best" departSpeed="max">
-        <route edges="-E36 -E16 -E3 E2 E25 E39"/>
+    <flow id="f_-E36_E39_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="6.53" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 -E3 E2 E25 E39" />
     </flow>
-    <flow id="f_-E36_E39_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="280.70" departLane="best" departSpeed="max">
-        <route edges="-E36 -E16 -E3 E2 E25 E39"/>
+    <flow id="f_-E36_E39_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="280.70" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 -E3 E2 E25 E39" />
     </flow>
-    <flow id="f_-E36_E39_passenger" type="passenger" begin="0.00" end="3600.00" perHour="39.17" departLane="best" departSpeed="max">
-        <route edges="-E36 -E16 -E3 E2 E25 E39"/>
+    <flow id="f_-E36_E39_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="39.17" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 -E3 E2 E25 E39" />
     </flow>
-    <flow id="f_-E36_E40_bus" type="bus" begin="0.00" end="3600.00" perHour="11.17" departLane="best" departSpeed="max">
-        <route edges="-E36 -E16 E15 -E18 E19 E22 E40"/>
+    <flow id="f_-E36_E40_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="11.17" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 E15 -E18 E19 E22 E40" />
     </flow>
-    <flow id="f_-E36_E40_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="480.13" departLane="best" departSpeed="max">
-        <route edges="-E36 -E16 E15 -E18 E19 E22 E40"/>
+    <flow id="f_-E36_E40_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="480.13" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 E15 -E18 E19 E22 E40" />
     </flow>
-    <flow id="f_-E36_E40_passenger" type="passenger" begin="0.00" end="3600.00" perHour="66.99" departLane="best" departSpeed="max">
-        <route edges="-E36 -E16 E15 -E18 E19 E22 E40"/>
+    <flow id="f_-E36_E40_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="66.99" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 E15 -E18 E19 E22 E40" />
     </flow>
-    <flow id="f_-E37_E29_bus" type="bus" begin="0.00" end="3600.00" perHour="9.32" departLane="best" departSpeed="max">
-        <route edges="-E37 -E13 -E5 E6 E28 E29"/>
+    <flow id="f_-E37_E29_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="9.32" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 -E5 E6 E28 E29" />
     </flow>
-    <flow id="f_-E37_E29_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="400.58" departLane="best" departSpeed="max">
-        <route edges="-E37 -E13 -E5 E6 E28 E29"/>
+    <flow id="f_-E37_E29_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="400.58" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 -E5 E6 E28 E29" />
     </flow>
-    <flow id="f_-E37_E29_passenger" type="passenger" begin="0.00" end="3600.00" perHour="55.90" departLane="best" departSpeed="max">
-        <route edges="-E37 -E13 -E5 E6 E28 E29"/>
+    <flow id="f_-E37_E29_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="55.90" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 -E5 E6 E28 E29" />
     </flow>
-    <flow id="f_-E37_E30_bus" type="bus" begin="0.00" end="3600.00" perHour="17.47" departLane="best" departSpeed="max">
-        <route edges="-E37 -E13 E14 E15 -E18 E19 E23 E30"/>
+    <flow id="f_-E37_E30_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="17.47" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 E14 E15 -E18 E19 E23 E30" />
     </flow>
-    <flow id="f_-E37_E30_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="751.10" departLane="best" departSpeed="max">
-        <route edges="-E37 -E13 -E5 E6 -E26 -E24 E23 E30"/>
+    <flow id="f_-E37_E30_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="751.10" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 -E5 E6 -E26 -E24 E23 E30" />
     </flow>
-    <flow id="f_-E37_E30_passenger" type="passenger" begin="0.00" end="3600.00" perHour="104.80" departLane="best" departSpeed="max">
-        <route edges="-E37 -E13 -E5 E6 -E26 -E24 E23 E30"/>
+    <flow id="f_-E37_E30_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="104.80" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 -E5 E6 -E26 -E24 E23 E30" />
     </flow>
-    <flow id="f_-E37_E31_bus" type="bus" begin="0.00" end="3600.00" perHour="24.42" departLane="best" departSpeed="max">
-        <route edges="-E37 -E13 E14 E15 E20 E31"/>
+    <flow id="f_-E37_E31_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="24.42" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 E14 E15 E20 E31" />
     </flow>
-    <flow id="f_-E37_E31_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="1050.18" departLane="best" departSpeed="max">
-        <route edges="-E37 -E13 E14 E15 E20 E31"/>
+    <flow id="f_-E37_E31_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="1050.18" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 E14 E15 E20 E31" />
     </flow>
-    <flow id="f_-E37_E31_passenger" type="passenger" begin="0.00" end="3600.00" perHour="146.53" departLane="best" departSpeed="max">
-        <route edges="-E37 -E13 E14 E15 E20 E31"/>
+    <flow id="f_-E37_E31_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="146.53" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 E14 E15 E20 E31" />
     </flow>
-    <flow id="f_-E37_E32_bus" type="bus" begin="0.00" end="3600.00" perHour="6.56" departLane="best" departSpeed="max">
-        <route edges="-E37 -E13 E12 E32"/>
+    <flow id="f_-E37_E32_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="6.56" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 E12 E32" />
     </flow>
-    <flow id="f_-E37_E32_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="281.93" departLane="best" departSpeed="max">
-        <route edges="-E37 -E13 E12 E32"/>
+    <flow id="f_-E37_E32_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="281.93" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 E12 E32" />
     </flow>
-    <flow id="f_-E37_E32_passenger" type="passenger" begin="0.00" end="3600.00" perHour="39.34" departLane="best" departSpeed="max">
-        <route edges="-E37 -E13 E12 E32"/>
+    <flow id="f_-E37_E32_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="39.34" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 E12 E32" />
     </flow>
-    <flow id="f_-E37_E33_bus" type="bus" begin="0.00" end="3600.00" perHour="19.19" departLane="best" departSpeed="max">
-        <route edges="-E37 -E13 -E5 E4 E33"/>
+    <flow id="f_-E37_E33_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="19.19" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 -E5 E4 E33" />
     </flow>
-    <flow id="f_-E37_E33_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="824.93" departLane="best" departSpeed="max">
-        <route edges="-E37 -E13 -E5 E4 E33"/>
+    <flow id="f_-E37_E33_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="824.93" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 -E5 E4 E33" />
     </flow>
-    <flow id="f_-E37_E33_passenger" type="passenger" begin="0.00" end="3600.00" perHour="115.12" departLane="best" departSpeed="max">
-        <route edges="-E37 -E13 -E5 E4 E33"/>
+    <flow id="f_-E37_E33_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="115.12" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 -E5 E4 E33" />
     </flow>
-    <flow id="f_-E37_E34_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="17.25" departLane="best" departSpeed="max">
-        <route edges="-E37 -E13 -E5 -E0 E1 E17 E34"/>
+    <flow id="f_-E37_E34_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="17.25" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 -E5 -E0 E1 E17 E34" />
     </flow>
-    <flow id="f_-E37_E34_passenger" type="passenger" begin="0.00" end="3600.00" perHour="2.41" departLane="best" departSpeed="max">
-        <route edges="-E37 -E13 -E5 -E0 E1 E17 E34"/>
+    <flow id="f_-E37_E34_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="2.41" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 -E5 -E0 E1 E17 E34" />
     </flow>
-    <flow id="f_-E37_E35_bus" type="bus" begin="0.00" end="3600.00" perHour="6.32" departLane="best" departSpeed="max">
-        <route edges="-E37 -E13 E14 E15 E21 E35"/>
+    <flow id="f_-E37_E35_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="6.32" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 E14 E15 E21 E35" />
     </flow>
-    <flow id="f_-E37_E35_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="271.72" departLane="best" departSpeed="max">
-        <route edges="-E37 -E13 E14 E15 E21 E35"/>
+    <flow id="f_-E37_E35_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="271.72" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 E14 E15 E21 E35" />
     </flow>
-    <flow id="f_-E37_E35_passenger" type="passenger" begin="0.00" end="3600.00" perHour="37.91" departLane="best" departSpeed="max">
-        <route edges="-E37 -E13 E14 E15 E21 E35"/>
+    <flow id="f_-E37_E35_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="37.91" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 E14 E15 E21 E35" />
     </flow>
-    <flow id="f_-E37_E36_bus" type="bus" begin="0.00" end="3600.00" perHour="6.51" departLane="best" departSpeed="max">
-        <route edges="-E37 -E13 E14 E16 E36"/>
+    <flow id="f_-E37_E36_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="6.51" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 E14 E16 E36" />
     </flow>
-    <flow id="f_-E37_E36_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="280.05" departLane="best" departSpeed="max">
-        <route edges="-E37 -E13 E14 E16 E36"/>
+    <flow id="f_-E37_E36_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="280.05" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 E14 E16 E36" />
     </flow>
-    <flow id="f_-E37_E36_passenger" type="passenger" begin="0.00" end="3600.00" perHour="39.08" departLane="best" departSpeed="max">
-        <route edges="-E37 -E13 E14 E16 E36"/>
+    <flow id="f_-E37_E36_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="39.08" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 E14 E16 E36" />
     </flow>
-    <flow id="f_-E37_E37_bus" type="bus" begin="0.00" end="3600.00" perHour="8.48" departLane="best" departSpeed="max">
-        <route edges="-E37 -E13 E14 -E3 E0 E5 E13 E37"/>
+    <flow id="f_-E37_E37_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="8.48" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 E14 -E3 E0 E5 E13 E37" />
     </flow>
-    <flow id="f_-E37_E37_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="364.45" departLane="best" departSpeed="max">
-        <route edges="-E37 -E13 E14 -E3 E0 E5 E13 E37"/>
+    <flow id="f_-E37_E37_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="364.45" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 E14 -E3 E0 E5 E13 E37" />
     </flow>
-    <flow id="f_-E37_E37_passenger" type="passenger" begin="0.00" end="3600.00" perHour="50.85" departLane="best" departSpeed="max">
-        <route edges="-E37 -E13 E14 -E3 E0 E5 E13 E37"/>
+    <flow id="f_-E37_E37_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="50.85" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 E14 -E3 E0 E5 E13 E37" />
     </flow>
-    <flow id="f_-E37_E38_bus" type="bus" begin="0.00" end="3600.00" perHour="25.28" departLane="best" departSpeed="max">
-        <route edges="-E37 -E13 -E5 E6 E27 E38"/>
+    <flow id="f_-E37_E38_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="25.28" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 -E5 E6 E27 E38" />
     </flow>
-    <flow id="f_-E37_E38_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="1087.28" departLane="best" departSpeed="max">
-        <route edges="-E37 -E13 -E5 E6 E27 E38"/>
+    <flow id="f_-E37_E38_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="1087.28" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 -E5 E6 E27 E38" />
     </flow>
-    <flow id="f_-E37_E38_passenger" type="passenger" begin="0.00" end="3600.00" perHour="151.70" departLane="best" departSpeed="max">
-        <route edges="-E37 -E13 -E5 E6 E27 E38"/>
+    <flow id="f_-E37_E38_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="151.70" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 -E5 E6 E27 E38" />
     </flow>
-    <flow id="f_-E37_E39_bus" type="bus" begin="0.00" end="3600.00" perHour="2.66" departLane="best" departSpeed="max">
-        <route edges="-E37 -E13 -E5 -E0 E2 E25 E39"/>
+    <flow id="f_-E37_E39_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="2.66" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 -E5 -E0 E2 E25 E39" />
     </flow>
-    <flow id="f_-E37_E39_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="114.44" departLane="best" departSpeed="max">
-        <route edges="-E37 -E13 -E5 -E0 E2 E25 E39"/>
+    <flow id="f_-E37_E39_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="114.44" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 -E5 -E0 E2 E25 E39" />
     </flow>
-    <flow id="f_-E37_E39_passenger" type="passenger" begin="0.00" end="3600.00" perHour="15.97" departLane="best" departSpeed="max">
-        <route edges="-E37 -E13 -E5 -E0 E2 E25 E39"/>
+    <flow id="f_-E37_E39_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="15.97" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 -E5 -E0 E2 E25 E39" />
     </flow>
-    <flow id="f_-E37_E40_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="36.66" departLane="best" departSpeed="max">
-        <route edges="-E37 -E13 E14 E15 -E18 E19 E22 E40"/>
+    <flow id="f_-E37_E40_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="36.66" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 E14 E15 -E18 E19 E22 E40" />
     </flow>
-    <flow id="f_-E37_E40_passenger" type="passenger" begin="0.00" end="3600.00" perHour="5.11" departLane="best" departSpeed="max">
-        <route edges="-E37 -E13 E14 E15 -E18 E19 E22 E40"/>
+    <flow id="f_-E37_E40_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="5.11" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 E14 E15 -E18 E19 E22 E40" />
     </flow>
-    <flow id="f_-E38_E29_bus" type="bus" begin="0.00" end="3600.00" perHour="7.82" departLane="best" departSpeed="max">
-        <route edges="-E38 -E27 E28 E29"/>
+    <flow id="f_-E38_E29_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="7.82" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 E28 E29" />
     </flow>
-    <flow id="f_-E38_E29_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="336.45" departLane="best" departSpeed="max">
-        <route edges="-E38 -E27 E28 E29"/>
+    <flow id="f_-E38_E29_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="336.45" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 E28 E29" />
     </flow>
-    <flow id="f_-E38_E29_passenger" type="passenger" begin="0.00" end="3600.00" perHour="46.95" departLane="best" departSpeed="max">
-        <route edges="-E38 -E27 E28 E29"/>
+    <flow id="f_-E38_E29_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="46.95" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 E28 E29" />
     </flow>
-    <flow id="f_-E38_E30_bus" type="bus" begin="0.00" end="3600.00" perHour="9.63" departLane="best" departSpeed="max">
-        <route edges="-E38 -E27 -E26 -E24 E23 E30"/>
+    <flow id="f_-E38_E30_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="9.63" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E26 -E24 E23 E30" />
     </flow>
-    <flow id="f_-E38_E30_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="413.94" departLane="best" departSpeed="max">
-        <route edges="-E38 -E27 -E26 -E24 E23 E30"/>
+    <flow id="f_-E38_E30_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="413.94" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E26 -E24 E23 E30" />
     </flow>
-    <flow id="f_-E38_E30_passenger" type="passenger" begin="0.00" end="3600.00" perHour="57.76" departLane="best" departSpeed="max">
-        <route edges="-E38 -E27 -E26 -E24 E23 E30"/>
+    <flow id="f_-E38_E30_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="57.76" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E26 -E24 E23 E30" />
     </flow>
-    <flow id="f_-E38_E31_bus" type="bus" begin="0.00" end="3600.00" perHour="8.30" departLane="best" departSpeed="max">
-        <route edges="-E38 -E27 -E26 -E2 E1 E18 E20 E31"/>
+    <flow id="f_-E38_E31_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="8.30" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E26 -E2 E1 E18 E20 E31" />
     </flow>
-    <flow id="f_-E38_E31_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="356.72" departLane="best" departSpeed="max">
-        <route edges="-E38 -E27 -E6 E5 E14 E15 E20 E31"/>
+    <flow id="f_-E38_E31_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="356.72" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E6 E5 E14 E15 E20 E31" />
     </flow>
-    <flow id="f_-E38_E31_passenger" type="passenger" begin="0.00" end="3600.00" perHour="49.78" departLane="best" departSpeed="max">
-        <route edges="-E38 -E27 -E6 E5 E14 E15 E20 E31"/>
+    <flow id="f_-E38_E31_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="49.78" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E6 E5 E14 E15 E20 E31" />
     </flow>
-    <flow id="f_-E38_E32_bus" type="bus" begin="0.00" end="3600.00" perHour="3.49" departLane="best" departSpeed="max">
-        <route edges="-E38 -E27 -E6 E5 E12 E32"/>
+    <flow id="f_-E38_E32_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="3.49" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E6 E5 E12 E32" />
     </flow>
-    <flow id="f_-E38_E32_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="150.12" departLane="best" departSpeed="max">
-        <route edges="-E38 -E27 -E6 E5 E12 E32"/>
+    <flow id="f_-E38_E32_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="150.12" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E6 E5 E12 E32" />
     </flow>
-    <flow id="f_-E38_E32_passenger" type="passenger" begin="0.00" end="3600.00" perHour="20.95" departLane="best" departSpeed="max">
-        <route edges="-E38 -E27 -E6 E5 E12 E32"/>
+    <flow id="f_-E38_E32_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="20.95" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E6 E5 E12 E32" />
     </flow>
-    <flow id="f_-E38_E33_bus" type="bus" begin="0.00" end="3600.00" perHour="12.67" departLane="best" departSpeed="max">
-        <route edges="-E38 -E27 -E6 E4 E33"/>
+    <flow id="f_-E38_E33_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="12.67" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E6 E4 E33" />
     </flow>
-    <flow id="f_-E38_E33_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="544.71" departLane="best" departSpeed="max">
-        <route edges="-E38 -E27 -E6 E4 E33"/>
+    <flow id="f_-E38_E33_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="544.71" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E6 E4 E33" />
     </flow>
-    <flow id="f_-E38_E33_passenger" type="passenger" begin="0.00" end="3600.00" perHour="76.01" departLane="best" departSpeed="max">
-        <route edges="-E38 -E27 -E6 E4 E33"/>
+    <flow id="f_-E38_E33_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="76.01" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E6 E4 E33" />
     </flow>
-    <flow id="f_-E38_E34_bus" type="bus" begin="0.00" end="3600.00" perHour="13.91" departLane="best" departSpeed="max">
-        <route edges="-E38 -E27 -E26 -E2 E1 E17 E34"/>
+    <flow id="f_-E38_E34_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="13.91" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E26 -E2 E1 E17 E34" />
     </flow>
-    <flow id="f_-E38_E34_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="598.21" departLane="best" departSpeed="max">
-        <route edges="-E38 -E27 -E6 -E0 E1 E17 E34"/>
+    <flow id="f_-E38_E34_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="598.21" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E6 -E0 E1 E17 E34" />
     </flow>
-    <flow id="f_-E38_E34_passenger" type="passenger" begin="0.00" end="3600.00" perHour="83.47" departLane="best" departSpeed="max">
-        <route edges="-E38 -E27 -E6 -E0 E1 E17 E34"/>
+    <flow id="f_-E38_E34_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="83.47" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E6 -E0 E1 E17 E34" />
     </flow>
-    <flow id="f_-E38_E35_bus" type="bus" begin="0.00" end="3600.00" perHour="15.02" departLane="best" departSpeed="max">
-        <route edges="-E38 -E27 -E6 -E0 E3 E15 E21 E35"/>
+    <flow id="f_-E38_E35_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="15.02" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E6 -E0 E3 E15 E21 E35" />
     </flow>
-    <flow id="f_-E38_E35_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="645.86" departLane="best" departSpeed="max">
-        <route edges="-E38 -E27 -E6 E5 E14 E15 E21 E35"/>
+    <flow id="f_-E38_E35_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="645.86" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E6 E5 E14 E15 E21 E35" />
     </flow>
-    <flow id="f_-E38_E35_passenger" type="passenger" begin="0.00" end="3600.00" perHour="90.12" departLane="best" departSpeed="max">
-        <route edges="-E38 -E27 -E6 E5 E14 E15 E21 E35"/>
+    <flow id="f_-E38_E35_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="90.12" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E6 E5 E14 E15 E21 E35" />
     </flow>
-    <flow id="f_-E38_E36_bus" type="bus" begin="0.00" end="3600.00" perHour="4.51" departLane="best" departSpeed="max">
-        <route edges="-E38 -E27 -E6 E5 E14 E16 E36"/>
+    <flow id="f_-E38_E36_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="4.51" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E6 E5 E14 E16 E36" />
     </flow>
-    <flow id="f_-E38_E36_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="193.74" departLane="best" departSpeed="max">
-        <route edges="-E38 -E27 -E6 E5 E14 E16 E36"/>
+    <flow id="f_-E38_E36_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="193.74" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E6 E5 E14 E16 E36" />
     </flow>
-    <flow id="f_-E38_E36_passenger" type="passenger" begin="0.00" end="3600.00" perHour="27.03" departLane="best" departSpeed="max">
-        <route edges="-E38 -E27 -E6 E5 E14 E16 E36"/>
+    <flow id="f_-E38_E36_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="27.03" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E6 E5 E14 E16 E36" />
     </flow>
-    <flow id="f_-E38_E37_bus" type="bus" begin="0.00" end="3600.00" perHour="12.48" departLane="best" departSpeed="max">
-        <route edges="-E38 -E27 -E6 E5 E13 E37"/>
+    <flow id="f_-E38_E37_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="12.48" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E6 E5 E13 E37" />
     </flow>
-    <flow id="f_-E38_E37_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="536.59" departLane="best" departSpeed="max">
-        <route edges="-E38 -E27 -E6 E5 E13 E37"/>
+    <flow id="f_-E38_E37_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="536.59" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E6 E5 E13 E37" />
     </flow>
-    <flow id="f_-E38_E37_passenger" type="passenger" begin="0.00" end="3600.00" perHour="74.87" departLane="best" departSpeed="max">
-        <route edges="-E38 -E27 -E6 E5 E13 E37"/>
+    <flow id="f_-E38_E37_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="74.87" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E6 E5 E13 E37" />
     </flow>
-    <flow id="f_-E38_E38_bus" type="bus" begin="0.00" end="3600.00" perHour="13.80" departLane="best" departSpeed="max">
-        <route edges="-E38 -E27 -E6 -E0 E2 E26 E27 E38"/>
+    <flow id="f_-E38_E38_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="13.80" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E6 -E0 E2 E26 E27 E38" />
     </flow>
-    <flow id="f_-E38_E38_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="593.28" departLane="best" departSpeed="max">
-        <route edges="-E38 -E27 -E6 -E0 E2 E26 E27 E38"/>
+    <flow id="f_-E38_E38_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="593.28" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E6 -E0 E2 E26 E27 E38" />
     </flow>
-    <flow id="f_-E38_E38_passenger" type="passenger" begin="0.00" end="3600.00" perHour="82.78" departLane="best" departSpeed="max">
-        <route edges="-E38 -E27 -E6 -E0 E2 E26 E27 E38"/>
+    <flow id="f_-E38_E38_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="82.78" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E6 -E0 E2 E26 E27 E38" />
     </flow>
-    <flow id="f_-E38_E39_bus" type="bus" begin="0.00" end="3600.00" perHour="1.57" departLane="best" departSpeed="max">
-        <route edges="-E38 -E27 -E26 E25 E39"/>
+    <flow id="f_-E38_E39_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="1.57" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E26 E25 E39" />
     </flow>
-    <flow id="f_-E38_E39_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="67.53" departLane="best" departSpeed="max">
-        <route edges="-E38 -E27 -E26 E25 E39"/>
+    <flow id="f_-E38_E39_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="67.53" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E26 E25 E39" />
     </flow>
-    <flow id="f_-E38_E39_passenger" type="passenger" begin="0.00" end="3600.00" perHour="9.42" departLane="best" departSpeed="max">
-        <route edges="-E38 -E27 -E26 E25 E39"/>
+    <flow id="f_-E38_E39_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="9.42" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E26 E25 E39" />
     </flow>
-    <flow id="f_-E38_E40_bus" type="bus" begin="0.00" end="3600.00" perHour="9.82" departLane="best" departSpeed="max">
-        <route edges="-E38 -E27 -E26 -E24 E22 E40"/>
+    <flow id="f_-E38_E40_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="9.82" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E26 -E24 E22 E40" />
     </flow>
-    <flow id="f_-E38_E40_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="422.09" departLane="best" departSpeed="max">
-        <route edges="-E38 -E27 -E26 -E24 E22 E40"/>
+    <flow id="f_-E38_E40_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="422.09" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E26 -E24 E22 E40" />
     </flow>
-    <flow id="f_-E38_E40_passenger" type="passenger" begin="0.00" end="3600.00" perHour="58.90" departLane="best" departSpeed="max">
-        <route edges="-E38 -E27 -E26 -E24 E22 E40"/>
+    <flow id="f_-E38_E40_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="58.90" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E26 -E24 E22 E40" />
     </flow>
-    <flow id="f_-E39_E29_bus" type="bus" begin="0.00" end="3600.00" perHour="7.26" departLane="best" departSpeed="max">
-        <route edges="-E39 -E25 E26 E28 E29"/>
+    <flow id="f_-E39_E29_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="7.26" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 E26 E28 E29" />
     </flow>
-    <flow id="f_-E39_E29_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="312.01" departLane="best" departSpeed="max">
-        <route edges="-E39 -E25 E26 E28 E29"/>
+    <flow id="f_-E39_E29_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="312.01" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 E26 E28 E29" />
     </flow>
-    <flow id="f_-E39_E29_passenger" type="passenger" begin="0.00" end="3600.00" perHour="43.54" departLane="best" departSpeed="max">
-        <route edges="-E39 -E25 E26 E28 E29"/>
+    <flow id="f_-E39_E29_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="43.54" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 E26 E28 E29" />
     </flow>
-    <flow id="f_-E39_E30_bus" type="bus" begin="0.00" end="3600.00" perHour="7.02" departLane="best" departSpeed="max">
-        <route edges="-E39 -E25 -E24 E23 E30"/>
+    <flow id="f_-E39_E30_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="7.02" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 -E24 E23 E30" />
     </flow>
-    <flow id="f_-E39_E30_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="302.06" departLane="best" departSpeed="max">
-        <route edges="-E39 -E25 -E24 E23 E30"/>
+    <flow id="f_-E39_E30_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="302.06" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 -E24 E23 E30" />
     </flow>
-    <flow id="f_-E39_E30_passenger" type="passenger" begin="0.00" end="3600.00" perHour="42.15" departLane="best" departSpeed="max">
-        <route edges="-E39 -E25 -E24 E23 E30"/>
+    <flow id="f_-E39_E30_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="42.15" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 -E24 E23 E30" />
     </flow>
-    <flow id="f_-E39_E31_bus" type="bus" begin="0.00" end="3600.00" perHour="15.31" departLane="best" departSpeed="max">
-        <route edges="-E39 -E25 -E24 -E19 E18 E20 E31"/>
+    <flow id="f_-E39_E31_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="15.31" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 -E24 -E19 E18 E20 E31" />
     </flow>
-    <flow id="f_-E39_E31_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="658.38" departLane="best" departSpeed="max">
-        <route edges="-E39 -E25 -E2 E3 E15 E20 E31"/>
+    <flow id="f_-E39_E31_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="658.38" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 -E2 E3 E15 E20 E31" />
     </flow>
-    <flow id="f_-E39_E31_passenger" type="passenger" begin="0.00" end="3600.00" perHour="91.87" departLane="best" departSpeed="max">
-        <route edges="-E39 -E25 -E2 E3 E15 E20 E31"/>
+    <flow id="f_-E39_E31_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="91.87" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 -E2 E3 E15 E20 E31" />
     </flow>
-    <flow id="f_-E39_E32_bus" type="bus" begin="0.00" end="3600.00" perHour="3.91" departLane="best" departSpeed="max">
-        <route edges="-E39 -E25 E26 -E6 E5 E12 E32"/>
+    <flow id="f_-E39_E32_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="3.91" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 E26 -E6 E5 E12 E32" />
     </flow>
-    <flow id="f_-E39_E32_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="168.10" departLane="best" departSpeed="max">
-        <route edges="-E39 -E25 -E2 E3 -E14 E12 E32"/>
+    <flow id="f_-E39_E32_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="168.10" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 -E2 E3 -E14 E12 E32" />
     </flow>
-    <flow id="f_-E39_E32_passenger" type="passenger" begin="0.00" end="3600.00" perHour="23.46" departLane="best" departSpeed="max">
-        <route edges="-E39 -E25 -E2 E3 -E14 E12 E32"/>
+    <flow id="f_-E39_E32_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="23.46" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 -E2 E3 -E14 E12 E32" />
     </flow>
-    <flow id="f_-E39_E33_bus" type="bus" begin="0.00" end="3600.00" perHour="12.97" departLane="best" departSpeed="max">
-        <route edges="-E39 -E25 E26 -E6 E4 E33"/>
+    <flow id="f_-E39_E33_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="12.97" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 E26 -E6 E4 E33" />
     </flow>
-    <flow id="f_-E39_E33_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="557.62" departLane="best" departSpeed="max">
-        <route edges="-E39 -E25 -E2 E0 E4 E33"/>
+    <flow id="f_-E39_E33_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="557.62" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 -E2 E0 E4 E33" />
     </flow>
-    <flow id="f_-E39_E33_passenger" type="passenger" begin="0.00" end="3600.00" perHour="77.81" departLane="best" departSpeed="max">
-        <route edges="-E39 -E25 -E2 E0 E4 E33"/>
+    <flow id="f_-E39_E33_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="77.81" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 -E2 E0 E4 E33" />
     </flow>
-    <flow id="f_-E39_E34_bus" type="bus" begin="0.00" end="3600.00" perHour="3.33" departLane="best" departSpeed="max">
-        <route edges="-E39 -E25 -E24 -E19 E17 E34"/>
+    <flow id="f_-E39_E34_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="3.33" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 -E24 -E19 E17 E34" />
     </flow>
-    <flow id="f_-E39_E34_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="143.23" departLane="best" departSpeed="max">
-        <route edges="-E39 -E25 -E2 E1 E17 E34"/>
+    <flow id="f_-E39_E34_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="143.23" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 -E2 E1 E17 E34" />
     </flow>
-    <flow id="f_-E39_E34_passenger" type="passenger" begin="0.00" end="3600.00" perHour="19.99" departLane="best" departSpeed="max">
-        <route edges="-E39 -E25 -E2 E1 E17 E34"/>
+    <flow id="f_-E39_E34_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="19.99" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 -E2 E1 E17 E34" />
     </flow>
-    <flow id="f_-E39_E35_bus" type="bus" begin="0.00" end="3600.00" perHour="15.88" departLane="best" departSpeed="max">
-        <route edges="-E39 -E25 -E24 -E19 E18 E21 E35"/>
+    <flow id="f_-E39_E35_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="15.88" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 -E24 -E19 E18 E21 E35" />
     </flow>
-    <flow id="f_-E39_E35_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="682.85" departLane="best" departSpeed="max">
-        <route edges="-E39 -E25 -E2 E3 E15 E21 E35"/>
+    <flow id="f_-E39_E35_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="682.85" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 -E2 E3 E15 E21 E35" />
     </flow>
-    <flow id="f_-E39_E35_passenger" type="passenger" begin="0.00" end="3600.00" perHour="95.28" departLane="best" departSpeed="max">
-        <route edges="-E39 -E25 -E2 E3 E15 E21 E35"/>
+    <flow id="f_-E39_E35_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="95.28" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 -E2 E3 E15 E21 E35" />
     </flow>
-    <flow id="f_-E39_E36_bus" type="bus" begin="0.00" end="3600.00" perHour="8.93" departLane="best" departSpeed="max">
-        <route edges="-E39 -E25 -E2 E3 E16 E36"/>
+    <flow id="f_-E39_E36_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="8.93" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 -E2 E3 E16 E36" />
     </flow>
-    <flow id="f_-E39_E36_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="383.84" departLane="best" departSpeed="max">
-        <route edges="-E39 -E25 -E2 E3 E16 E36"/>
+    <flow id="f_-E39_E36_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="383.84" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 -E2 E3 E16 E36" />
     </flow>
-    <flow id="f_-E39_E36_passenger" type="passenger" begin="0.00" end="3600.00" perHour="53.56" departLane="best" departSpeed="max">
-        <route edges="-E39 -E25 -E2 E3 E16 E36"/>
+    <flow id="f_-E39_E36_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="53.56" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 -E2 E3 E16 E36" />
     </flow>
-    <flow id="f_-E39_E37_bus" type="bus" begin="0.00" end="3600.00" perHour="1.41" departLane="best" departSpeed="max">
-        <route edges="-E39 -E25 E26 -E6 E5 E13 E37"/>
+    <flow id="f_-E39_E37_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="1.41" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 E26 -E6 E5 E13 E37" />
     </flow>
-    <flow id="f_-E39_E37_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="60.75" departLane="best" departSpeed="max">
-        <route edges="-E39 -E25 E26 -E6 E5 E13 E37"/>
+    <flow id="f_-E39_E37_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="60.75" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 E26 -E6 E5 E13 E37" />
     </flow>
-    <flow id="f_-E39_E37_passenger" type="passenger" begin="0.00" end="3600.00" perHour="8.48" departLane="best" departSpeed="max">
-        <route edges="-E39 -E25 E26 -E6 E5 E13 E37"/>
+    <flow id="f_-E39_E37_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="8.48" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 E26 -E6 E5 E13 E37" />
     </flow>
-    <flow id="f_-E39_E38_bus" type="bus" begin="0.00" end="3600.00" perHour="9.65" departLane="best" departSpeed="max">
-        <route edges="-E39 -E25 E26 E27 E38"/>
+    <flow id="f_-E39_E38_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="9.65" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 E26 E27 E38" />
     </flow>
-    <flow id="f_-E39_E38_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="415.08" departLane="best" departSpeed="max">
-        <route edges="-E39 -E25 E26 E27 E38"/>
+    <flow id="f_-E39_E38_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="415.08" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 E26 E27 E38" />
     </flow>
-    <flow id="f_-E39_E38_passenger" type="passenger" begin="0.00" end="3600.00" perHour="57.92" departLane="best" departSpeed="max">
-        <route edges="-E39 -E25 E26 E27 E38"/>
+    <flow id="f_-E39_E38_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="57.92" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 E26 E27 E38" />
     </flow>
-    <flow id="f_-E39_E39_bus" type="bus" begin="0.00" end="3600.00" perHour="6.70" departLane="best" departSpeed="max">
-        <route edges="-E39 -E25 -E2 E1 E19 E24 E25 E39"/>
+    <flow id="f_-E39_E39_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="6.70" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 -E2 E1 E19 E24 E25 E39" />
     </flow>
-    <flow id="f_-E39_E39_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="287.98" departLane="best" departSpeed="max">
-        <route edges="-E39 -E25 -E2 E1 E19 E24 E25 E39"/>
+    <flow id="f_-E39_E39_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="287.98" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 -E2 E1 E19 E24 E25 E39" />
     </flow>
-    <flow id="f_-E39_E39_passenger" type="passenger" begin="0.00" end="3600.00" perHour="40.18" departLane="best" departSpeed="max">
-        <route edges="-E39 -E25 -E2 E1 E19 E24 E25 E39"/>
+    <flow id="f_-E39_E39_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="40.18" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 -E2 E1 E19 E24 E25 E39" />
     </flow>
-    <flow id="f_-E39_E40_bus" type="bus" begin="0.00" end="3600.00" perHour="9.22" departLane="best" departSpeed="max">
-        <route edges="-E39 -E25 -E24 E22 E40"/>
+    <flow id="f_-E39_E40_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="9.22" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 -E24 E22 E40" />
     </flow>
-    <flow id="f_-E39_E40_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="396.43" departLane="best" departSpeed="max">
-        <route edges="-E39 -E25 -E24 E22 E40"/>
+    <flow id="f_-E39_E40_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="396.43" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 -E24 E22 E40" />
     </flow>
-    <flow id="f_-E39_E40_passenger" type="passenger" begin="0.00" end="3600.00" perHour="55.32" departLane="best" departSpeed="max">
-        <route edges="-E39 -E25 -E24 E22 E40"/>
+    <flow id="f_-E39_E40_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="55.32" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 -E24 E22 E40" />
     </flow>
-    <flow id="f_-E40_E29_bus" type="bus" begin="0.00" end="3600.00" perHour="2.78" departLane="best" departSpeed="max">
-        <route edges="-E40 -E22 E24 E26 E28 E29"/>
+    <flow id="f_-E40_E29_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="2.78" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 E24 E26 E28 E29" />
     </flow>
-    <flow id="f_-E40_E29_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="119.61" departLane="best" departSpeed="max">
-        <route edges="-E40 -E22 E24 E26 E28 E29"/>
+    <flow id="f_-E40_E29_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="119.61" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 E24 E26 E28 E29" />
     </flow>
-    <flow id="f_-E40_E29_passenger" type="passenger" begin="0.00" end="3600.00" perHour="16.69" departLane="best" departSpeed="max">
-        <route edges="-E40 -E22 E24 E26 E28 E29"/>
+    <flow id="f_-E40_E29_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="16.69" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 E24 E26 E28 E29" />
     </flow>
-    <flow id="f_-E40_E30_bus" type="bus" begin="0.00" end="3600.00" perHour="2.86" departLane="best" departSpeed="max">
-        <route edges="-E40 -E22 E23 E30"/>
+    <flow id="f_-E40_E30_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="2.86" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 E23 E30" />
     </flow>
-    <flow id="f_-E40_E30_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="122.94" departLane="best" departSpeed="max">
-        <route edges="-E40 -E22 E23 E30"/>
+    <flow id="f_-E40_E30_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="122.94" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 E23 E30" />
     </flow>
-    <flow id="f_-E40_E30_passenger" type="passenger" begin="0.00" end="3600.00" perHour="17.15" departLane="best" departSpeed="max">
-        <route edges="-E40 -E22 E23 E30"/>
+    <flow id="f_-E40_E30_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="17.15" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 E23 E30" />
     </flow>
-    <flow id="f_-E40_E31_bus" type="bus" begin="0.00" end="3600.00" perHour="18.05" departLane="best" departSpeed="max">
-        <route edges="-E40 -E22 -E19 E18 E20 E31"/>
+    <flow id="f_-E40_E31_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="18.05" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 -E19 E18 E20 E31" />
     </flow>
-    <flow id="f_-E40_E31_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="776.20" departLane="best" departSpeed="max">
-        <route edges="-E40 -E22 -E19 E18 E20 E31"/>
+    <flow id="f_-E40_E31_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="776.20" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 -E19 E18 E20 E31" />
     </flow>
-    <flow id="f_-E40_E31_passenger" type="passenger" begin="0.00" end="3600.00" perHour="108.30" departLane="best" departSpeed="max">
-        <route edges="-E40 -E22 -E19 E18 E20 E31"/>
+    <flow id="f_-E40_E31_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="108.30" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 -E19 E18 E20 E31" />
     </flow>
-    <flow id="f_-E40_E32_bus" type="bus" begin="0.00" end="3600.00" perHour="13.42" departLane="best" departSpeed="max">
-        <route edges="-E40 -E22 E24 -E2 E0 E5 E12 E32"/>
+    <flow id="f_-E40_E32_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="13.42" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 E24 -E2 E0 E5 E12 E32" />
     </flow>
-    <flow id="f_-E40_E32_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="577.20" departLane="best" departSpeed="max">
-        <route edges="-E40 -E22 -E19 E18 -E15 -E14 E12 E32"/>
+    <flow id="f_-E40_E32_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="577.20" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 -E19 E18 -E15 -E14 E12 E32" />
     </flow>
-    <flow id="f_-E40_E32_passenger" type="passenger" begin="0.00" end="3600.00" perHour="80.54" departLane="best" departSpeed="max">
-        <route edges="-E40 -E22 -E19 E18 -E15 -E14 E12 E32"/>
+    <flow id="f_-E40_E32_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="80.54" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 -E19 E18 -E15 -E14 E12 E32" />
     </flow>
-    <flow id="f_-E40_E33_bus" type="bus" begin="0.00" end="3600.00" perHour="11.00" departLane="best" departSpeed="max">
-        <route edges="-E40 -E22 E24 E26 -E6 E4 E33"/>
+    <flow id="f_-E40_E33_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="11.00" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 E24 E26 -E6 E4 E33" />
     </flow>
-    <flow id="f_-E40_E33_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="472.81" departLane="best" departSpeed="max">
-        <route edges="-E40 -E22 -E19 -E1 E0 E4 E33"/>
+    <flow id="f_-E40_E33_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="472.81" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 -E19 -E1 E0 E4 E33" />
     </flow>
-    <flow id="f_-E40_E33_passenger" type="passenger" begin="0.00" end="3600.00" perHour="65.98" departLane="best" departSpeed="max">
-        <route edges="-E40 -E22 -E19 -E1 E0 E4 E33"/>
+    <flow id="f_-E40_E33_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="65.98" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 -E19 -E1 E0 E4 E33" />
     </flow>
-    <flow id="f_-E40_E34_bus" type="bus" begin="0.00" end="3600.00" perHour="5.63" departLane="best" departSpeed="max">
-        <route edges="-E40 -E22 -E19 E17 E34"/>
+    <flow id="f_-E40_E34_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="5.63" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 -E19 E17 E34" />
     </flow>
-    <flow id="f_-E40_E34_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="241.98" departLane="best" departSpeed="max">
-        <route edges="-E40 -E22 -E19 E17 E34"/>
+    <flow id="f_-E40_E34_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="241.98" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 -E19 E17 E34" />
     </flow>
-    <flow id="f_-E40_E34_passenger" type="passenger" begin="0.00" end="3600.00" perHour="33.77" departLane="best" departSpeed="max">
-        <route edges="-E40 -E22 -E19 E17 E34"/>
+    <flow id="f_-E40_E34_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="33.77" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 -E19 E17 E34" />
     </flow>
-    <flow id="f_-E40_E35_bus" type="bus" begin="0.00" end="3600.00" perHour="6.97" departLane="best" departSpeed="max">
-        <route edges="-E40 -E22 -E19 E18 E21 E35"/>
+    <flow id="f_-E40_E35_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="6.97" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 -E19 E18 E21 E35" />
     </flow>
-    <flow id="f_-E40_E35_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="299.58" departLane="best" departSpeed="max">
-        <route edges="-E40 -E22 -E19 E18 E21 E35"/>
+    <flow id="f_-E40_E35_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="299.58" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 -E19 E18 E21 E35" />
     </flow>
-    <flow id="f_-E40_E35_passenger" type="passenger" begin="0.00" end="3600.00" perHour="41.80" departLane="best" departSpeed="max">
-        <route edges="-E40 -E22 -E19 E18 E21 E35"/>
+    <flow id="f_-E40_E35_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="41.80" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 -E19 E18 E21 E35" />
     </flow>
-    <flow id="f_-E40_E36_bus" type="bus" begin="0.00" end="3600.00" perHour="17.87" departLane="best" departSpeed="max">
-        <route edges="-E40 -E22 E24 -E2 E3 E16 E36"/>
+    <flow id="f_-E40_E36_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="17.87" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 E24 -E2 E3 E16 E36" />
     </flow>
-    <flow id="f_-E40_E36_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="768.41" departLane="best" departSpeed="max">
-        <route edges="-E40 -E22 E24 -E2 E3 E16 E36"/>
+    <flow id="f_-E40_E36_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="768.41" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 E24 -E2 E3 E16 E36" />
     </flow>
-    <flow id="f_-E40_E36_passenger" type="passenger" begin="0.00" end="3600.00" perHour="107.22" departLane="best" departSpeed="max">
-        <route edges="-E40 -E22 E24 -E2 E3 E16 E36"/>
+    <flow id="f_-E40_E36_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="107.22" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 E24 -E2 E3 E16 E36" />
     </flow>
-    <flow id="f_-E40_E37_bus" type="bus" begin="0.00" end="3600.00" perHour="11.73" departLane="best" departSpeed="max">
-        <route edges="-E40 -E22 E24 -E2 E3 -E14 E13 E37"/>
+    <flow id="f_-E40_E37_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="11.73" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 E24 -E2 E3 -E14 E13 E37" />
     </flow>
-    <flow id="f_-E40_E37_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="504.20" departLane="best" departSpeed="max">
-        <route edges="-E40 -E22 E24 E26 -E6 E5 E13 E37"/>
+    <flow id="f_-E40_E37_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="504.20" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 E24 E26 -E6 E5 E13 E37" />
     </flow>
-    <flow id="f_-E40_E37_passenger" type="passenger" begin="0.00" end="3600.00" perHour="70.36" departLane="best" departSpeed="max">
-        <route edges="-E40 -E22 E24 E26 -E6 E5 E13 E37"/>
+    <flow id="f_-E40_E37_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="70.36" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 E24 E26 -E6 E5 E13 E37" />
     </flow>
-    <flow id="f_-E40_E38_bus" type="bus" begin="0.00" end="3600.00" perHour="16.59" departLane="best" departSpeed="max">
-        <route edges="-E40 -E22 E24 E26 E27 E38"/>
+    <flow id="f_-E40_E38_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="16.59" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 E24 E26 E27 E38" />
     </flow>
-    <flow id="f_-E40_E38_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="713.30" departLane="best" departSpeed="max">
-        <route edges="-E40 -E22 E24 E26 E27 E38"/>
+    <flow id="f_-E40_E38_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="713.30" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 E24 E26 E27 E38" />
     </flow>
-    <flow id="f_-E40_E38_passenger" type="passenger" begin="0.00" end="3600.00" perHour="99.52" departLane="best" departSpeed="max">
-        <route edges="-E40 -E22 E24 E26 E27 E38"/>
+    <flow id="f_-E40_E38_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="99.52" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 E24 E26 E27 E38" />
     </flow>
-    <flow id="f_-E40_E39_bus" type="bus" begin="0.00" end="3600.00" perHour="5.49" departLane="best" departSpeed="max">
-        <route edges="-E40 -E22 E24 E25 E39"/>
+    <flow id="f_-E40_E39_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="5.49" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 E24 E25 E39" />
     </flow>
-    <flow id="f_-E40_E39_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="235.86" departLane="best" departSpeed="max">
-        <route edges="-E40 -E22 E24 E25 E39"/>
+    <flow id="f_-E40_E39_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="235.86" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 E24 E25 E39" />
     </flow>
-    <flow id="f_-E40_E39_passenger" type="passenger" begin="0.00" end="3600.00" perHour="32.91" departLane="best" departSpeed="max">
-        <route edges="-E40 -E22 E24 E25 E39"/>
+    <flow id="f_-E40_E39_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="32.91" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 E24 E25 E39" />
     </flow>
-    <flow id="f_-E40_E40_bus" type="bus" begin="0.00" end="3600.00" perHour="15.36" departLane="best" departSpeed="max">
-        <route edges="-E40 -E22 E24 -E2 E1 E19 E22 E40"/>
+    <flow id="f_-E40_E40_bus" type="bus_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="15.36" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 E24 -E2 E1 E19 E22 E40" />
     </flow>
-    <flow id="f_-E40_E40_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="660.43" departLane="best" departSpeed="max">
-        <route edges="-E40 -E22 E24 -E2 E1 E19 E22 E40"/>
+    <flow id="f_-E40_E40_motorcycle" type="motorcycle_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="660.43" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 E24 -E2 E1 E19 E22 E40" />
     </flow>
-    <flow id="f_-E40_E40_passenger" type="passenger" begin="0.00" end="3600.00" perHour="92.15" departLane="best" departSpeed="max">
-        <route edges="-E40 -E22 E24 -E2 E1 E19 E22 E40"/>
+    <flow id="f_-E40_E40_passenger" type="passenger_bignet_train_seed00068_d2000.rou" begin="0.00" end="3600.00" perHour="92.15" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 E24 -E2 E1 E19 E22 E40" />
     </flow>
 </routes>

@@ -37,7 +37,7 @@ from scripts.scenario_config_bridge import apply_calibration_overrides
 from scripts.config_normalization import normalize_action_table_schema
 
 
-def run_training(config: Dict[str, Any], resume_path: Optional[str] = None) -> str:
+def run_training(config: Dict[str, Any], resume_path: Optional[str] = None, start_episode_override: Optional[int] = None) -> str:
     config = apply_calibration_overrides(config, project_root=project_root)
     config = normalize_action_table_schema(config)
     train_cfg = config.get("train", {})
@@ -108,6 +108,11 @@ def run_training(config: Dict[str, Any], resume_path: Optional[str] = None) -> s
         print(f"[Resume] Starting from episode {start_episode}")
         print(f"[Resume] Global step: {resume_global_step}, Phase: {resume_phase_idx}")
         print(f"[Resume] Best reward: {resume_best_reward:.2f}")
+    
+    # Override start episode if explicitly provided (useful for resuming from parallel)
+    if start_episode_override is not None:
+        start_episode = start_episode_override
+        print(f"[Override] Start episode set to: {start_episode}")
 
     run_name = str(run_cfg.get("run_name", "train"))
     run_id = generate_run_id(prefix=run_name)
@@ -485,6 +490,8 @@ def main(argv: Optional[list[str]] = None) -> None:
     parser.add_argument("--results-dir", type=str, default=None)
     parser.add_argument("--resume", type=str, default=None,
                         help="Path to checkpoint (.pt) to resume training from")
+    parser.add_argument("--start-episode", type=int, default=None,
+                        help="Override starting episode number (for resuming from parallel)")
     args = parser.parse_args(argv)
 
     config = load_yaml_config(args.config)
@@ -508,7 +515,7 @@ def main(argv: Optional[list[str]] = None) -> None:
             config["logging"]["results_dir"] = str(args.results_dir)
 
     try:
-        metrics_path = run_training(config, resume_path=args.resume)
+        metrics_path = run_training(config, resume_path=args.resume, start_episode_override=args.start_episode)
         print(f"Training complete. Metrics: {metrics_path}")
     except KeyboardInterrupt:
         print("Training interrupted. Check model_dir for crash checkpoint.")
