@@ -1,0 +1,1300 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- generated on 2026-01-15T17:25:35.878111+07:00 by Eclipse SUMO duarouter 1.25.0
+<duarouterConfiguration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/duarouterConfiguration.xsd">
+
+    <input>
+        <net-file value="C:\Users\Dell\GroupProject2\networks\BIGNET.net.xml"/>
+        <route-files value="C:\Users\Dell\GroupProject2\networks\variants\train\2000\temp_jtr\flows_141.xml"/>
+    </input>
+
+    <output>
+        <output-file value="C:\Users\Dell\GroupProject2\networks\variants\train\2000\bignet_train_seed00141_d2000.rou.xml"/>
+    </output>
+
+    <processing>
+        <route-steps value="3600"/>
+        <keep-flows value="true"/>
+    </processing>
+
+    <report>
+        <ignore-errors value="true"/>
+    </report>
+
+</duarouterConfiguration>
+-->
+
+<routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/routes_file.xsd">
+    <vType id="motorcycle" length="2.00" minGap="0.50" maxSpeed="13.89" vClass="motorcycle" width="0.80" latAlignment="right" accel="3.5" decel="4.0" sigma="0.8"/>
+    <flow id="f_-E29_E29_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="26.05" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E6 -E0 E2 E26 E28 E29"/>
+    </flow>
+    <vType id="passenger" length="4.50" minGap="2.00" maxSpeed="13.89" vClass="passenger" width="1.80" accel="2.5" decel="4.5" sigma="0.3"/>
+    <flow id="f_-E29_E29_passenger" type="passenger" begin="0.00" end="3600.00" perHour="3.64" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E6 -E0 E2 E26 E28 E29"/>
+    </flow>
+    <vType id="bus" length="12.00" minGap="2.50" maxSpeed="10.00" vClass="bus" width="2.50" accel="1.2" decel="2.5" sigma="0.1"/>
+    <flow id="f_-E29_E30_bus" type="bus" begin="0.00" end="3600.00" perHour="15.74" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E26 -E24 E23 E30"/>
+    </flow>
+    <flow id="f_-E29_E30_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="676.69" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E26 -E24 E23 E30"/>
+    </flow>
+    <flow id="f_-E29_E30_passenger" type="passenger" begin="0.00" end="3600.00" perHour="94.42" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E26 -E24 E23 E30"/>
+    </flow>
+    <flow id="f_-E29_E31_bus" type="bus" begin="0.00" end="3600.00" perHour="3.56" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E6 -E0 E3 E15 E20 E31"/>
+    </flow>
+    <flow id="f_-E29_E31_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="153.07" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E6 E5 E14 E15 E20 E31"/>
+    </flow>
+    <flow id="f_-E29_E31_passenger" type="passenger" begin="0.00" end="3600.00" perHour="21.36" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E6 E5 E14 E15 E20 E31"/>
+    </flow>
+    <flow id="f_-E29_E32_bus" type="bus" begin="0.00" end="3600.00" perHour="14.00" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E6 E5 E12 E32"/>
+    </flow>
+    <flow id="f_-E29_E32_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="602.21" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E6 E5 E12 E32"/>
+    </flow>
+    <flow id="f_-E29_E32_passenger" type="passenger" begin="0.00" end="3600.00" perHour="84.02" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E6 E5 E12 E32"/>
+    </flow>
+    <flow id="f_-E29_E33_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="1.41" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E6 E4 E33"/>
+    </flow>
+    <flow id="f_-E29_E34_bus" type="bus" begin="0.00" end="3600.00" perHour="5.40" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E6 -E0 E1 E17 E34"/>
+    </flow>
+    <flow id="f_-E29_E34_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="232.09" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E6 -E0 E1 E17 E34"/>
+    </flow>
+    <flow id="f_-E29_E34_passenger" type="passenger" begin="0.00" end="3600.00" perHour="32.38" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E6 -E0 E1 E17 E34"/>
+    </flow>
+    <flow id="f_-E29_E35_bus" type="bus" begin="0.00" end="3600.00" perHour="11.26" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E6 -E0 E3 E15 E21 E35"/>
+    </flow>
+    <flow id="f_-E29_E35_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="484.33" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E26 -E24 -E19 E18 E21 E35"/>
+    </flow>
+    <flow id="f_-E29_E35_passenger" type="passenger" begin="0.00" end="3600.00" perHour="67.58" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E26 -E24 -E19 E18 E21 E35"/>
+    </flow>
+    <flow id="f_-E29_E36_bus" type="bus" begin="0.00" end="3600.00" perHour="13.75" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E6 E5 E14 E16 E36"/>
+    </flow>
+    <flow id="f_-E29_E36_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="591.42" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E26 -E2 E3 E16 E36"/>
+    </flow>
+    <flow id="f_-E29_E36_passenger" type="passenger" begin="0.00" end="3600.00" perHour="82.52" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E26 -E2 E3 E16 E36"/>
+    </flow>
+    <flow id="f_-E29_E37_bus" type="bus" begin="0.00" end="3600.00" perHour="18.06" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E6 E5 E13 E37"/>
+    </flow>
+    <flow id="f_-E29_E37_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="776.36" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E6 E5 E13 E37"/>
+    </flow>
+    <flow id="f_-E29_E37_passenger" type="passenger" begin="0.00" end="3600.00" perHour="108.34" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E6 E5 E13 E37"/>
+    </flow>
+    <flow id="f_-E29_E38_bus" type="bus" begin="0.00" end="3600.00" perHour="8.25" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 E27 E38"/>
+    </flow>
+    <flow id="f_-E29_E38_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="354.82" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 E27 E38"/>
+    </flow>
+    <flow id="f_-E29_E38_passenger" type="passenger" begin="0.00" end="3600.00" perHour="49.51" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 E27 E38"/>
+    </flow>
+    <flow id="f_-E29_E39_bus" type="bus" begin="0.00" end="3600.00" perHour="5.39" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E26 E25 E39"/>
+    </flow>
+    <flow id="f_-E29_E39_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="231.72" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E26 E25 E39"/>
+    </flow>
+    <flow id="f_-E29_E39_passenger" type="passenger" begin="0.00" end="3600.00" perHour="32.33" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E26 E25 E39"/>
+    </flow>
+    <flow id="f_-E29_E40_bus" type="bus" begin="0.00" end="3600.00" perHour="6.99" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E26 -E24 E22 E40"/>
+    </flow>
+    <flow id="f_-E29_E40_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="300.50" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E26 -E24 E22 E40"/>
+    </flow>
+    <flow id="f_-E29_E40_passenger" type="passenger" begin="0.00" end="3600.00" perHour="41.93" departLane="best" departSpeed="max">
+        <route edges="-E29 -E28 -E26 -E24 E22 E40"/>
+    </flow>
+    <flow id="f_-E30_E29_bus" type="bus" begin="0.00" end="3600.00" perHour="17.57" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 E24 E26 E28 E29"/>
+    </flow>
+    <flow id="f_-E30_E29_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="755.51" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 E24 E26 E28 E29"/>
+    </flow>
+    <flow id="f_-E30_E29_passenger" type="passenger" begin="0.00" end="3600.00" perHour="105.42" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 E24 E26 E28 E29"/>
+    </flow>
+    <flow id="f_-E30_E30_bus" type="bus" begin="0.00" end="3600.00" perHour="3.99" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 E24 -E2 E1 E19 E23 E30"/>
+    </flow>
+    <flow id="f_-E30_E30_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="171.48" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 E24 -E2 E1 E19 E23 E30"/>
+    </flow>
+    <flow id="f_-E30_E30_passenger" type="passenger" begin="0.00" end="3600.00" perHour="23.93" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 E24 -E2 E1 E19 E23 E30"/>
+    </flow>
+    <flow id="f_-E30_E31_bus" type="bus" begin="0.00" end="3600.00" perHour="15.79" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 -E19 E18 E20 E31"/>
+    </flow>
+    <flow id="f_-E30_E31_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="679.12" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 -E19 E18 E20 E31"/>
+    </flow>
+    <flow id="f_-E30_E31_passenger" type="passenger" begin="0.00" end="3600.00" perHour="94.76" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 -E19 E18 E20 E31"/>
+    </flow>
+    <flow id="f_-E30_E32_bus" type="bus" begin="0.00" end="3600.00" perHour="7.77" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 -E19 -E1 E0 E5 E12 E32"/>
+    </flow>
+    <flow id="f_-E30_E32_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="334.14" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 E24 E26 -E6 E5 E12 E32"/>
+    </flow>
+    <flow id="f_-E30_E32_passenger" type="passenger" begin="0.00" end="3600.00" perHour="46.62" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 E24 E26 -E6 E5 E12 E32"/>
+    </flow>
+    <flow id="f_-E30_E33_bus" type="bus" begin="0.00" end="3600.00" perHour="4.85" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 -E19 -E1 E0 E4 E33"/>
+    </flow>
+    <flow id="f_-E30_E33_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="208.38" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 E24 E26 -E6 E4 E33"/>
+    </flow>
+    <flow id="f_-E30_E33_passenger" type="passenger" begin="0.00" end="3600.00" perHour="29.08" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 E24 E26 -E6 E4 E33"/>
+    </flow>
+    <flow id="f_-E30_E34_bus" type="bus" begin="0.00" end="3600.00" perHour="16.13" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 -E19 E17 E34"/>
+    </flow>
+    <flow id="f_-E30_E34_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="693.64" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 -E19 E17 E34"/>
+    </flow>
+    <flow id="f_-E30_E34_passenger" type="passenger" begin="0.00" end="3600.00" perHour="96.80" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 -E19 E17 E34"/>
+    </flow>
+    <flow id="f_-E30_E35_bus" type="bus" begin="0.00" end="3600.00" perHour="5.49" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 -E19 E18 E21 E35"/>
+    </flow>
+    <flow id="f_-E30_E35_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="236.14" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 -E19 E18 E21 E35"/>
+    </flow>
+    <flow id="f_-E30_E35_passenger" type="passenger" begin="0.00" end="3600.00" perHour="32.95" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 -E19 E18 E21 E35"/>
+    </flow>
+    <flow id="f_-E30_E36_bus" type="bus" begin="0.00" end="3600.00" perHour="11.67" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 -E19 -E1 E3 E16 E36"/>
+    </flow>
+    <flow id="f_-E30_E36_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="501.95" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 E24 -E2 E3 E16 E36"/>
+    </flow>
+    <flow id="f_-E30_E36_passenger" type="passenger" begin="0.00" end="3600.00" perHour="70.04" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 E24 -E2 E3 E16 E36"/>
+    </flow>
+    <flow id="f_-E30_E37_bus" type="bus" begin="0.00" end="3600.00" perHour="5.64" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 -E19 -E1 E3 -E14 E13 E37"/>
+    </flow>
+    <flow id="f_-E30_E37_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="242.73" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 E24 E26 -E6 E5 E13 E37"/>
+    </flow>
+    <flow id="f_-E30_E37_passenger" type="passenger" begin="0.00" end="3600.00" perHour="33.87" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 E24 E26 -E6 E5 E13 E37"/>
+    </flow>
+    <flow id="f_-E30_E38_bus" type="bus" begin="0.00" end="3600.00" perHour="5.82" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 E24 E26 E27 E38"/>
+    </flow>
+    <flow id="f_-E30_E38_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="250.42" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 E24 E26 E27 E38"/>
+    </flow>
+    <flow id="f_-E30_E38_passenger" type="passenger" begin="0.00" end="3600.00" perHour="34.94" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 E24 E26 E27 E38"/>
+    </flow>
+    <flow id="f_-E30_E39_bus" type="bus" begin="0.00" end="3600.00" perHour="3.56" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 E24 E25 E39"/>
+    </flow>
+    <flow id="f_-E30_E39_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="153.10" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 E24 E25 E39"/>
+    </flow>
+    <flow id="f_-E30_E39_passenger" type="passenger" begin="0.00" end="3600.00" perHour="21.36" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 E24 E25 E39"/>
+    </flow>
+    <flow id="f_-E30_E40_bus" type="bus" begin="0.00" end="3600.00" perHour="18.23" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 E22 E40"/>
+    </flow>
+    <flow id="f_-E30_E40_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="783.80" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 E22 E40"/>
+    </flow>
+    <flow id="f_-E30_E40_passenger" type="passenger" begin="0.00" end="3600.00" perHour="109.37" departLane="best" departSpeed="max">
+        <route edges="-E30 -E23 E22 E40"/>
+    </flow>
+    <flow id="f_-E31_E29_bus" type="bus" begin="0.00" end="3600.00" perHour="14.51" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E18 -E1 E2 E26 E28 E29"/>
+    </flow>
+    <flow id="f_-E31_E29_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="623.81" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E18 E19 E24 E26 E28 E29"/>
+    </flow>
+    <flow id="f_-E31_E29_passenger" type="passenger" begin="0.00" end="3600.00" perHour="87.04" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E18 E19 E24 E26 E28 E29"/>
+    </flow>
+    <flow id="f_-E31_E30_bus" type="bus" begin="0.00" end="3600.00" perHour="12.83" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E18 E19 E23 E30"/>
+    </flow>
+    <flow id="f_-E31_E30_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="551.64" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E18 E19 E23 E30"/>
+    </flow>
+    <flow id="f_-E31_E30_passenger" type="passenger" begin="0.00" end="3600.00" perHour="76.97" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E18 E19 E23 E30"/>
+    </flow>
+    <flow id="f_-E31_E31_bus" type="bus" begin="0.00" end="3600.00" perHour="10.64" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E18 -E1 E3 E15 E20 E31"/>
+    </flow>
+    <flow id="f_-E31_E31_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="457.49" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E18 -E1 E3 E15 E20 E31"/>
+    </flow>
+    <flow id="f_-E31_E31_passenger" type="passenger" begin="0.00" end="3600.00" perHour="63.84" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E18 -E1 E3 E15 E20 E31"/>
+    </flow>
+    <flow id="f_-E31_E32_bus" type="bus" begin="0.00" end="3600.00" perHour="10.32" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E15 -E14 E12 E32"/>
+    </flow>
+    <flow id="f_-E31_E32_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="443.79" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E15 -E14 E12 E32"/>
+    </flow>
+    <flow id="f_-E31_E32_passenger" type="passenger" begin="0.00" end="3600.00" perHour="61.92" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E15 -E14 E12 E32"/>
+    </flow>
+    <flow id="f_-E31_E33_bus" type="bus" begin="0.00" end="3600.00" perHour="12.25" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E18 -E1 E0 E4 E33"/>
+    </flow>
+    <flow id="f_-E31_E33_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="526.78" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E18 -E1 E0 E4 E33"/>
+    </flow>
+    <flow id="f_-E31_E33_passenger" type="passenger" begin="0.00" end="3600.00" perHour="73.50" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E18 -E1 E0 E4 E33"/>
+    </flow>
+    <flow id="f_-E31_E34_bus" type="bus" begin="0.00" end="3600.00" perHour="8.43" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E18 E17 E34"/>
+    </flow>
+    <flow id="f_-E31_E34_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="362.46" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E18 E17 E34"/>
+    </flow>
+    <flow id="f_-E31_E34_passenger" type="passenger" begin="0.00" end="3600.00" perHour="50.58" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E18 E17 E34"/>
+    </flow>
+    <flow id="f_-E31_E35_bus" type="bus" begin="0.00" end="3600.00" perHour="1.93" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 E21 E35"/>
+    </flow>
+    <flow id="f_-E31_E35_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="83.02" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 E21 E35"/>
+    </flow>
+    <flow id="f_-E31_E35_passenger" type="passenger" begin="0.00" end="3600.00" perHour="11.58" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 E21 E35"/>
+    </flow>
+    <flow id="f_-E31_E36_bus" type="bus" begin="0.00" end="3600.00" perHour="5.47" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E15 E16 E36"/>
+    </flow>
+    <flow id="f_-E31_E36_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="235.42" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E15 E16 E36"/>
+    </flow>
+    <flow id="f_-E31_E36_passenger" type="passenger" begin="0.00" end="3600.00" perHour="32.85" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E15 E16 E36"/>
+    </flow>
+    <flow id="f_-E31_E37_bus" type="bus" begin="0.00" end="3600.00" perHour="6.25" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E15 -E14 E13 E37"/>
+    </flow>
+    <flow id="f_-E31_E37_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="268.68" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E15 -E14 E13 E37"/>
+    </flow>
+    <flow id="f_-E31_E37_passenger" type="passenger" begin="0.00" end="3600.00" perHour="37.49" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E15 -E14 E13 E37"/>
+    </flow>
+    <flow id="f_-E31_E38_bus" type="bus" begin="0.00" end="3600.00" perHour="12.05" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E18 -E1 E2 E26 E27 E38"/>
+    </flow>
+    <flow id="f_-E31_E38_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="517.99" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E15 -E14 -E5 E6 E27 E38"/>
+    </flow>
+    <flow id="f_-E31_E38_passenger" type="passenger" begin="0.00" end="3600.00" perHour="72.28" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E15 -E14 -E5 E6 E27 E38"/>
+    </flow>
+    <flow id="f_-E31_E39_bus" type="bus" begin="0.00" end="3600.00" perHour="16.24" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E18 E19 E24 E25 E39"/>
+    </flow>
+    <flow id="f_-E31_E39_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="698.35" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E15 -E3 E2 E25 E39"/>
+    </flow>
+    <flow id="f_-E31_E39_passenger" type="passenger" begin="0.00" end="3600.00" perHour="97.44" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E15 -E3 E2 E25 E39"/>
+    </flow>
+    <flow id="f_-E31_E40_bus" type="bus" begin="0.00" end="3600.00" perHour="8.99" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E18 E19 E22 E40"/>
+    </flow>
+    <flow id="f_-E31_E40_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="386.56" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E18 E19 E22 E40"/>
+    </flow>
+    <flow id="f_-E31_E40_passenger" type="passenger" begin="0.00" end="3600.00" perHour="53.94" departLane="best" departSpeed="max">
+        <route edges="-E31 -E20 -E18 E19 E22 E40"/>
+    </flow>
+    <flow id="f_-E32_E29_bus" type="bus" begin="0.00" end="3600.00" perHour="6.69" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 -E5 E6 E28 E29"/>
+    </flow>
+    <flow id="f_-E32_E29_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="287.79" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 -E5 E6 E28 E29"/>
+    </flow>
+    <flow id="f_-E32_E29_passenger" type="passenger" begin="0.00" end="3600.00" perHour="40.16" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 -E5 E6 E28 E29"/>
+    </flow>
+    <flow id="f_-E32_E30_bus" type="bus" begin="0.00" end="3600.00" perHour="10.72" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 -E5 -E0 E1 E19 E23 E30"/>
+    </flow>
+    <flow id="f_-E32_E30_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="460.77" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 E14 E15 -E18 E19 E23 E30"/>
+    </flow>
+    <flow id="f_-E32_E30_passenger" type="passenger" begin="0.00" end="3600.00" perHour="64.30" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 E14 E15 -E18 E19 E23 E30"/>
+    </flow>
+    <flow id="f_-E32_E31_bus" type="bus" begin="0.00" end="3600.00" perHour="12.79" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 E14 E15 E20 E31"/>
+    </flow>
+    <flow id="f_-E32_E31_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="549.87" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 E14 E15 E20 E31"/>
+    </flow>
+    <flow id="f_-E32_E31_passenger" type="passenger" begin="0.00" end="3600.00" perHour="76.73" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 E14 E15 E20 E31"/>
+    </flow>
+    <flow id="f_-E32_E32_bus" type="bus" begin="0.00" end="3600.00" perHour="9.78" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 E14 -E3 E0 E5 E12 E32"/>
+    </flow>
+    <flow id="f_-E32_E32_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="420.71" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 E14 -E3 E0 E5 E12 E32"/>
+    </flow>
+    <flow id="f_-E32_E32_passenger" type="passenger" begin="0.00" end="3600.00" perHour="58.70" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 E14 -E3 E0 E5 E12 E32"/>
+    </flow>
+    <flow id="f_-E32_E33_bus" type="bus" begin="0.00" end="3600.00" perHour="4.95" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 -E5 E4 E33"/>
+    </flow>
+    <flow id="f_-E32_E33_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="212.83" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 -E5 E4 E33"/>
+    </flow>
+    <flow id="f_-E32_E33_passenger" type="passenger" begin="0.00" end="3600.00" perHour="29.70" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 -E5 E4 E33"/>
+    </flow>
+    <flow id="f_-E32_E34_bus" type="bus" begin="0.00" end="3600.00" perHour="15.46" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 -E5 -E0 E1 E17 E34"/>
+    </flow>
+    <flow id="f_-E32_E34_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="664.94" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 E14 E15 -E18 E17 E34"/>
+    </flow>
+    <flow id="f_-E32_E34_passenger" type="passenger" begin="0.00" end="3600.00" perHour="92.79" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 E14 E15 -E18 E17 E34"/>
+    </flow>
+    <flow id="f_-E32_E35_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="35.78" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 E14 E15 E21 E35"/>
+    </flow>
+    <flow id="f_-E32_E35_passenger" type="passenger" begin="0.00" end="3600.00" perHour="4.99" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 E14 E15 E21 E35"/>
+    </flow>
+    <flow id="f_-E32_E36_bus" type="bus" begin="0.00" end="3600.00" perHour="5.87" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 E14 E16 E36"/>
+    </flow>
+    <flow id="f_-E32_E36_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="252.45" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 E14 E16 E36"/>
+    </flow>
+    <flow id="f_-E32_E36_passenger" type="passenger" begin="0.00" end="3600.00" perHour="35.23" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 E14 E16 E36"/>
+    </flow>
+    <flow id="f_-E32_E37_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="11.87" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 E13 E37"/>
+    </flow>
+    <flow id="f_-E32_E37_passenger" type="passenger" begin="0.00" end="3600.00" perHour="1.66" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 E13 E37"/>
+    </flow>
+    <flow id="f_-E32_E38_bus" type="bus" begin="0.00" end="3600.00" perHour="4.99" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 -E5 E6 E27 E38"/>
+    </flow>
+    <flow id="f_-E32_E38_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="214.36" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 -E5 E6 E27 E38"/>
+    </flow>
+    <flow id="f_-E32_E38_passenger" type="passenger" begin="0.00" end="3600.00" perHour="29.91" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 -E5 E6 E27 E38"/>
+    </flow>
+    <flow id="f_-E32_E39_bus" type="bus" begin="0.00" end="3600.00" perHour="11.42" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 -E5 -E0 E2 E25 E39"/>
+    </flow>
+    <flow id="f_-E32_E39_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="491.27" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 E14 -E3 E2 E25 E39"/>
+    </flow>
+    <flow id="f_-E32_E39_passenger" type="passenger" begin="0.00" end="3600.00" perHour="68.55" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 E14 -E3 E2 E25 E39"/>
+    </flow>
+    <flow id="f_-E32_E40_bus" type="bus" begin="0.00" end="3600.00" perHour="12.13" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 -E5 -E0 E2 -E24 E22 E40"/>
+    </flow>
+    <flow id="f_-E32_E40_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="521.66" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 E14 E15 -E18 E19 E22 E40"/>
+    </flow>
+    <flow id="f_-E32_E40_passenger" type="passenger" begin="0.00" end="3600.00" perHour="72.79" departLane="best" departSpeed="max">
+        <route edges="-E32 -E12 E14 E15 -E18 E19 E22 E40"/>
+    </flow>
+    <flow id="f_-E33_E29_bus" type="bus" begin="0.00" end="3600.00" perHour="5.58" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 E6 E28 E29"/>
+    </flow>
+    <flow id="f_-E33_E29_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="239.94" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 E6 E28 E29"/>
+    </flow>
+    <flow id="f_-E33_E29_passenger" type="passenger" begin="0.00" end="3600.00" perHour="33.48" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 E6 E28 E29"/>
+    </flow>
+    <flow id="f_-E33_E30_bus" type="bus" begin="0.00" end="3600.00" perHour="10.30" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 -E0 E1 E19 E23 E30"/>
+    </flow>
+    <flow id="f_-E33_E30_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="443.02" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 -E0 E1 E19 E23 E30"/>
+    </flow>
+    <flow id="f_-E33_E30_passenger" type="passenger" begin="0.00" end="3600.00" perHour="61.82" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 -E0 E1 E19 E23 E30"/>
+    </flow>
+    <flow id="f_-E33_E31_bus" type="bus" begin="0.00" end="3600.00" perHour="11.73" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 -E0 E3 E15 E20 E31"/>
+    </flow>
+    <flow id="f_-E33_E31_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="504.56" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 -E0 E3 E15 E20 E31"/>
+    </flow>
+    <flow id="f_-E33_E31_passenger" type="passenger" begin="0.00" end="3600.00" perHour="70.40" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 -E0 E3 E15 E20 E31"/>
+    </flow>
+    <flow id="f_-E33_E32_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="29.03" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 E5 E12 E32"/>
+    </flow>
+    <flow id="f_-E33_E32_passenger" type="passenger" begin="0.00" end="3600.00" perHour="4.05" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 E5 E12 E32"/>
+    </flow>
+    <flow id="f_-E33_E33_bus" type="bus" begin="0.00" end="3600.00" perHour="11.93" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 -E0 E2 E26 -E6 E4 E33"/>
+    </flow>
+    <flow id="f_-E33_E33_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="512.97" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 -E0 E2 E26 -E6 E4 E33"/>
+    </flow>
+    <flow id="f_-E33_E33_passenger" type="passenger" begin="0.00" end="3600.00" perHour="71.57" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 -E0 E2 E26 -E6 E4 E33"/>
+    </flow>
+    <flow id="f_-E33_E34_bus" type="bus" begin="0.00" end="3600.00" perHour="7.98" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 -E0 E1 E17 E34"/>
+    </flow>
+    <flow id="f_-E33_E34_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="343.31" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 -E0 E1 E17 E34"/>
+    </flow>
+    <flow id="f_-E33_E34_passenger" type="passenger" begin="0.00" end="3600.00" perHour="47.90" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 -E0 E1 E17 E34"/>
+    </flow>
+    <flow id="f_-E33_E35_bus" type="bus" begin="0.00" end="3600.00" perHour="7.34" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 -E0 E3 E15 E21 E35"/>
+    </flow>
+    <flow id="f_-E33_E35_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="315.43" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 -E0 E1 E18 E21 E35"/>
+    </flow>
+    <flow id="f_-E33_E35_passenger" type="passenger" begin="0.00" end="3600.00" perHour="44.01" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 -E0 E1 E18 E21 E35"/>
+    </flow>
+    <flow id="f_-E33_E36_bus" type="bus" begin="0.00" end="3600.00" perHour="8.92" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 E5 E14 E16 E36"/>
+    </flow>
+    <flow id="f_-E33_E36_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="383.43" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 -E0 E3 E16 E36"/>
+    </flow>
+    <flow id="f_-E33_E36_passenger" type="passenger" begin="0.00" end="3600.00" perHour="53.50" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 -E0 E3 E16 E36"/>
+    </flow>
+    <flow id="f_-E33_E37_bus" type="bus" begin="0.00" end="3600.00" perHour="3.07" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 E5 E13 E37"/>
+    </flow>
+    <flow id="f_-E33_E37_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="131.88" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 E5 E13 E37"/>
+    </flow>
+    <flow id="f_-E33_E37_passenger" type="passenger" begin="0.00" end="3600.00" perHour="18.40" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 E5 E13 E37"/>
+    </flow>
+    <flow id="f_-E33_E38_bus" type="bus" begin="0.00" end="3600.00" perHour="9.49" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 E6 E27 E38"/>
+    </flow>
+    <flow id="f_-E33_E38_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="407.89" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 E6 E27 E38"/>
+    </flow>
+    <flow id="f_-E33_E38_passenger" type="passenger" begin="0.00" end="3600.00" perHour="56.91" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 E6 E27 E38"/>
+    </flow>
+    <flow id="f_-E33_E39_bus" type="bus" begin="0.00" end="3600.00" perHour="2.33" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 E6 -E26 E25 E39"/>
+    </flow>
+    <flow id="f_-E33_E39_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="100.34" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 -E0 E2 E25 E39"/>
+    </flow>
+    <flow id="f_-E33_E39_passenger" type="passenger" begin="0.00" end="3600.00" perHour="14.00" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 -E0 E2 E25 E39"/>
+    </flow>
+    <flow id="f_-E33_E40_bus" type="bus" begin="0.00" end="3600.00" perHour="11.74" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 -E0 E2 -E24 E22 E40"/>
+    </flow>
+    <flow id="f_-E33_E40_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="504.70" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 -E0 E1 E19 E22 E40"/>
+    </flow>
+    <flow id="f_-E33_E40_passenger" type="passenger" begin="0.00" end="3600.00" perHour="70.42" departLane="best" departSpeed="max">
+        <route edges="-E33 -E4 -E0 E1 E19 E22 E40"/>
+    </flow>
+    <flow id="f_-E34_E29_bus" type="bus" begin="0.00" end="3600.00" perHour="11.43" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 -E1 E2 E26 E28 E29"/>
+    </flow>
+    <flow id="f_-E34_E29_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="491.40" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 -E1 E2 E26 E28 E29"/>
+    </flow>
+    <flow id="f_-E34_E29_passenger" type="passenger" begin="0.00" end="3600.00" perHour="68.56" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 -E1 E2 E26 E28 E29"/>
+    </flow>
+    <flow id="f_-E34_E30_bus" type="bus" begin="0.00" end="3600.00" perHour="6.96" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 E19 E23 E30"/>
+    </flow>
+    <flow id="f_-E34_E30_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="299.35" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 E19 E23 E30"/>
+    </flow>
+    <flow id="f_-E34_E30_passenger" type="passenger" begin="0.00" end="3600.00" perHour="41.77" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 E19 E23 E30"/>
+    </flow>
+    <flow id="f_-E34_E31_bus" type="bus" begin="0.00" end="3600.00" perHour="14.88" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 E18 E20 E31"/>
+    </flow>
+    <flow id="f_-E34_E31_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="639.89" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 E18 E20 E31"/>
+    </flow>
+    <flow id="f_-E34_E31_passenger" type="passenger" begin="0.00" end="3600.00" perHour="89.28" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 E18 E20 E31"/>
+    </flow>
+    <flow id="f_-E34_E32_bus" type="bus" begin="0.00" end="3600.00" perHour="16.58" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 -E1 E0 E5 E12 E32"/>
+    </flow>
+    <flow id="f_-E34_E32_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="713.01" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 -E1 E0 E5 E12 E32"/>
+    </flow>
+    <flow id="f_-E34_E32_passenger" type="passenger" begin="0.00" end="3600.00" perHour="99.48" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 -E1 E0 E5 E12 E32"/>
+    </flow>
+    <flow id="f_-E34_E33_bus" type="bus" begin="0.00" end="3600.00" perHour="14.89" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 -E1 E0 E4 E33"/>
+    </flow>
+    <flow id="f_-E34_E33_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="640.46" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 -E1 E0 E4 E33"/>
+    </flow>
+    <flow id="f_-E34_E33_passenger" type="passenger" begin="0.00" end="3600.00" perHour="89.36" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 -E1 E0 E4 E33"/>
+    </flow>
+    <flow id="f_-E34_E34_bus" type="bus" begin="0.00" end="3600.00" perHour="11.54" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 -E1 E3 E15 -E18 E17 E34"/>
+    </flow>
+    <flow id="f_-E34_E34_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="496.21" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 -E1 E3 E15 -E18 E17 E34"/>
+    </flow>
+    <flow id="f_-E34_E34_passenger" type="passenger" begin="0.00" end="3600.00" perHour="69.24" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 -E1 E3 E15 -E18 E17 E34"/>
+    </flow>
+    <flow id="f_-E34_E35_bus" type="bus" begin="0.00" end="3600.00" perHour="6.26" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 E18 E21 E35"/>
+    </flow>
+    <flow id="f_-E34_E35_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="269.14" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 E18 E21 E35"/>
+    </flow>
+    <flow id="f_-E34_E35_passenger" type="passenger" begin="0.00" end="3600.00" perHour="37.55" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 E18 E21 E35"/>
+    </flow>
+    <flow id="f_-E34_E36_bus" type="bus" begin="0.00" end="3600.00" perHour="5.49" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 E18 -E15 E16 E36"/>
+    </flow>
+    <flow id="f_-E34_E36_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="235.96" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 -E1 E3 E16 E36"/>
+    </flow>
+    <flow id="f_-E34_E36_passenger" type="passenger" begin="0.00" end="3600.00" perHour="32.92" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 -E1 E3 E16 E36"/>
+    </flow>
+    <flow id="f_-E34_E37_bus" type="bus" begin="0.00" end="3600.00" perHour="17.48" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 -E1 E3 -E14 E13 E37"/>
+    </flow>
+    <flow id="f_-E34_E37_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="751.41" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 -E1 E0 E5 E13 E37"/>
+    </flow>
+    <flow id="f_-E34_E37_passenger" type="passenger" begin="0.00" end="3600.00" perHour="104.85" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 -E1 E0 E5 E13 E37"/>
+    </flow>
+    <flow id="f_-E34_E38_bus" type="bus" begin="0.00" end="3600.00" perHour="6.83" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 -E1 E2 E26 E27 E38"/>
+    </flow>
+    <flow id="f_-E34_E38_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="293.69" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 -E1 E0 E6 E27 E38"/>
+    </flow>
+    <flow id="f_-E34_E38_passenger" type="passenger" begin="0.00" end="3600.00" perHour="40.98" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 -E1 E0 E6 E27 E38"/>
+    </flow>
+    <flow id="f_-E34_E39_bus" type="bus" begin="0.00" end="3600.00" perHour="4.91" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 E19 E24 E25 E39"/>
+    </flow>
+    <flow id="f_-E34_E39_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="211.16" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 -E1 E2 E25 E39"/>
+    </flow>
+    <flow id="f_-E34_E39_passenger" type="passenger" begin="0.00" end="3600.00" perHour="29.46" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 -E1 E2 E25 E39"/>
+    </flow>
+    <flow id="f_-E34_E40_bus" type="bus" begin="0.00" end="3600.00" perHour="12.59" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 E19 E22 E40"/>
+    </flow>
+    <flow id="f_-E34_E40_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="541.27" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 E19 E22 E40"/>
+    </flow>
+    <flow id="f_-E34_E40_passenger" type="passenger" begin="0.00" end="3600.00" perHour="75.53" departLane="best" departSpeed="max">
+        <route edges="-E34 -E17 E19 E22 E40"/>
+    </flow>
+    <flow id="f_-E35_E29_bus" type="bus" begin="0.00" end="3600.00" perHour="12.72" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E15 -E3 E0 E6 E28 E29"/>
+    </flow>
+    <flow id="f_-E35_E29_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="547.11" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E18 E19 E24 E26 E28 E29"/>
+    </flow>
+    <flow id="f_-E35_E29_passenger" type="passenger" begin="0.00" end="3600.00" perHour="76.34" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E18 E19 E24 E26 E28 E29"/>
+    </flow>
+    <flow id="f_-E35_E30_bus" type="bus" begin="0.00" end="3600.00" perHour="8.13" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E18 E19 E23 E30"/>
+    </flow>
+    <flow id="f_-E35_E30_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="349.58" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E18 E19 E23 E30"/>
+    </flow>
+    <flow id="f_-E35_E30_passenger" type="passenger" begin="0.00" end="3600.00" perHour="48.78" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E18 E19 E23 E30"/>
+    </flow>
+    <flow id="f_-E35_E31_bus" type="bus" begin="0.00" end="3600.00" perHour="2.12" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 E20 E31"/>
+    </flow>
+    <flow id="f_-E35_E31_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="91.15" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 E20 E31"/>
+    </flow>
+    <flow id="f_-E35_E31_passenger" type="passenger" begin="0.00" end="3600.00" perHour="12.72" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 E20 E31"/>
+    </flow>
+    <flow id="f_-E35_E32_bus" type="bus" begin="0.00" end="3600.00" perHour="9.28" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E15 -E14 E12 E32"/>
+    </flow>
+    <flow id="f_-E35_E32_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="399.11" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E15 -E14 E12 E32"/>
+    </flow>
+    <flow id="f_-E35_E32_passenger" type="passenger" begin="0.00" end="3600.00" perHour="55.69" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E15 -E14 E12 E32"/>
+    </flow>
+    <flow id="f_-E35_E33_bus" type="bus" begin="0.00" end="3600.00" perHour="8.23" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E15 -E3 E0 E4 E33"/>
+    </flow>
+    <flow id="f_-E35_E33_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="353.84" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E18 -E1 E0 E4 E33"/>
+    </flow>
+    <flow id="f_-E35_E33_passenger" type="passenger" begin="0.00" end="3600.00" perHour="49.38" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E18 -E1 E0 E4 E33"/>
+    </flow>
+    <flow id="f_-E35_E34_bus" type="bus" begin="0.00" end="3600.00" perHour="1.07" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E18 E17 E34"/>
+    </flow>
+    <flow id="f_-E35_E34_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="46.07" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E18 E17 E34"/>
+    </flow>
+    <flow id="f_-E35_E34_passenger" type="passenger" begin="0.00" end="3600.00" perHour="6.43" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E18 E17 E34"/>
+    </flow>
+    <flow id="f_-E35_E35_bus" type="bus" begin="0.00" end="3600.00" perHour="7.47" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E18 -E1 E3 E15 E21 E35"/>
+    </flow>
+    <flow id="f_-E35_E35_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="321.20" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E18 -E1 E3 E15 E21 E35"/>
+    </flow>
+    <flow id="f_-E35_E35_passenger" type="passenger" begin="0.00" end="3600.00" perHour="44.82" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E18 -E1 E3 E15 E21 E35"/>
+    </flow>
+    <flow id="f_-E35_E36_bus" type="bus" begin="0.00" end="3600.00" perHour="10.43" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E15 E16 E36"/>
+    </flow>
+    <flow id="f_-E35_E36_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="448.49" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E15 E16 E36"/>
+    </flow>
+    <flow id="f_-E35_E36_passenger" type="passenger" begin="0.00" end="3600.00" perHour="62.58" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E15 E16 E36"/>
+    </flow>
+    <flow id="f_-E35_E37_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="30.71" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E15 -E14 E13 E37"/>
+    </flow>
+    <flow id="f_-E35_E37_passenger" type="passenger" begin="0.00" end="3600.00" perHour="4.29" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E15 -E14 E13 E37"/>
+    </flow>
+    <flow id="f_-E35_E38_bus" type="bus" begin="0.00" end="3600.00" perHour="13.33" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E15 -E3 E2 E26 E27 E38"/>
+    </flow>
+    <flow id="f_-E35_E38_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="573.16" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E18 E19 E24 E26 E27 E38"/>
+    </flow>
+    <flow id="f_-E35_E38_passenger" type="passenger" begin="0.00" end="3600.00" perHour="79.97" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E18 E19 E24 E26 E27 E38"/>
+    </flow>
+    <flow id="f_-E35_E39_bus" type="bus" begin="0.00" end="3600.00" perHour="11.77" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E15 -E3 E2 E25 E39"/>
+    </flow>
+    <flow id="f_-E35_E39_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="506.26" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E18 E19 E24 E25 E39"/>
+    </flow>
+    <flow id="f_-E35_E39_passenger" type="passenger" begin="0.00" end="3600.00" perHour="70.64" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E18 E19 E24 E25 E39"/>
+    </flow>
+    <flow id="f_-E35_E40_bus" type="bus" begin="0.00" end="3600.00" perHour="5.47" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E18 E19 E22 E40"/>
+    </flow>
+    <flow id="f_-E35_E40_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="235.39" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E18 E19 E22 E40"/>
+    </flow>
+    <flow id="f_-E35_E40_passenger" type="passenger" begin="0.00" end="3600.00" perHour="32.84" departLane="best" departSpeed="max">
+        <route edges="-E35 -E21 -E18 E19 E22 E40"/>
+    </flow>
+    <flow id="f_-E36_E29_bus" type="bus" begin="0.00" end="3600.00" perHour="30.98" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 -E14 -E5 E6 E28 E29"/>
+    </flow>
+    <flow id="f_-E36_E29_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="1331.85" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 -E3 E2 E26 E28 E29"/>
+    </flow>
+    <flow id="f_-E36_E29_passenger" type="passenger" begin="0.00" end="3600.00" perHour="185.87" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 -E3 E2 E26 E28 E29"/>
+    </flow>
+    <flow id="f_-E36_E30_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="32.79" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 -E3 E2 -E24 E23 E30"/>
+    </flow>
+    <flow id="f_-E36_E30_passenger" type="passenger" begin="0.00" end="3600.00" perHour="4.58" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 -E3 E2 -E24 E23 E30"/>
+    </flow>
+    <flow id="f_-E36_E31_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="41.84" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 E15 E20 E31"/>
+    </flow>
+    <flow id="f_-E36_E31_passenger" type="passenger" begin="0.00" end="3600.00" perHour="5.84" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 E15 E20 E31"/>
+    </flow>
+    <flow id="f_-E36_E32_bus" type="bus" begin="0.00" end="3600.00" perHour="20.23" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 -E14 E12 E32"/>
+    </flow>
+    <flow id="f_-E36_E32_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="869.99" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 -E14 E12 E32"/>
+    </flow>
+    <flow id="f_-E36_E32_passenger" type="passenger" begin="0.00" end="3600.00" perHour="121.41" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 -E14 E12 E32"/>
+    </flow>
+    <flow id="f_-E36_E33_bus" type="bus" begin="0.00" end="3600.00" perHour="8.52" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 -E14 -E5 E4 E33"/>
+    </flow>
+    <flow id="f_-E36_E33_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="366.34" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 -E3 E0 E4 E33"/>
+    </flow>
+    <flow id="f_-E36_E33_passenger" type="passenger" begin="0.00" end="3600.00" perHour="51.12" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 -E3 E0 E4 E33"/>
+    </flow>
+    <flow id="f_-E36_E34_bus" type="bus" begin="0.00" end="3600.00" perHour="17.68" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 E15 -E18 E17 E34"/>
+    </flow>
+    <flow id="f_-E36_E34_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="760.30" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 -E3 E1 E17 E34"/>
+    </flow>
+    <flow id="f_-E36_E34_passenger" type="passenger" begin="0.00" end="3600.00" perHour="106.09" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 -E3 E1 E17 E34"/>
+    </flow>
+    <flow id="f_-E36_E35_bus" type="bus" begin="0.00" end="3600.00" perHour="8.43" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 E15 E21 E35"/>
+    </flow>
+    <flow id="f_-E36_E35_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="362.50" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 E15 E21 E35"/>
+    </flow>
+    <flow id="f_-E36_E35_passenger" type="passenger" begin="0.00" end="3600.00" perHour="50.58" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 E15 E21 E35"/>
+    </flow>
+    <flow id="f_-E36_E36_bus" type="bus" begin="0.00" end="3600.00" perHour="9.97" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 -E3 E0 E5 E14 E16 E36"/>
+    </flow>
+    <flow id="f_-E36_E36_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="428.52" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 -E3 E0 E5 E14 E16 E36"/>
+    </flow>
+    <flow id="f_-E36_E36_passenger" type="passenger" begin="0.00" end="3600.00" perHour="59.79" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 -E3 E0 E5 E14 E16 E36"/>
+    </flow>
+    <flow id="f_-E36_E37_bus" type="bus" begin="0.00" end="3600.00" perHour="4.14" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 -E14 E13 E37"/>
+    </flow>
+    <flow id="f_-E36_E37_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="178.15" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 -E14 E13 E37"/>
+    </flow>
+    <flow id="f_-E36_E37_passenger" type="passenger" begin="0.00" end="3600.00" perHour="24.86" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 -E14 E13 E37"/>
+    </flow>
+    <flow id="f_-E36_E38_bus" type="bus" begin="0.00" end="3600.00" perHour="8.74" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 -E14 -E5 E6 E27 E38"/>
+    </flow>
+    <flow id="f_-E36_E38_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="375.82" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 -E3 E2 E26 E27 E38"/>
+    </flow>
+    <flow id="f_-E36_E38_passenger" type="passenger" begin="0.00" end="3600.00" perHour="52.44" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 -E3 E2 E26 E27 E38"/>
+    </flow>
+    <flow id="f_-E36_E39_bus" type="bus" begin="0.00" end="3600.00" perHour="14.74" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 -E3 E2 E25 E39"/>
+    </flow>
+    <flow id="f_-E36_E39_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="633.69" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 -E3 E2 E25 E39"/>
+    </flow>
+    <flow id="f_-E36_E39_passenger" type="passenger" begin="0.00" end="3600.00" perHour="88.42" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 -E3 E2 E25 E39"/>
+    </flow>
+    <flow id="f_-E36_E40_bus" type="bus" begin="0.00" end="3600.00" perHour="6.50" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 E15 -E18 E19 E22 E40"/>
+    </flow>
+    <flow id="f_-E36_E40_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="279.39" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 E15 -E18 E19 E22 E40"/>
+    </flow>
+    <flow id="f_-E36_E40_passenger" type="passenger" begin="0.00" end="3600.00" perHour="38.98" departLane="best" departSpeed="max">
+        <route edges="-E36 -E16 E15 -E18 E19 E22 E40"/>
+    </flow>
+    <flow id="f_-E37_E29_bus" type="bus" begin="0.00" end="3600.00" perHour="9.27" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 -E5 E6 E28 E29"/>
+    </flow>
+    <flow id="f_-E37_E29_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="398.76" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 -E5 E6 E28 E29"/>
+    </flow>
+    <flow id="f_-E37_E29_passenger" type="passenger" begin="0.00" end="3600.00" perHour="55.64" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 -E5 E6 E28 E29"/>
+    </flow>
+    <flow id="f_-E37_E30_bus" type="bus" begin="0.00" end="3600.00" perHour="5.44" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 E14 E15 -E18 E19 E23 E30"/>
+    </flow>
+    <flow id="f_-E37_E30_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="233.89" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 -E5 E6 -E26 -E24 E23 E30"/>
+    </flow>
+    <flow id="f_-E37_E30_passenger" type="passenger" begin="0.00" end="3600.00" perHour="32.64" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 -E5 E6 -E26 -E24 E23 E30"/>
+    </flow>
+    <flow id="f_-E37_E31_bus" type="bus" begin="0.00" end="3600.00" perHour="10.57" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 E14 E15 E20 E31"/>
+    </flow>
+    <flow id="f_-E37_E31_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="454.37" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 E14 E15 E20 E31"/>
+    </flow>
+    <flow id="f_-E37_E31_passenger" type="passenger" begin="0.00" end="3600.00" perHour="63.40" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 E14 E15 E20 E31"/>
+    </flow>
+    <flow id="f_-E37_E32_bus" type="bus" begin="0.00" end="3600.00" perHour="5.91" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 E12 E32"/>
+    </flow>
+    <flow id="f_-E37_E32_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="254.06" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 E12 E32"/>
+    </flow>
+    <flow id="f_-E37_E32_passenger" type="passenger" begin="0.00" end="3600.00" perHour="35.45" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 E12 E32"/>
+    </flow>
+    <flow id="f_-E37_E33_bus" type="bus" begin="0.00" end="3600.00" perHour="7.32" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 -E5 E4 E33"/>
+    </flow>
+    <flow id="f_-E37_E33_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="314.74" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 -E5 E4 E33"/>
+    </flow>
+    <flow id="f_-E37_E33_passenger" type="passenger" begin="0.00" end="3600.00" perHour="43.92" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 -E5 E4 E33"/>
+    </flow>
+    <flow id="f_-E37_E34_bus" type="bus" begin="0.00" end="3600.00" perHour="4.39" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 E14 E15 -E18 E17 E34"/>
+    </flow>
+    <flow id="f_-E37_E34_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="188.72" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 -E5 -E0 E1 E17 E34"/>
+    </flow>
+    <flow id="f_-E37_E34_passenger" type="passenger" begin="0.00" end="3600.00" perHour="26.33" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 -E5 -E0 E1 E17 E34"/>
+    </flow>
+    <flow id="f_-E37_E35_bus" type="bus" begin="0.00" end="3600.00" perHour="1.87" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 E14 E15 E21 E35"/>
+    </flow>
+    <flow id="f_-E37_E35_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="80.52" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 E14 E15 E21 E35"/>
+    </flow>
+    <flow id="f_-E37_E35_passenger" type="passenger" begin="0.00" end="3600.00" perHour="11.24" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 E14 E15 E21 E35"/>
+    </flow>
+    <flow id="f_-E37_E36_bus" type="bus" begin="0.00" end="3600.00" perHour="10.64" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 E14 E16 E36"/>
+    </flow>
+    <flow id="f_-E37_E36_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="457.61" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 E14 E16 E36"/>
+    </flow>
+    <flow id="f_-E37_E36_passenger" type="passenger" begin="0.00" end="3600.00" perHour="63.85" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 E14 E16 E36"/>
+    </flow>
+    <flow id="f_-E37_E37_bus" type="bus" begin="0.00" end="3600.00" perHour="2.80" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 E14 -E3 E0 E5 E13 E37"/>
+    </flow>
+    <flow id="f_-E37_E37_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="120.53" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 E14 -E3 E0 E5 E13 E37"/>
+    </flow>
+    <flow id="f_-E37_E37_passenger" type="passenger" begin="0.00" end="3600.00" perHour="16.82" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 E14 -E3 E0 E5 E13 E37"/>
+    </flow>
+    <flow id="f_-E37_E38_bus" type="bus" begin="0.00" end="3600.00" perHour="1.76" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 -E5 E6 E27 E38"/>
+    </flow>
+    <flow id="f_-E37_E38_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="75.72" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 -E5 E6 E27 E38"/>
+    </flow>
+    <flow id="f_-E37_E38_passenger" type="passenger" begin="0.00" end="3600.00" perHour="10.57" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 -E5 E6 E27 E38"/>
+    </flow>
+    <flow id="f_-E37_E39_bus" type="bus" begin="0.00" end="3600.00" perHour="5.18" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 -E5 -E0 E2 E25 E39"/>
+    </flow>
+    <flow id="f_-E37_E39_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="222.90" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 -E5 -E0 E2 E25 E39"/>
+    </flow>
+    <flow id="f_-E37_E39_passenger" type="passenger" begin="0.00" end="3600.00" perHour="31.10" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 -E5 -E0 E2 E25 E39"/>
+    </flow>
+    <flow id="f_-E37_E40_bus" type="bus" begin="0.00" end="3600.00" perHour="8.97" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 -E5 -E0 E2 -E24 E22 E40"/>
+    </flow>
+    <flow id="f_-E37_E40_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="385.93" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 E14 E15 -E18 E19 E22 E40"/>
+    </flow>
+    <flow id="f_-E37_E40_passenger" type="passenger" begin="0.00" end="3600.00" perHour="53.85" departLane="best" departSpeed="max">
+        <route edges="-E37 -E13 E14 E15 -E18 E19 E22 E40"/>
+    </flow>
+    <flow id="f_-E38_E29_bus" type="bus" begin="0.00" end="3600.00" perHour="4.33" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 E28 E29"/>
+    </flow>
+    <flow id="f_-E38_E29_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="186.37" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 E28 E29"/>
+    </flow>
+    <flow id="f_-E38_E29_passenger" type="passenger" begin="0.00" end="3600.00" perHour="26.00" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 E28 E29"/>
+    </flow>
+    <flow id="f_-E38_E30_bus" type="bus" begin="0.00" end="3600.00" perHour="1.26" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E26 -E24 E23 E30"/>
+    </flow>
+    <flow id="f_-E38_E30_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="54.18" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E26 -E24 E23 E30"/>
+    </flow>
+    <flow id="f_-E38_E30_passenger" type="passenger" begin="0.00" end="3600.00" perHour="7.56" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E26 -E24 E23 E30"/>
+    </flow>
+    <flow id="f_-E38_E31_bus" type="bus" begin="0.00" end="3600.00" perHour="14.23" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E26 -E2 E1 E18 E20 E31"/>
+    </flow>
+    <flow id="f_-E38_E31_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="611.83" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E6 E5 E14 E15 E20 E31"/>
+    </flow>
+    <flow id="f_-E38_E31_passenger" type="passenger" begin="0.00" end="3600.00" perHour="85.38" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E6 E5 E14 E15 E20 E31"/>
+    </flow>
+    <flow id="f_-E38_E32_bus" type="bus" begin="0.00" end="3600.00" perHour="14.05" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E6 E5 E12 E32"/>
+    </flow>
+    <flow id="f_-E38_E32_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="604.13" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E6 E5 E12 E32"/>
+    </flow>
+    <flow id="f_-E38_E32_passenger" type="passenger" begin="0.00" end="3600.00" perHour="84.29" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E6 E5 E12 E32"/>
+    </flow>
+    <flow id="f_-E38_E33_bus" type="bus" begin="0.00" end="3600.00" perHour="10.12" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E6 E4 E33"/>
+    </flow>
+    <flow id="f_-E38_E33_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="435.26" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E6 E4 E33"/>
+    </flow>
+    <flow id="f_-E38_E33_passenger" type="passenger" begin="0.00" end="3600.00" perHour="60.74" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E6 E4 E33"/>
+    </flow>
+    <flow id="f_-E38_E34_bus" type="bus" begin="0.00" end="3600.00" perHour="8.06" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E26 -E2 E1 E17 E34"/>
+    </flow>
+    <flow id="f_-E38_E34_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="346.75" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E6 -E0 E1 E17 E34"/>
+    </flow>
+    <flow id="f_-E38_E34_passenger" type="passenger" begin="0.00" end="3600.00" perHour="48.38" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E6 -E0 E1 E17 E34"/>
+    </flow>
+    <flow id="f_-E38_E35_bus" type="bus" begin="0.00" end="3600.00" perHour="1.99" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E6 -E0 E3 E15 E21 E35"/>
+    </flow>
+    <flow id="f_-E38_E35_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="85.73" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E6 E5 E14 E15 E21 E35"/>
+    </flow>
+    <flow id="f_-E38_E35_passenger" type="passenger" begin="0.00" end="3600.00" perHour="11.96" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E6 E5 E14 E15 E21 E35"/>
+    </flow>
+    <flow id="f_-E38_E36_bus" type="bus" begin="0.00" end="3600.00" perHour="12.50" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E6 E5 E14 E16 E36"/>
+    </flow>
+    <flow id="f_-E38_E36_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="537.63" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E6 E5 E14 E16 E36"/>
+    </flow>
+    <flow id="f_-E38_E36_passenger" type="passenger" begin="0.00" end="3600.00" perHour="75.02" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E6 E5 E14 E16 E36"/>
+    </flow>
+    <flow id="f_-E38_E37_bus" type="bus" begin="0.00" end="3600.00" perHour="7.75" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E6 E5 E13 E37"/>
+    </flow>
+    <flow id="f_-E38_E37_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="333.46" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E6 E5 E13 E37"/>
+    </flow>
+    <flow id="f_-E38_E37_passenger" type="passenger" begin="0.00" end="3600.00" perHour="46.53" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E6 E5 E13 E37"/>
+    </flow>
+    <flow id="f_-E38_E38_bus" type="bus" begin="0.00" end="3600.00" perHour="9.20" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E6 -E0 E2 E26 E27 E38"/>
+    </flow>
+    <flow id="f_-E38_E38_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="395.73" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E6 -E0 E2 E26 E27 E38"/>
+    </flow>
+    <flow id="f_-E38_E38_passenger" type="passenger" begin="0.00" end="3600.00" perHour="55.22" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E6 -E0 E2 E26 E27 E38"/>
+    </flow>
+    <flow id="f_-E38_E39_bus" type="bus" begin="0.00" end="3600.00" perHour="3.92" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E26 E25 E39"/>
+    </flow>
+    <flow id="f_-E38_E39_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="168.49" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E26 E25 E39"/>
+    </flow>
+    <flow id="f_-E38_E39_passenger" type="passenger" begin="0.00" end="3600.00" perHour="23.51" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E26 E25 E39"/>
+    </flow>
+    <flow id="f_-E38_E40_bus" type="bus" begin="0.00" end="3600.00" perHour="2.50" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E26 -E24 E22 E40"/>
+    </flow>
+    <flow id="f_-E38_E40_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="107.53" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E26 -E24 E22 E40"/>
+    </flow>
+    <flow id="f_-E38_E40_passenger" type="passenger" begin="0.00" end="3600.00" perHour="15.00" departLane="best" departSpeed="max">
+        <route edges="-E38 -E27 -E26 -E24 E22 E40"/>
+    </flow>
+    <flow id="f_-E39_E29_bus" type="bus" begin="0.00" end="3600.00" perHour="2.25" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 E26 E28 E29"/>
+    </flow>
+    <flow id="f_-E39_E29_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="96.71" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 E26 E28 E29"/>
+    </flow>
+    <flow id="f_-E39_E29_passenger" type="passenger" begin="0.00" end="3600.00" perHour="13.49" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 E26 E28 E29"/>
+    </flow>
+    <flow id="f_-E39_E30_bus" type="bus" begin="0.00" end="3600.00" perHour="8.65" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 -E24 E23 E30"/>
+    </flow>
+    <flow id="f_-E39_E30_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="371.79" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 -E24 E23 E30"/>
+    </flow>
+    <flow id="f_-E39_E30_passenger" type="passenger" begin="0.00" end="3600.00" perHour="51.88" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 -E24 E23 E30"/>
+    </flow>
+    <flow id="f_-E39_E31_bus" type="bus" begin="0.00" end="3600.00" perHour="6.30" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 -E24 -E19 E18 E20 E31"/>
+    </flow>
+    <flow id="f_-E39_E31_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="270.88" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 -E2 E3 E15 E20 E31"/>
+    </flow>
+    <flow id="f_-E39_E31_passenger" type="passenger" begin="0.00" end="3600.00" perHour="37.80" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 -E2 E3 E15 E20 E31"/>
+    </flow>
+    <flow id="f_-E39_E32_bus" type="bus" begin="0.00" end="3600.00" perHour="2.16" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 E26 -E6 E5 E12 E32"/>
+    </flow>
+    <flow id="f_-E39_E32_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="93.05" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 -E2 E3 -E14 E12 E32"/>
+    </flow>
+    <flow id="f_-E39_E32_passenger" type="passenger" begin="0.00" end="3600.00" perHour="12.98" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 -E2 E3 -E14 E12 E32"/>
+    </flow>
+    <flow id="f_-E39_E33_bus" type="bus" begin="0.00" end="3600.00" perHour="10.51" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 E26 -E6 E4 E33"/>
+    </flow>
+    <flow id="f_-E39_E33_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="451.92" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 -E2 E0 E4 E33"/>
+    </flow>
+    <flow id="f_-E39_E33_passenger" type="passenger" begin="0.00" end="3600.00" perHour="63.06" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 -E2 E0 E4 E33"/>
+    </flow>
+    <flow id="f_-E39_E34_bus" type="bus" begin="0.00" end="3600.00" perHour="11.81" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 -E24 -E19 E17 E34"/>
+    </flow>
+    <flow id="f_-E39_E34_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="507.97" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 -E2 E1 E17 E34"/>
+    </flow>
+    <flow id="f_-E39_E34_passenger" type="passenger" begin="0.00" end="3600.00" perHour="70.88" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 -E2 E1 E17 E34"/>
+    </flow>
+    <flow id="f_-E39_E35_bus" type="bus" begin="0.00" end="3600.00" perHour="9.42" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 -E24 -E19 E18 E21 E35"/>
+    </flow>
+    <flow id="f_-E39_E35_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="404.86" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 -E2 E3 E15 E21 E35"/>
+    </flow>
+    <flow id="f_-E39_E35_passenger" type="passenger" begin="0.00" end="3600.00" perHour="56.50" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 -E2 E3 E15 E21 E35"/>
+    </flow>
+    <flow id="f_-E39_E36_bus" type="bus" begin="0.00" end="3600.00" perHour="4.86" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 -E2 E3 E16 E36"/>
+    </flow>
+    <flow id="f_-E39_E36_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="209.02" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 -E2 E3 E16 E36"/>
+    </flow>
+    <flow id="f_-E39_E36_passenger" type="passenger" begin="0.00" end="3600.00" perHour="29.17" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 -E2 E3 E16 E36"/>
+    </flow>
+    <flow id="f_-E39_E37_bus" type="bus" begin="0.00" end="3600.00" perHour="11.81" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 E26 -E6 E5 E13 E37"/>
+    </flow>
+    <flow id="f_-E39_E37_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="507.76" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 E26 -E6 E5 E13 E37"/>
+    </flow>
+    <flow id="f_-E39_E37_passenger" type="passenger" begin="0.00" end="3600.00" perHour="70.85" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 E26 -E6 E5 E13 E37"/>
+    </flow>
+    <flow id="f_-E39_E38_bus" type="bus" begin="0.00" end="3600.00" perHour="11.73" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 E26 E27 E38"/>
+    </flow>
+    <flow id="f_-E39_E38_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="504.56" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 E26 E27 E38"/>
+    </flow>
+    <flow id="f_-E39_E38_passenger" type="passenger" begin="0.00" end="3600.00" perHour="70.41" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 E26 E27 E38"/>
+    </flow>
+    <flow id="f_-E39_E39_bus" type="bus" begin="0.00" end="3600.00" perHour="2.87" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 -E2 E1 E19 E24 E25 E39"/>
+    </flow>
+    <flow id="f_-E39_E39_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="123.58" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 -E2 E1 E19 E24 E25 E39"/>
+    </flow>
+    <flow id="f_-E39_E39_passenger" type="passenger" begin="0.00" end="3600.00" perHour="17.24" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 -E2 E1 E19 E24 E25 E39"/>
+    </flow>
+    <flow id="f_-E39_E40_bus" type="bus" begin="0.00" end="3600.00" perHour="10.07" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 -E24 E22 E40"/>
+    </flow>
+    <flow id="f_-E39_E40_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="433.00" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 -E24 E22 E40"/>
+    </flow>
+    <flow id="f_-E39_E40_passenger" type="passenger" begin="0.00" end="3600.00" perHour="60.42" departLane="best" departSpeed="max">
+        <route edges="-E39 -E25 -E24 E22 E40"/>
+    </flow>
+    <flow id="f_-E40_E29_bus" type="bus" begin="0.00" end="3600.00" perHour="5.06" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 E24 E26 E28 E29"/>
+    </flow>
+    <flow id="f_-E40_E29_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="217.79" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 E24 E26 E28 E29"/>
+    </flow>
+    <flow id="f_-E40_E29_passenger" type="passenger" begin="0.00" end="3600.00" perHour="30.39" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 E24 E26 E28 E29"/>
+    </flow>
+    <flow id="f_-E40_E30_bus" type="bus" begin="0.00" end="3600.00" perHour="9.80" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 E23 E30"/>
+    </flow>
+    <flow id="f_-E40_E30_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="421.20" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 E23 E30"/>
+    </flow>
+    <flow id="f_-E40_E30_passenger" type="passenger" begin="0.00" end="3600.00" perHour="58.77" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 E23 E30"/>
+    </flow>
+    <flow id="f_-E40_E31_bus" type="bus" begin="0.00" end="3600.00" perHour="10.49" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 -E19 E18 E20 E31"/>
+    </flow>
+    <flow id="f_-E40_E31_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="451.01" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 -E19 E18 E20 E31"/>
+    </flow>
+    <flow id="f_-E40_E31_passenger" type="passenger" begin="0.00" end="3600.00" perHour="62.93" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 -E19 E18 E20 E31"/>
+    </flow>
+    <flow id="f_-E40_E32_bus" type="bus" begin="0.00" end="3600.00" perHour="6.08" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 E24 -E2 E0 E5 E12 E32"/>
+    </flow>
+    <flow id="f_-E40_E32_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="261.25" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 -E19 E18 -E15 -E14 E12 E32"/>
+    </flow>
+    <flow id="f_-E40_E32_passenger" type="passenger" begin="0.00" end="3600.00" perHour="36.45" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 -E19 E18 -E15 -E14 E12 E32"/>
+    </flow>
+    <flow id="f_-E40_E33_bus" type="bus" begin="0.00" end="3600.00" perHour="1.77" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 E24 E26 -E6 E4 E33"/>
+    </flow>
+    <flow id="f_-E40_E33_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="76.28" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 -E19 -E1 E0 E4 E33"/>
+    </flow>
+    <flow id="f_-E40_E33_passenger" type="passenger" begin="0.00" end="3600.00" perHour="10.64" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 -E19 -E1 E0 E4 E33"/>
+    </flow>
+    <flow id="f_-E40_E34_bus" type="bus" begin="0.00" end="3600.00" perHour="5.71" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 -E19 E17 E34"/>
+    </flow>
+    <flow id="f_-E40_E34_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="245.57" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 -E19 E17 E34"/>
+    </flow>
+    <flow id="f_-E40_E34_passenger" type="passenger" begin="0.00" end="3600.00" perHour="34.26" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 -E19 E17 E34"/>
+    </flow>
+    <flow id="f_-E40_E35_bus" type="bus" begin="0.00" end="3600.00" perHour="1.48" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 -E19 E18 E21 E35"/>
+    </flow>
+    <flow id="f_-E40_E35_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="63.63" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 -E19 E18 E21 E35"/>
+    </flow>
+    <flow id="f_-E40_E35_passenger" type="passenger" begin="0.00" end="3600.00" perHour="8.88" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 -E19 E18 E21 E35"/>
+    </flow>
+    <flow id="f_-E40_E36_bus" type="bus" begin="0.00" end="3600.00" perHour="10.65" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 E24 -E2 E3 E16 E36"/>
+    </flow>
+    <flow id="f_-E40_E36_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="458.13" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 E24 -E2 E3 E16 E36"/>
+    </flow>
+    <flow id="f_-E40_E36_passenger" type="passenger" begin="0.00" end="3600.00" perHour="63.93" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 E24 -E2 E3 E16 E36"/>
+    </flow>
+    <flow id="f_-E40_E37_bus" type="bus" begin="0.00" end="3600.00" perHour="9.30" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 E24 -E2 E3 -E14 E13 E37"/>
+    </flow>
+    <flow id="f_-E40_E37_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="400.09" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 E24 E26 -E6 E5 E13 E37"/>
+    </flow>
+    <flow id="f_-E40_E37_passenger" type="passenger" begin="0.00" end="3600.00" perHour="55.83" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 E24 E26 -E6 E5 E13 E37"/>
+    </flow>
+    <flow id="f_-E40_E38_bus" type="bus" begin="0.00" end="3600.00" perHour="11.36" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 E24 E26 E27 E38"/>
+    </flow>
+    <flow id="f_-E40_E38_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="488.67" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 E24 E26 E27 E38"/>
+    </flow>
+    <flow id="f_-E40_E38_passenger" type="passenger" begin="0.00" end="3600.00" perHour="68.18" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 E24 E26 E27 E38"/>
+    </flow>
+    <flow id="f_-E40_E39_bus" type="bus" begin="0.00" end="3600.00" perHour="4.72" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 E24 E25 E39"/>
+    </flow>
+    <flow id="f_-E40_E39_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="202.89" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 E24 E25 E39"/>
+    </flow>
+    <flow id="f_-E40_E39_passenger" type="passenger" begin="0.00" end="3600.00" perHour="28.31" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 E24 E25 E39"/>
+    </flow>
+    <flow id="f_-E40_E40_bus" type="bus" begin="0.00" end="3600.00" perHour="6.63" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 E24 -E2 E1 E19 E22 E40"/>
+    </flow>
+    <flow id="f_-E40_E40_motorcycle" type="motorcycle" begin="0.00" end="3600.00" perHour="285.24" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 E24 -E2 E1 E19 E22 E40"/>
+    </flow>
+    <flow id="f_-E40_E40_passenger" type="passenger" begin="0.00" end="3600.00" perHour="39.80" departLane="best" departSpeed="max">
+        <route edges="-E40 -E22 E24 -E2 E1 E19 E22 E40"/>
+    </flow>
+</routes>

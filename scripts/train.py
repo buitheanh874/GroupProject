@@ -12,8 +12,7 @@ import numpy as np
 import time
 import torch
 
-# Optimize PyTorch threading for CPU training (~20% speedup)
-torch.set_num_threads(4)  # Adjust based on your CPU cores
+torch.set_num_threads(4)  
 torch.set_num_interop_threads(2)
 
 
@@ -62,7 +61,6 @@ def run_training(config: Dict[str, Any], resume_path: Optional[str] = None) -> s
                 "name": phase.get("name", "phase"),
                 "episodes": phase.get("episodes", 100),
                 "manifest": phase.get("route_pool_manifest", ""),
-                "demand_scale": phase.get("demand_scale", 1.0),
             })
     else:
         default_episodes = int(train_cfg.get("episodes", 200))
@@ -70,7 +68,6 @@ def run_training(config: Dict[str, Any], resume_path: Optional[str] = None) -> s
             "name": "default",
             "episodes": default_episodes,
             "manifest": train_cfg.get("route_pool_manifest", ""),
-            "demand_scale": 1.0,
         })
     
     total_episodes = sum(p["episodes"] for p in phase_schedule)
@@ -96,7 +93,6 @@ def run_training(config: Dict[str, Any], resume_path: Optional[str] = None) -> s
     agent, _ = build_agent(config, env)
     agent.to_train_mode()
 
-    # Resume logic
     start_episode = 1
     resume_global_step = 0
     resume_phase_idx = 0
@@ -165,7 +161,7 @@ def run_training(config: Dict[str, Any], resume_path: Optional[str] = None) -> s
                     env.set_route_file_pool(routes)
                     print(f"[Curriculum] Phase {phase_idx+1}/{len(phase_schedule)}: {current_phase['name']}")
                     print(f"  Manifest: {manifest_path} ({len(routes)} routes)")
-                    print(f"  Episodes: {current_phase['episodes']}, Demand scale: {current_phase['demand_scale']}")
+                    print(f"  Episodes: {current_phase['episodes']}")
             except Exception as e:
                 print(f"[Curriculum] Warning: Failed to load manifest for phase {phase_idx}: {e}")
     
@@ -225,7 +221,6 @@ def run_training(config: Dict[str, Any], resume_path: Optional[str] = None) -> s
                 if hasattr(env, "set_seed"):
                     env.set_seed(int(seed + episode))
 
-                # SUMO resilience: retry reset up to 3 times
                 reset_ok = False
                 for _retry in range(3):
                     try:
@@ -446,7 +441,7 @@ def run_training(config: Dict[str, Any], resume_path: Optional[str] = None) -> s
                         print(f"  {cycle_tracker.get_summary_str()}")
                         print(f"  Cycle entropy: {cycle_tracker.get_entropy():.3f}")
     except (KeyboardInterrupt, Exception) as e:
-        # Crash recovery: save checkpoint before exiting
+
         try:
             crash_path = os.path.join(model_dir, f"{run_id}_crash_ep{episode}.pt")
             agent.save_checkpoint(crash_path, {

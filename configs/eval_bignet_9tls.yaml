@@ -31,7 +31,6 @@ env:
     max_sim_seconds: 900
     terminate_on_empty: false
     rho_min: 0.1
-    lambda_fairness: 0.0
     action_splits:
       - [0.30, 0.70]
       - [0.40, 0.60]
@@ -51,8 +50,7 @@ env:
     state_dim: 12
     enable_downstream_occupancy: true
     enable_spillback_penalty: true
-    occ_threshold: 0.65
-    beta: 1.0
+    alpha_spillback: 1.0
     lane_groups_by_tls:
       J0:
         lanes_ns_ctrl:

@@ -10,7 +10,6 @@ from torch import nn
 from rl.dueling_dqn import DuelingDQN
 from rl.replay_buffer import ReplayBuffer
 
-
 @dataclass
 class AgentConfig:
     state_dim: int
@@ -25,7 +24,8 @@ class AgentConfig:
     use_time_aware_gamma: bool = False
     gamma_0: float = 0.98
     t_ref: float = 60.0
-    clip_grad_norm: Optional[float] = 10.0 
+    clip_grad_norm: Optional[float] = 10.0
+    use_huber_loss: bool = True  
 
 
 class DQNAgent:
@@ -60,7 +60,8 @@ class DQNAgent:
         self.target_net.eval()
 
         self.optimizer = torch.optim.Adam(self.online_net.parameters(), lr=float(config.learning_rate))
-        self.loss_fn = nn.MSELoss()
+        use_huber = bool(getattr(config, "use_huber_loss", True))
+        self.loss_fn = nn.SmoothL1Loss() if use_huber else nn.MSELoss()
 
         self.replay_buffer = ReplayBuffer(
             capacity=int(config.replay_buffer_size),
@@ -244,8 +245,7 @@ class DQNAgent:
         
         self.update_step_count = payload.get("update_step_count", 0)
         self.target_net.eval()
-        
-        # Return extra state for training loop
+
         excluded_keys = {
             "state_dim", "action_dim", "hidden_dims",
             "online_state_dict", "target_state_dict",
