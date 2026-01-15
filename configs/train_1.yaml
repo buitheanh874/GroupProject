@@ -311,10 +311,10 @@ agent:
 exploration:
   eps_start: 1.0
   eps_end: 0.02
-  eps_decay_steps: 200000
+  eps_decay_steps: 180000  
 
 train:
-  episodes: 1000
+  episodes: 1200
   save_every_episodes: 50
   print_every_episodes: 10
 
@@ -324,47 +324,23 @@ baseline:
 curriculum:
   enabled: true
   phases:
-    - name: "phase1_easy"
-      episodes: 100
-      demand_scale: 0.50
+    - name: "phase1_warmup"
+      episodes: 200
+      max_sim_seconds: 1200
+      route_pool_manifest: networks/variants/train/manifest_d2000.txt
+      description: "2000 veh/hr/lane - 20min early congestion (17%)"
+
+    - name: "phase2_learn"
+      episodes: 400
+      max_sim_seconds: 1500
+      route_pool_manifest: networks/variants/train/manifest_d2000.txt
+      description: "2000 veh/hr/lane - 25min moderate (33%)"
+
+    - name: "phase3_master"
+      episodes: 600
       max_sim_seconds: 1800
-      route_pool_manifest: networks/variants/train/manifest_d400.txt
-      description: "400 veh/hr/lane - easy warmup (10%)"
-
-    - name: "phase2_moderate"
-      episodes: 150
-      demand_scale: 0.75
-      max_sim_seconds: 1800
-      route_pool_manifest: networks/variants/train/manifest_d600.txt
-      description: "600 veh/hr/lane - moderate (15%)"
-
-    - name: "phase3a_hard_short"
-      episodes: 375
-      demand_scale: 1.0
-      max_sim_seconds: 1800
-      route_pool_manifest: networks/variants/train/manifest_d800.txt
-      description: "800 veh/hr/lane - hard 30min (37.5%)"
-
-    - name: "phase3b_hard_long"
-      episodes: 125
-      demand_scale: 1.0
-      max_sim_seconds: 3600
-      route_pool_manifest: networks/variants/train/manifest_d800.txt
-      description: "800 veh/hr/lane - hard 60min (12.5%)"
-
-    - name: "phase4a_challenge_short"
-      episodes: 150
-      demand_scale: 1.25
-      max_sim_seconds: 1800
-      route_pool_manifest: networks/variants/train/manifest_d1000.txt
-      description: "1000 veh/hr/lane - challenge 30min (15%)"
-
-    - name: "phase4b_challenge_long"
-      episodes: 100
-      demand_scale: 1.25
-      max_sim_seconds: 3600
-      route_pool_manifest: networks/variants/train/manifest_d1000.txt
-      description: "1000 veh/hr/lane - challenge 60min (10%)"
+      route_pool_manifest: networks/variants/train/manifest_d2000.txt
+      description: "2000 veh/hr/lane - 30min before severe gridlock (50%)"
 
 logging:
   log_dir: logs/1
@@ -372,15 +348,14 @@ logging:
   results_dir: results/1
 
 parallel:
-  enabled: true
-  num_actors: 2
+  enabled: false  # Using sequential training for better exploration
   base_port: 9500
   base_seed: 42
   chunk_size: 256
   queue_max_chunks: 200
   sync_every_updates: 100
-  epsilon_base: 0.2
-  epsilon_worker_delta: 0.02
+  epsilon_base: 0.20
+  epsilon_worker_delta: 0.03
   reset_max_retries: 3
   reset_backoff_base_sec: 1.0
   reset_backoff_cap_sec: 8.0

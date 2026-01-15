@@ -123,14 +123,23 @@ def collector_process(
         worker_episodes_per_phase = [max(1, p["episodes"] // num_workers) for p in phase_info]
 
         resume_episode = int(parallel_cfg.get("resume_episode", 0))
-        if resume_episode > 0:
-            episode_count = resume_episode
+        episode_offset = int(parallel_cfg.get("episode_offset", 0))
+        
+        # Determine starting episode count (display)
+        # If resume_episode is set, it takes precedence for start state
+        start_episode = max(resume_episode, episode_offset)
+        
+        if start_episode > 0:
+            episode_count = start_episode
+            # Effective progress for curriculum is relative to offset
+            curriculum_progress = max(0, start_episode - episode_offset)
+            
             cumulative = 0
             for idx, p in enumerate(phase_info):
                 phase_eps = worker_episodes_per_phase[idx]
-                if cumulative + phase_eps > resume_episode:
+                if cumulative + phase_eps > curriculum_progress:
                     current_phase_idx = idx
-                    phase_episode_count = resume_episode - cumulative
+                    phase_episode_count = curriculum_progress - cumulative
                     break
                 cumulative += phase_eps
             else:

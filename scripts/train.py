@@ -61,7 +61,6 @@ def run_training(config: Dict[str, Any], resume_path: Optional[str] = None) -> s
                 "name": phase.get("name", "phase"),
                 "episodes": phase.get("episodes", 100),
                 "manifest": phase.get("route_pool_manifest", ""),
-                "demand_scale": phase.get("demand_scale", 1.0),
             })
     else:
         default_episodes = int(train_cfg.get("episodes", 200))
@@ -69,7 +68,6 @@ def run_training(config: Dict[str, Any], resume_path: Optional[str] = None) -> s
             "name": "default",
             "episodes": default_episodes,
             "manifest": train_cfg.get("route_pool_manifest", ""),
-            "demand_scale": 1.0,
         })
     
     total_episodes = sum(p["episodes"] for p in phase_schedule)
@@ -163,7 +161,7 @@ def run_training(config: Dict[str, Any], resume_path: Optional[str] = None) -> s
                     env.set_route_file_pool(routes)
                     print(f"[Curriculum] Phase {phase_idx+1}/{len(phase_schedule)}: {current_phase['name']}")
                     print(f"  Manifest: {manifest_path} ({len(routes)} routes)")
-                    print(f"  Episodes: {current_phase['episodes']}, Demand scale: {current_phase['demand_scale']}")
+                    print(f"  Episodes: {current_phase['episodes']}")
             except Exception as e:
                 print(f"[Curriculum] Warning: Failed to load manifest for phase {phase_idx}: {e}")
     

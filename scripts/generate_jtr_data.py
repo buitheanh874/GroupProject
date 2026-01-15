@@ -46,7 +46,7 @@ def get_source_edges_info(net_file: Path) -> Tuple[Dict[str, int], List[str]]:
     return sources_info, sorted(sink_ids)
 
 
-def generate_flows_xml(output_path: Path, sources_info: Dict[str, int], duration: int, global_scale: float, base_flow: float = HANOI_BASE_FLOW_PER_LANE) -> None:
+def generate_flows_xml(output_path: Path, sources_info: Dict[str, int], sinks: List[str], duration: int, global_scale: float, base_flow: float = HANOI_BASE_FLOW_PER_LANE) -> None:
     root = ET.Element("routes")
 
     vtypes = [
@@ -90,9 +90,10 @@ def generate_flows_xml(output_path: Path, sources_info: Dict[str, int], duration
         ET.SubElement(root, "vType", **vt)
 
     veh_distribution = {
-        "motorcycle": 0.85,
-        "passenger": 0.12,
-        "bus": 0.03,
+        "motorcycle": 0.86,   # 86% xe may
+        "passenger": 0.12,    # 12% o to
+        "bus": 0.02,          # 2% bus
+        # Removed 'other' type
     }
 
     for edge_id, num_lanes in sources_info.items():
@@ -100,19 +101,27 @@ def generate_flows_xml(output_path: Path, sources_info: Dict[str, int], duration
         edge_noise = random.uniform(0.6, 1.1)
         total_edge_flow = base_edge_flow * float(global_scale) * float(edge_noise)
 
-        for v_type, ratio in veh_distribution.items():
-            flow_rate = float(total_edge_flow) * float(ratio)
+        # Randomly split this edge's demand across all sink edges
+        weights = [random.random() + 1e-6 for _ in sinks]
+        total_w = sum(weights)
+        norm_weights = [w / total_w for w in weights]
 
-            if flow_rate > 1.0:
-                flow = ET.SubElement(root, "flow")
-                flow.set("id", f"f_{edge_id}_{v_type}")
-                flow.set("from", str(edge_id))
-                flow.set("begin", "0")
-                flow.set("end", str(int(duration)))
-                flow.set("vehsPerHour", f"{flow_rate:.2f}")
-                flow.set("type", str(v_type))
-                flow.set("departLane", "best")
-                flow.set("departSpeed", "max")
+        for sink_id, sink_weight in zip(sinks, norm_weights):
+            sink_flow = float(total_edge_flow) * sink_weight
+            for v_type, ratio in veh_distribution.items():
+                flow_rate = sink_flow * float(ratio)
+
+                if flow_rate > 1.0:
+                    flow = ET.SubElement(root, "flow")
+                    flow.set("id", f"f_{edge_id}_{sink_id}_{v_type}")
+                    flow.set("from", str(edge_id))
+                    flow.set("to", str(sink_id))
+                    flow.set("begin", "0")
+                    flow.set("end", str(int(duration)))
+                    flow.set("vehsPerHour", f"{flow_rate:.2f}")
+                    flow.set("type", str(v_type))
+                    flow.set("departLane", "best")
+                    flow.set("departSpeed", "max")
 
     tree = ET.ElementTree(root)
     ET.indent(tree, space="    ")
@@ -120,6 +129,7 @@ def generate_flows_xml(output_path: Path, sources_info: Dict[str, int], duration
 
 
 def generate_turnfile_xml(output_path: Path, sinks: List[str], duration: int) -> None:
+    # Deprecated in the new duarouter-based pipeline; kept for compatibility.
     root = ET.Element("turns")
     interval = ET.SubElement(root, "interval")
     interval.set("begin", "0")
@@ -184,21 +194,21 @@ def main() -> None:
 
     base_flow = max(100.0, float(args.base_flow))
     print(f"  Base flow: {base_flow:.0f} veh/hr/lane")
-    generate_flows_xml(flow_file, sources_info, duration, volume_scale, base_flow)
+    generate_flows_xml(flow_file, sources_info, sinks, duration, volume_scale, base_flow)
     generate_turnfile_xml(turn_file, sinks, duration)
 
     cmd = [
-        "python",
-        "-m",
-        "sumolib.tools.generateRoutes",
+        "duarouter",
         "--net-file",
         str(net_path),
-        "--flow-file",
+        "--route-files",
         str(flow_file),
-        "--turn-file",
-        str(turn_file),
-        "--output",
+        "--output-file",
         str(out_path),
+        "--ignore-errors",
+        "--route-steps",
+        str(int(duration)),
+        "--keep-flows",
     ]
 
     try:
@@ -208,7 +218,7 @@ def main() -> None:
     except Exception as exc:
         print(f"Warning: Could not run SUMO route generation: {exc}")
         print("Creating minimal fallback route file...")
-        generate_flows_xml(out_path, sources_info, duration, volume_scale)
+        generate_flows_xml(out_path, sources_info, sinks, duration, volume_scale)
 
     if out_path.exists():
         file_size_kb = out_path.stat().st_size / 1024.0

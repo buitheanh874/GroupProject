@@ -26,6 +26,7 @@ def main(argv: List[str] = None) -> int:
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--resume", type=str, default=None, help="Path to checkpoint to resume from")
     parser.add_argument("--resume-episode", type=int, default=0, help="Starting episode for curriculum resume")
+    parser.add_argument("--episode-offset", type=int, default=0, help="Offset for episode numbering (log only)")
     args = parser.parse_args(argv)
     
     config = load_yaml_config(args.config)
@@ -33,7 +34,11 @@ def main(argv: List[str] = None) -> int:
     
     if args.resume_episode > 0:
         parallel_cfg["resume_episode"] = args.resume_episode
-        config["parallel"] = parallel_cfg
+    
+    if args.episode_offset > 0:
+        parallel_cfg["episode_offset"] = args.episode_offset
+        
+    config["parallel"] = parallel_cfg
     
     if not parallel_cfg.get("enabled", False):
         print("parallel.enabled is false or missing. Use scripts/train.py for standard training.")

@@ -351,9 +351,9 @@ gamma_effective = gamma_0 ** (t_step / t_ref)
 
 | Parameter | Value | Source |
 |-----------|-------|--------|
-| `eps_start` | 1.0 | [configs/train_1.yaml:L309](file:///c:/Users/Dell/GroupProject2/configs/train_1.yaml#L309) |
-| `eps_end` | 0.02 | [configs/train_1.yaml:L310](file:///c:/Users/Dell/GroupProject2/configs/train_1.yaml#L310) |
-| `eps_decay_steps` | 50,000 | [configs/train_1.yaml:L311](file:///c:/Users/Dell/GroupProject2/configs/train_1.yaml#L311) |
+| `eps_start` | 1.0 | [configs/train_1.yaml:L312](file:///c:/Users/Dell/GroupProject2/configs/train_1.yaml#L312) |
+| `eps_end` | 0.02 | [configs/train_1.yaml:L313](file:///c:/Users/Dell/GroupProject2/configs/train_1.yaml#L313) |
+| `eps_decay_steps` | 180,000 | [configs/train_1.yaml:L314](file:///c:/Users/Dell/GroupProject2/configs/train_1.yaml#L314) |
 
 Linear decay formula:
 ```python
@@ -364,15 +364,17 @@ epsilon = eps_start + (eps_end - eps_start) * min(1.0, step / eps_decay_steps)
 
 ### Curriculum Learning
 
-| Phase | Episodes | Demand | Route Manifest |
-|-------|----------|--------|----------------|
-| phase1_warmup | 100 | 50% (400 veh/hr/lane) | `manifest_d400.txt` |
-| phase2_moderate | 150 | 75% (600 veh/hr/lane) | `manifest_d600.txt` |
-| phase3_baseline | 450 | 100% (800 veh/hr/lane) | `manifest_d800.txt` |
-| phase4_high | 200 | 125% (1000 veh/hr/lane) | `manifest_d1000.txt` |
-| phase5_stress | 100 | 150% (1200 veh/hr/lane) | `manifest_d1200.txt` |
+| Phase | Episodes | Duration | Route Manifest |
+|-------|----------|----------|----------------|
+| phase1_warmup | 200 | 1200s (20min) | `manifest_d2000.txt` |
+| phase2_learn | 400 | 1500s (25min) | `manifest_d2000.txt` |
+| phase3_master | 600 | 1800s (30min) | `manifest_d2000.txt` |
 
-(source: [configs/train_1.yaml:L321-348](file:///c:/Users/Dell/GroupProject2/configs/train_1.yaml#L321-348))
+**Demand**: 2000 veh/hr/lane (86% motorcycle, 12% car, 2% bus)
+
+**Duration-based curriculum rationale**: Baseline (fixed-time 120s cycle) shows gridlock starts ~800s. Training up to 1800s allows agent to learn pre-gridlock patterns without excessive noise from gridlock states.
+
+(source: [configs/train_1.yaml:L324-346](file:///c:/Users/Dell/GroupProject2/configs/train_1.yaml#L324-346))
 
 ---
 
