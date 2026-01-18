@@ -142,7 +142,7 @@ class DQNAgent:
             gamma=float(gamma_value),
         )
 
-    def update(self) -> Optional[float]:
+    def update(self) -> Optional[Dict[str, float]]:
         if len(self.replay_buffer) < int(self._config.batch_size):
             return None
 
@@ -154,21 +154,74 @@ class DQNAgent:
             next_q_target = self.target_net(batch.next_states).gather(1, next_actions)
             target_q = batch.rewards + batch.gammas * next_q_target * (1.0 - batch.dones)
 
-        current_q = self.online_net(batch.states).gather(1, batch.actions)
+        # Q-values for all actions (for metrics)
+        q_values = self.online_net(batch.states)
+        current_q = q_values.gather(1, batch.actions)
 
         loss = self.loss_fn(current_q, target_q)
 
         self.optimizer.zero_grad()
         loss.backward()
+        
+        # Grad norm BEFORE clip (preclip)
+        grad_norm_preclip = 0.0
+        for p in self.online_net.parameters():
+            if p.grad is not None:
+                grad_norm_preclip += p.grad.data.norm(2).item() ** 2
+        grad_norm_preclip = grad_norm_preclip ** 0.5
+        
+        # Apply gradient clipping
         if self._config.clip_grad_norm is not None and float(self._config.clip_grad_norm) > 0:
             torch.nn.utils.clip_grad_norm_(self.online_net.parameters(), max_norm=float(self._config.clip_grad_norm))
+        
+        # Grad norm AFTER clip (postclip) - compute actual L2 norm after clipping
+        grad_norm_postclip = 0.0
+        for p in self.online_net.parameters():
+            if p.grad is not None:
+                grad_norm_postclip += p.grad.data.norm(2).item() ** 2
+        grad_norm_postclip = grad_norm_postclip ** 0.5
+        
         self.optimizer.step()
 
         self.update_step_count += 1
         if int(self.update_step_count) % int(self._config.target_update_freq) == 0:
             self.target_net.load_state_dict(self.online_net.state_dict())
 
-        return float(loss.item())
+        # Compute metrics for Scientific Gating
+        with torch.no_grad():
+            q_max_per_state = q_values.max(dim=1)[0]
+            
+            # Gamma from replay (for SMDP scale-aware Q-bound)
+            gammas_np = batch.gammas.cpu().numpy().flatten()
+            rewards_np = batch.rewards.cpu().numpy().flatten()
+            
+            metrics = {
+                'loss': float(loss.item()),
+                'q_taken_mean': float(current_q.mean().item()),
+                'q_max_mean': float(q_max_per_state.mean().item()),
+                'q_max_max': float(q_max_per_state.max().item()),
+                'q_max_p95': float(np.percentile(q_max_per_state.cpu().numpy(), 95)),
+                'target_q_mean': float(target_q.mean().item()),
+                'target_q_max': float(target_q.max().item()),
+                'grad_norm_preclip': float(grad_norm_preclip),
+                'grad_norm_postclip': float(grad_norm_postclip),
+                'td_error_abs_mean': float((current_q - target_q).abs().mean().item()),
+                'gamma_median': float(np.median(gammas_np)),
+                'gamma_p05': float(np.percentile(gammas_np, 5)),
+                'gamma_p95': float(np.percentile(gammas_np, 95)),
+                'reward_abs_median': float(np.median(np.abs(rewards_np))),
+                'reward_abs_p75': float(np.percentile(np.abs(rewards_np), 75)),
+            }
+            
+            # Compute Q-bound ratio for drift check (k=10)
+            gamma_med = metrics['gamma_median']
+            reward_p75 = metrics['reward_abs_p75']
+            q_bound = 10.0 * reward_p75 / (1.0 - gamma_med + 1e-6)
+            q_ratio = metrics['q_max_p95'] / (q_bound + 1e-6)
+            metrics['q_bound'] = float(q_bound)
+            metrics['q_ratio'] = float(q_ratio)
+
+        return metrics
 
     def save_model(self, path: str) -> None:
         payload: Dict[str, Any] = {

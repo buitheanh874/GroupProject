@@ -273,11 +273,13 @@ def _run_learner(
                 if elapsed_ms > max_update_time_ms:
                     break
                     
-                loss = agent.update()
-                if loss is not None:
+                metrics = agent.update()
+                if metrics is not None:
                     learner_updates += 1
                     updates_this_iter += 1
-                    recent_losses.append(loss)
+                    # Extract loss from metrics dict (agent.update now returns dict)
+                    loss_value = metrics.get('loss', 0.0) if isinstance(metrics, dict) else float(metrics)
+                    recent_losses.append(loss_value)
                 pending_transitions -= train_freq
                 
                 if learner_updates % sync_every_updates == 0:

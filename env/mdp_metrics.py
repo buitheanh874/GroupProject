@@ -132,32 +132,80 @@ class CycleMetricsAggregator:
             return float(max(waits_all))
 
 
+def compute_normalized_reward_smdp(
+    wait_total: float,
+    delta_t: float,
+    t_ref: float,
+    spill_penalty: float = 0.0,
+    n_present: int = 1,
+    num_downstream: int = 4,
+) -> float:
+    """Compute SMDP-correct reward with time exposure scaling (v5 - FINAL).
+    
+    Formula: R = -W / (N * t_ref) - (spill / M) * (Δt / t_ref)
+    
+    SMDP Rationale:
+    - Cycle is an action → decision duration (Δt) varies
+    - Episode horizon is time-based (1800s) → different #steps per episode
+    - Term 1: waiting time per vehicle, scaled by t_ref for O(1) reward
+    - Term 2: spillback exposure × (Δt/t_ref) → longer exposure = more penalty
+    - This prevents "cycle hack" where longer cycles get fewer penalty accumulations
+    
+    Args:
+        wait_total: W_global = sum of waiting time across all TLS in step (veh-sec)
+        delta_t: Δt = t_step_value = cycle + transitions (sec)
+        t_ref: Reference time for scaling (typically 60s, same as time-aware gamma)
+        spill_penalty: α * sum(downstream_occupancy^2), dimensionless
+        n_present: Number of vehicles currently in network (from vehicle.getIDCount)
+        num_downstream: M = number of downstream links (typically 4)
+        
+    Returns:
+        Normalized reward, target scale O(1) regardless of demand or cycle choice
+    """
+    # Vehicle normalization for demand invariance
+    n_veh = max(1, int(n_present))
+    
+    # Reference time for scaling (avoid division by zero)
+    t_ref_safe = max(1.0, float(t_ref))
+    delta_t_safe = max(1.0, float(delta_t))
+    
+    # Term 1: Waiting time per vehicle, scaled by t_ref
+    # W_global is veh-sec in this step, divide by N gives avg per vehicle
+    # Divide by t_ref for O(1) scale
+    # Units: (veh-sec) / (veh * sec) = dimensionless
+    wait_penalty = float(wait_total) / (float(n_veh) * t_ref_safe)
+    
+    # Term 2: Spillback exposure × time ratio
+    # spill_penalty = α * sum(occ^2), dimensionless rate proxy
+    # Multiply by (Δt/t_ref) to make it "exposure over time"
+    # This ensures longer decisions with same spill get more penalty
+    # Units: (dimensionless) * (sec/sec) = dimensionless
+    M = max(1, int(num_downstream))
+    spill_exposure = (float(spill_penalty) / float(M)) * (delta_t_safe / t_ref_safe)
+    
+    return -wait_penalty - spill_exposure
+
+
+# Keep old function for backward compatibility but mark deprecated
 def compute_normalized_reward(
     wait_total: float,
     t_step: float,
     decision_cycle_sec: float,
     spill_penalty: float = 0.0,
+    n_present: int = 1,
+    num_downstream: int = 4,
 ) -> float:
-    """Compute normalized reward using simplified formula.
+    """DEPRECATED: Use compute_normalized_reward_smdp instead.
     
-    Formula: R = -W/T - spill_penalty
-    
-    IMPORTANT: spill_penalty is NOT divided by T!
-    This ensures proper weighting between waiting time and congestion penalty.
-    
-    Based on Varaiya 2013 (Back-Pressure) and PressLight (KDD 2019).
-    The spill_penalty uses squared occupancy for smooth gradient:
-    spill_penalty = alpha * sum(downstream_occupancy^2)
-    
-    Args:
-        wait_total: Total accumulated waiting time in the cycle
-        t_step: Normalization factor (cycle_sec + transitions)
-        decision_cycle_sec: Actual cycle duration in seconds
-        spill_penalty: Anti-congestion penalty from downstream occupancy
-        
-    Returns:
-        Normalized reward (negative value, higher is better)
+    This function has SMDP bias when cycle is an action and horizon is time-based.
     """
-    denom = float(t_step) if float(t_step) > 0.0 else float(decision_cycle_sec)
-    denom = max(1.0, float(denom))
-    return -float(wait_total) / float(denom) - float(spill_penalty)
+    # Redirect to new function with t_ref = t_step (old behavior)
+    return compute_normalized_reward_smdp(
+        wait_total=wait_total,
+        delta_t=t_step,
+        t_ref=t_step,  # Old behavior: t_ref = Δt
+        spill_penalty=spill_penalty,
+        n_present=n_present,
+        num_downstream=num_downstream,
+    )
+

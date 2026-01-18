@@ -1,6 +1,6 @@
 # MDP Compliance Cheatsheet
 
-- **State spaces**: 4D/12D variants (see `env/sumo_env.py` state builders) selected via config state augmentation.
+- **State spaces**: 4D/12D/14D variants (see `env/sumo_env.py` state builders) selected via config state augmentation.
 - **Queue mode**: `distinct_cycle` enforced for MDP compliance (`env/sumo_env.py` queue counting).
 - **Slip lanes**: Excluded from control/state per lane group definitions (`env/sumo_env.py`: lane grouping).
 - **Rewards**: Base/enhanced/PCU-weighted with optional `reward_exponent` (`env/sumo_env.py` reward computation; keys `use_enhanced_reward`, `use_pcu_weighted_wait`, `reward_exponent`).

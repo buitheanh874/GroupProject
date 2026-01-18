@@ -57,7 +57,7 @@ env:
     enable_kpi_tracker: true
     normalize_state: true
     return_raw_state: false
-    state_dim: 12
+    state_dim: 14  # SMDP v5: 12 local + 2 global broadcast
     enable_downstream_occupancy: true
     enable_spillback_penalty: true
     alpha_spillback: 3.0
@@ -168,7 +168,7 @@ env:
         ew_green: 3
 
 normalization:
-  file: configs/norm_curriculum_v4.json
+  file: configs/norm_curriculum_v5.json
 
 agent:
   hidden_dims: [192, 192]

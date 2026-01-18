@@ -2,7 +2,7 @@
 
 > All claims cite exact file:line ranges from the codebase.
 
-**Updated:** 2026-01-11
+**Updated:** 2026-01-16 (SMDP v5 - 14D State)
 
 ---
 
@@ -12,7 +12,7 @@
 
 | Component | Description | Code Citation |
 |-----------|-------------|---------------|
-| **State** | 12-dim vector passed to `select_action` as `np.ndarray` | [agent.py L105-131](file:///c:/Users/Dell/GroupProject2/rl/agent.py#L105) |
+| **State** | 14-dim vector (12 local + 2 global broadcast) passed to `select_action` | [agent.py L105-131](file:///c:/Users/Dell/GroupProject2/rl/agent.py#L105) |
 | **Action** | Discrete integer $a \in \{0, ..., 14\}$ (15 actions) | [agent.py L102-103](file:///c:/Users/Dell/GroupProject2/rl/agent.py#L102) |
 | **Reward** | Scalar `float` stored with transition | [agent.py L133-142](file:///c:/Users/Dell/GroupProject2/rl/agent.py#L133) |
 | **Returns** | TD-target: $r + \gamma \cdot Q_{\text{target}}(s', a^*)$ | [agent.py L154](file:///c:/Users/Dell/GroupProject2/rl/agent.py#L154) |
@@ -40,14 +40,14 @@ target_q = batch.rewards + batch.gammas * next_q_target * (1.0 - batch.dones)
 
 > Source: [dueling_dqn.py](file:///c:/Users/Dell/GroupProject2/rl/dueling_dqn.py)
 
-**Input Dimension**: 12 (state_dim)
+- **Input Dimension**: 14 (state_dim)
 **Hidden Layers**: `[192, 192]` (from config)
 
 ### Layer Construction
 
 ```python
 self.feature_net = nn.Sequential(
-    nn.Linear(int(state_dim), hidden_1),  # 12 → 192
+    nn.Linear(int(state_dim), hidden_1),  # 14 → 192
     nn.ReLU(),
     nn.Linear(hidden_1, hidden_2),         # 192 → 192
     nn.ReLU(),
@@ -78,9 +78,9 @@ $$Q(s, a) = V(s) + \left( A(s, a) - \frac{1}{|\mathcal{A}|} \sum_{a'} A(s, a') \
 │                        DuelingDQN Network                           │
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                     │
-│   Input: state ∈ ℝ¹²                                                │
+│   Input: state ∈ ℝ¹⁴ (SMDP v5)                                      │
 │   ┌─────────────────┐                                               │
-│   │  Linear(12→192) │ ─ReLU→┐                                       │
+│   │  Linear(14→192) │ ─ReLU→┐                                       │
 │   └─────────────────┘       │                                       │
 │                             ▼                                       │
 │                    ┌─────────────────┐                              │

@@ -253,7 +253,7 @@ def build_env(config: Dict[str, Any]) -> BaseEnv:
         normalize_state = bool(sumo_cfg.get("normalize_state", True))
         occupancy_enabled = bool(sumo_cfg.get("enable_downstream_occupancy", True))
 
-        if state_dim == 12:
+        if state_dim in (12, 14):  # Multi-agent mode (12D local or 14D with global broadcast)
             if occupancy_enabled:
                 validate_downstream_links_config(
                     downstream_links=downstream_links,

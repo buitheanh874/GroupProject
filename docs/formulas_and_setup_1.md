@@ -35,40 +35,51 @@
 
 ## State / Observation Space
 
-**Dimension**: 12D (per TLS agent)
+- **Dimension**: 14D (per TLS agent) - includes local traffic state + global broadcast scalars.
 
 (source: [env/sumo_env.py:L1074-1086](file:///c:/Users/Dell/GroupProject2/env/sumo_env.py#L1074-1086))
 
 ```python
-def _build_state_vector(self, tls_id: str, last_q_dir: np.ndarray, w_dir: np.ndarray) -> np.ndarray:
+def _build_state_vector(self, tls_id: str, last_q_dir: np.ndarray, w_dir: np.ndarray,
+                        n_present_norm: float = 0.0, spill_scalar_norm: float = 0.0) -> np.ndarray:
     occupancy = np.zeros(4, dtype=np.float32)
-    if self._enable_downstream_occupancy and tls_id == self._center_tls_id and len(self._downstream_links) > 0:
+    if self._enable_downstream_occupancy and tls_id == self._center_tls_id:
         occupancy = self._read_downstream_occupancy()
-    state = np.zeros(12, dtype=np.float32)
-    state[0:4] = last_q_dir.astype(np.float32)   # Queue counts per direction
-    state[4:8] = w_dir.astype(np.float32)         # Waiting sums per direction
-    state[8:12] = occupancy                        # Downstream occupancy per direction
+    
+    state = np.zeros(14, dtype=np.float32)     # 14D state (SMDP v5)
+    state[0:4] = last_q_dir.astype(np.float32)  # Queue counts per direction
+    state[4:8] = w_dir.astype(np.float32)       # Waiting sums per direction
+    state[8:12] = occupancy                      # Downstream occupancy per direction
+    state[12] = n_present_norm                   # Global vehicle count (broadcast)
+    state[13] = spill_scalar_norm                # Global spillback scalar (broadcast)
     return state
 ```
 
-### Feature Table
+### Feature Table (14 Dimensions)
 
-| Index | Name | Meaning | Signal Source (SUMO/TraCI) | Normalization (default) |
-|-------|------|---------|---------------------------|------------------------|
-| 0 | `q_N` | Distinct vehicles queued (North approach) | `traci.lane.getLastStepVehicleIDs` + speed < halt_threshold | mean=15, std=12 |
-| 1 | `q_E` | Distinct vehicles queued (East approach) | Same as above | mean=15, std=12 |
-| 2 | `q_S` | Distinct vehicles queued (South approach) | Same as above | mean=15, std=12 |
-| 3 | `q_W` | Distinct vehicles queued (West approach) | Same as above | mean=15, std=12 |
-| 4 | `w_N` | Cumulative waiting time (North) | Accumulated per-vehicle-step during green phases | mean=150, std=120 |
-| 5 | `w_E` | Cumulative waiting time (East) | Same as above | mean=150, std=120 |
-| 6 | `w_S` | Cumulative waiting time (South) | Same as above | mean=150, std=120 |
-| 7 | `w_W` | Cumulative waiting time (West) | Same as above | mean=150, std=120 |
-| 8 | `occ_N` | Downstream edge occupancy (North) | `traci.edge.getLastStepOccupancy` | mean=0.25, std=0.20 |
-| 9 | `occ_E` | Downstream edge occupancy (East) | Same as above | mean=0.25, std=0.20 |
-| 10 | `occ_S` | Downstream edge occupancy (South) | Same as above | mean=0.25, std=0.20 |
-| 11 | `occ_W` | Downstream edge occupancy (West) | Same as above | mean=0.25, std=0.20 |
+| Index | Name | Meaning | Source | Normalization |
+|-------|------|---------|--------|---------------|
+| 0 | `q_NS_L` | Queue count (NS Left-turn) | Local per-TLS | mean=15, std=12 |
+| 1 | `q_NS_T` | Queue count (NS Through) | Local per-TLS | mean=15, std=12 |
+| 2 | `q_EW_L` | Queue count (EW Left-turn) | Local per-TLS | mean=15, std=12 |
+| 3 | `q_EW_T` | Queue count (EW Through) | Local per-TLS | mean=15, std=12 |
+| 4 | `w_NS_L` | Waiting time (NS Left-turn) | Local per-TLS | mean=150, std=120 |
+| 5 | `w_NS_T` | Waiting time (NS Through) | Local per-TLS | mean=150, std=120 |
+| 6 | `w_EW_L` | Waiting time (EW Left-turn) | Local per-TLS | mean=150, std=120 |
+| 7 | `w_EW_T` | Waiting time (EW Through) | Local per-TLS | mean=150, std=120 |
+| 8 | `occ_N` | Downstream occupancy (North) | Center TLS only* | mean=0.25, std=0.20 |
+| 9 | `occ_E` | Downstream occupancy (East) | Center TLS only* | mean=0.25, std=0.20 |
+| 10 | `occ_S` | Downstream occupancy (South) | Center TLS only* | mean=0.25, std=0.20 |
+| 11 | `occ_W` | Downstream occupancy (West) | Center TLS only* | mean=0.25, std=0.20 |
+| **12** | `n_present_norm` | **Normalized vehicle count** | **Global broadcast** | $\min(1, N/N_{CAP})$, $N_{CAP}=10000$ |
+| **13** | `spill_scalar_norm` | **Normalized spillback** | **Global broadcast** | $\min(1, \alpha\sum\text{Occ}^2/(\alpha \cdot M))$ |
 
-(source: [configs/norm_curriculum_v3.json](file:///c:/Users/Dell/GroupProject2/configs/norm_curriculum_v3.json))
+*\*Non-center TLS receive zeros for index 8-11.*
+
+> [!IMPORTANT]
+> **Index 12-13 (Global Broadcast):** These two dimensions are broadcast to ALL agents to satisfy the Markov property. Without them, the reward depends on unobserved global state (POMDP). Broadcasting ensures full observability (MDP).
+
+(source: [configs/norm_curriculum_v5.json](file:///c:/Users/Dell/GroupProject2/configs/norm_curriculum_v5.json))
 
 ### Queue Counting Mode
 
@@ -154,128 +165,125 @@ g_ew = cycle_sec - g_ns
 
 (source: [configs/train_1.yaml:L15](file:///c:/Users/Dell/GroupProject2/configs/train_1.yaml#L15), [env/sumo_env.py:L794-797](file:///c:/Users/Dell/GroupProject2/env/sumo_env.py#L794-797))
 
+### Baseline Fairness Definition
+
+**Constraint Parity** (enforced ✅):
+- Same action space (15 actions: 3 cycles × 5 splits)
+- Same t_step model (cycle + 2×yellow + 2×all_red)
+- Same cycle options [60, 90, 120] seconds
+
+**Information Parity** (NOT enforced ❌):
+- RL uses 14D normalized state with learned policy
+- Max-Pressure uses **raw measurements** (pressure = queue_in - queue_out)
+- Fixed-Time uses no state (open-loop)
+
+| Constraint | RL Agent | Fixed-Time | Max-Pressure |
+|------------|----------|------------|--------------|
+| Cycle options | ✅ [60,90,120]s | ✅ Same | ✅ Same |
+| t_step model | ✅ cycle + clearance | ✅ Same | ✅ Same |
+| Yellow/all-red | ✅ 3s/2s | ✅ Same | ✅ Same |
+| Route pool | ✅ Random from pool | ✅ Same pool | ✅ Same pool |
+| State input | 14D normalized | None (open-loop) | **Raw pressure** |
+| Decision timing | Per-cycle SMDP | Per-cycle | Per-cycle |
+
+> [!NOTE]
+> Fairness is defined as **Constraint Parity**, not Information Parity. This is intentional: RL's advantage should come from *learning* better policies, not from unfair constraints.
+
 ---
 
-## Reward Function
+## Reward Function (SMDP v5 Mainline)
 
-### Core Formula (Simplified)
+### Core Formula
 
-$$R = -\frac{W_{total}}{T} - \alpha \cdot \sum (Occ)^2 - P_{teleport} - P_{deadlock}$$
+$$R = -\frac{W_{\text{global}}}{N \cdot t_{\text{ref}}} - \frac{\alpha \sum_{d} \text{Occ}_d^2}{M} \cdot \frac{\Delta t}{t_{\text{ref}}}$$
 
-**Step 1**: Compute base reward with spillback penalty (source: [env/mdp_metrics.py:L135-164](file:///c:/Users/Dell/GroupProject2/env/mdp_metrics.py#L135-164))
+Where:
+- $W_{\text{global}}$ = Total waiting time for **entire network** (sum of all TLS)
+- $N$ = `n_present` = Current vehicle count (`traci.vehicle.getIDCount()`)
+- $t_{\text{ref}} = 60$ seconds (reference time for scaling)
+- $\alpha = 3.0$ (spillback weight, config: `alpha_spillback`)
+- $\text{Occ}_d$ = Downstream occupancy for direction $d \in \{N, E, S, W\}$
+- $M = 4$ (number of directions)
+- $\Delta t$ = `t_step` = cycle_sec + 2×yellow + 2×all_red
+
+(source: [env/mdp_metrics.py:L183-206](file:///c:/Users/Dell/GroupProject2/env/mdp_metrics.py#L183): `compute_normalized_reward_smdp`)
+
+### Code Implementation
+
 ```python
-r_base = -wait_total / t_step - spill_penalty
-```
-
-**Step 2**: Apply teleport and deadlock penalties (source: [env/sumo_env.py:L660-680](file:///c:/Users/Dell/GroupProject2/env/sumo_env.py#L660-680))
-```python
-reward = r_base - teleport_penalty - deadlock_penalty
-```
-
-> [!IMPORTANT]
-> **The spillback penalty is NOT divided by T.** This ensures proper weighting: congestion penalty (~0.5-4.0 points) vs waiting time penalty (~0.3-1.0 points).
-
-```python
-def compute_normalized_reward(
-    wait_total: float,
-    t_step: float,
-    decision_cycle_sec: float,
-    spill_penalty: float = 0.0,
+def compute_normalized_reward_smdp(
+    w_global: float,
+    n_present: int,
+    downstream_occ: np.ndarray,
+    t_step_value: float,
+    alpha: float = 3.0,
+    t_ref: float = 60.0
 ) -> float:
-    denom = float(t_step) if float(t_step) > 0.0 else float(decision_cycle_sec)
-    denom = max(1.0, float(denom))
-    # R = -W/T - spill_penalty (spill NOT divided by T)
-    return -float(wait_total) / float(denom) - float(spill_penalty)
+    N = max(1, n_present)
+    wait_term = -w_global / (N * t_ref)
+    
+    spill_scalar = alpha * float(np.sum(downstream_occ ** 2))
+    M = max(1, len(downstream_occ))
+    spill_term = -(spill_scalar / M) * (t_step_value / t_ref)
+    
+    return wait_term + spill_term
 ```
+
+### Why This Formula? (SMDP Time-Exposure)
+
+| Design Choice | Rationale |
+|---------------|-----------|
+| **÷ N** (vehicle count) | Demand-invariant: reward scale doesn't explode with traffic |
+| **÷ t_ref** (time normalization) | Prevents "cycle hack": longer cycles don't artificially reduce penalty frequency |
+| **Squared spillback** | Convex penalty provides smooth gradient from 0% occupancy |
+| **Global reward** | Cooperative MARL: all 9 TLS agents receive same reward |
 
 ### Spillback Penalty (Squared Occupancy)
 
 Based on **Varaiya 2013 (Back-Pressure)** and **PressLight (KDD 2019)**:
 
 ```python
-def _compute_spillback_penalty(self) -> float:
-    occupancy = self._read_downstream_occupancy()  # 4D vector [N, E, S, W]
-    penalty = self._alpha_spillback * np.sum(occupancy ** 2)
-    return penalty
+spill_scalar = alpha * np.sum(downstream_occ ** 2)
+spill_term = -(spill_scalar / M) * (t_step / t_ref)
 ```
 
-(source: [env/sumo_env.py:L1310-1330](file:///c:/Users/Dell/GroupProject2/env/sumo_env.py#L1310-1330))
+| Downstream Occupancy | α∑(Occ)² | Spill Term (Δt=70s) |
+|---------------------|----------|---------------------|
+| All at 30% | 3.0 × 0.36 = 1.08 | -0.31 |
+| All at 50% | 3.0 × 1.0 = 3.0 | -0.88 |
+| All at 70% | 3.0 × 1.96 = 5.88 | -1.71 |
+| All at 100% | 3.0 × 4.0 = 12.0 | -3.50 |
 
-**Why Squared Occupancy?**
+### Removed Components (Historical/Ablation Only)
 
-| Approach | Formula | Issue |
-|----------|---------|-------|
-| **Threshold-based (OLD)** | `β * max(occ - 0.65, 0)` | Hard cutoff, no gradient below threshold |
-| **Squared (NEW)** | `α * sum(occ²)` | Smooth gradient from 0%, convex penalty curve |
+> [!NOTE]
+> The following were in earlier versions but are **disabled in mainline**:
 
-**Example penalties with α=1.0:**
+| Component | Status | Reason |
+|-----------|--------|--------|
+| Legacy `-W/T` formula | REMOVED | Replaced by SMDP time-exposure |
+| Teleport penalty | REMOVED | Simulation artifact, not agent decision |
+| Deadlock penalty | REMOVED | Should be prevented by design |
+| Anti-flicker | REMOVED | Non-Markovian; squared spillback provides stability |
+| Threshold spillback | REMOVED | Hard cutoff gives no gradient below threshold |
 
-| Downstream Occupancy | ∑(Occ)² | Spillback Penalty |
-|---------------------|---------|-------------------|
-| All at 30% | 4 × 0.09 = 0.36 | **0.36** |
-| All at 50% | 4 × 0.25 = 1.0 | **1.0** |
-| All at 70% | 4 × 0.49 = 1.96 | **1.96** |
-| All at 100% (gridlock) | 4 × 1.0 = 4.0 | **4.0** |
+### Config Parameters
+
+| Parameter | Value | Source |
+|-----------|-------|--------|
+| `alpha_spillback` | 3.0 | [configs/train_1.yaml:L59](file:///c:/Users/Dell/GroupProject2/configs/train_1.yaml#L59) |
+| `enable_spillback_penalty` | True | [configs/train_1.yaml:L58](file:///c:/Users/Dell/GroupProject2/configs/train_1.yaml#L58) |
+| `t_ref` | 60.0 | Hardcoded in `compute_normalized_reward_smdp` |
+| `N_CAP` | 10000 | Hardcoded for state normalization |
 
 ### t_step Calculation
 
 ```python
 t_step = cycle_sec + 2 * yellow_sec + 2 * all_red_sec
+# Example: 60 + 2*3 + 2*2 = 70 seconds
 ```
 
 (source: [env/sumo_env.py:L658](file:///c:/Users/Dell/GroupProject2/env/sumo_env.py#L658))
-
-### wait_total Calculation
-
-Accumulated waiting time = sum over all vehicles queued during the decision cycle, weighted if `use_pcu_weighted_wait=True`:
-
-```python
-total_wait = agg.waiting_total(exponent=wait_exponent, use_weights=use_pcu_weighted_wait)
-```
-
-(source: [env/sumo_env.py:L660](file:///c:/Users/Dell/GroupProject2/env/sumo_env.py#L660), [env/mdp_metrics.py:L97-106](file:///c:/Users/Dell/GroupProject2/env/mdp_metrics.py#L97-106))
-
-### Penalty Terms
-
-| Term | Formula | Config Parameter | Source |
-|------|---------|------------------|--------|
-| **Spillback** | `α * sum(occ²)` | `alpha_spillback: 1.0` | [env/sumo_env.py:L1310-1330](file:///c:/Users/Dell/GroupProject2/env/sumo_env.py#L1310-1330) |
-
-> [!NOTE]
-> **Removed components (v2.0):** `lambda_fairness`, `enable_anti_flicker`, `kappa`, `occ_threshold`, `beta`, `teleport_penalty_lambda`, `deadlock_penalty`
-
-### Default Config Values
-
-| Parameter | Value | Source |
-|-----------|-------|--------|
-| `alpha_spillback` | 1.0 | [configs/train_1.yaml:L59](file:///c:/Users/Dell/GroupProject2/configs/train_1.yaml#L59) |
-| `enable_spillback_penalty` | True | [configs/train_1.yaml:L58](file:///c:/Users/Dell/GroupProject2/configs/train_1.yaml#L58) |
-
-### Design Rationale
-
-#### Why This Simplified Formula?
-
-**Academic Foundation:**
-- **Varaiya 2013**: Back-pressure control uses queue differentials; squared occupancy provides convex incentive to balance flow
-- **PressLight (KDD 2019)**: Uses pressure-based rewards with smooth gradient functions
-
-**Practical Benefits:**
-1. **Minimal hyperparameters**: Just 1 parameter (`alpha_spillback`)
-2. **Smooth gradients**: Squared occupancy provides gradient from 0%
-3. **Pure reward signal**: No auxiliary penalties to confuse learning
-
-#### Hierarchical Penalty Design
-
-| Priority | Component | Purpose |
-|----------|-----------|---------|
-| **Primary** | `-W/T` | Minimize vehicle delay |
-| **Safety** | `-α∑Occ²` | Prevent downstream congestion |
-
-#### Why Spillback is NOT Divided by T?
-
-- **If divided**: At T=60, spillback penalty = 4.0/60 = 0.06 (negligible)
-- **Not divided**: Spillback penalty = 4.0 (significant, ~10x waiting penalty)
-- **Result**: Agent properly balances throughput vs congestion risk
 
 ---
 
@@ -758,11 +766,22 @@ Our project uses:
 
 ### Curriculum Learning
 
-**Progressive Demand Increase:**
+**Mainline: Duration-Based Curriculum (Fixed Demand)**
 
-> "Curriculum Reinforcement Learning (CRL) aims to improve learning efficiency by structuring a sequence of tasks from easier to more difficult. This mimics how humans learn, by building foundational skills before tackling more complex challenges."
+> "Curriculum Reinforcement Learning (CRL) aims to improve learning efficiency by structuring a sequence of tasks from easier to more difficult."
 
-Our curriculum phases (400 -> 600 -> 800 -> 1000 -> 1200 veh/hr/lane) follow this principle.
+Our **mainline curriculum** uses **fixed demand** (800 veh/hr/lane) with **increasing duration**:
+
+| Phase | Episodes | Duration | Demand |
+|-------|----------|----------|--------|
+| phase1_short | 320 | 1200s (20min) | 800 veh/hr/lane |
+| phase2_medium | 400 | 1500s (25min) | 800 veh/hr/lane |
+| phase3_full | 480 | 1800s (30min) | 800 veh/hr/lane |
+
+**Rationale**: Gridlock typically starts ~800s with fixed-time baseline. Training with increasing duration allows agent to learn pre-gridlock patterns first.
+
+> [!NOTE]
+> **Alternative curriculum (ablation only)**: Progressive demand increase (400→600→800→1000→1200 veh/hr/lane) was explored but is **not mainline**.
 
 **References:**
 - [16] Bengio, Y. et al. (2009). "Curriculum Learning." ICML 2009. - Foundational paper on curriculum learning.

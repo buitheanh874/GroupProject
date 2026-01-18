@@ -54,7 +54,7 @@ env:
     enable_kpi_tracker: true
     normalize_state: true
     return_raw_state: false
-    state_dim: 12
+    state_dim: 14  # SMDP v5: 12 local + 2 global broadcast (n_present_norm, spill_scalar_norm)
     enable_downstream_occupancy: true
     enable_spillback_penalty: true
     alpha_spillback: 3.0
@@ -292,7 +292,7 @@ env:
         ew_green: 3
 
 normalization:
-  file: configs/norm_curriculum_v4.json
+  file: configs/norm_curriculum_v5.json
 
 agent:
   hidden_dims: [256, 256]
@@ -309,13 +309,13 @@ agent:
   use_huber_loss: true       
 
 exploration:
-  eps_start: 0.60  # Lower than 1.0 to avoid random cycle chaos
+  eps_start: 0.60 
   eps_end: 0.05
-  warmup_global_steps: 8000  # ~110 episodes warmup
-  eps_decay_steps: 60000  # Linear decay after warmup
+  warmup_global_steps: 4000   
+  eps_decay_steps: 15000      
 
 train:
-  episodes: 1200  
+  episodes: 500  
   save_every_episodes: 50
   print_every_episodes: 10
 
@@ -325,23 +325,23 @@ baseline:
 curriculum:
   enabled: true
   phases:
-    - name: "phase1_short"
-      episodes: 320
-      max_sim_seconds: 1200
-      route_pool_manifest: networks/variants/train/manifest_d800.txt
-      description: "800 veh/hr/lane - 20min (27%)"
+    - name: "demand_500"
+      episodes: 150
+      max_sim_seconds: 3600
+      route_pool_manifest: networks/variants/train_turn801010/500/manifest.txt
+      description: "500 veh/hr/lane - 30% of training"
 
-    - name: "phase2_medium"
-      episodes: 400
-      max_sim_seconds: 1500
-      route_pool_manifest: networks/variants/train/manifest_d800.txt
-      description: "800 veh/hr/lane - 25min (32%)"
+    - name: "demand_750"
+      episodes: 200
+      max_sim_seconds: 3600
+      route_pool_manifest: networks/variants/train_turn801010/750/manifest.txt
+      description: "750 veh/hr/lane - 40% of training"
 
-    - name: "phase3_full"
-      episodes: 480
-      max_sim_seconds: 1800
-      route_pool_manifest: networks/variants/train/manifest_d800.txt
-      description: "800 veh/hr/lane - 30min (41%)"
+    - name: "demand_1000"
+      episodes: 150
+      max_sim_seconds: 3600
+      route_pool_manifest: networks/variants/train_turn801010/1000/manifest.txt
+      description: "1000 veh/hr/lane - 30% of training"
 
 logging:
   log_dir: logs/1
@@ -350,14 +350,13 @@ logging:
 
 parallel:
   enabled: true  
-  num_actors: 4  
+  num_actors: 10  
   base_port: 9500
   base_seed: 42
   chunk_size: 256
   queue_max_chunks: 200
   sync_every_updates: 100
-  # Per-worker epsilon multipliers for diversity
-  epsilon_worker_multipliers: [0.85, 0.95, 1.05, 1.15]
+  epsilon_worker_multipliers: [0.80, 0.85, 0.90, 0.95, 1.00, 1.05, 1.10, 1.15, 1.20, 1.25]
   reset_max_retries: 3
   reset_backoff_base_sec: 1.0
   reset_backoff_cap_sec: 8.0

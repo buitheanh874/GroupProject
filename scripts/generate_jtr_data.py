@@ -2,13 +2,17 @@ from __future__ import annotations
 
 import argparse
 import random
-import subprocess
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Dict, List, Tuple
 
 HANOI_BASE_FLOW_PER_LANE = 1000.0
+TURN_LEFT_WEIGHT = 0.10
+TURN_STRAIGHT_WEIGHT = 0.80
+TURN_RIGHT_WEIGHT = 0.10
+MIN_PATH_PROB = 1e-4
+MAX_PATH_STEPS = 25
 
 
 def get_source_edges_info(net_file: Path) -> Tuple[Dict[str, int], List[str]]:
@@ -46,7 +50,130 @@ def get_source_edges_info(net_file: Path) -> Tuple[Dict[str, int], List[str]]:
     return sources_info, sorted(sink_ids)
 
 
-def generate_flows_xml(output_path: Path, sources_info: Dict[str, int], sinks: List[str], duration: int, global_scale: float, base_flow: float = HANOI_BASE_FLOW_PER_LANE) -> None:
+def build_connection_map(net_file: Path) -> Dict[str, List[Tuple[str, str]]]:
+    """
+    Returns mapping: from_edge -> list of (to_edge, dir) where dir in {'l','s','r'}.
+    """
+    tree = ET.parse(net_file)
+    root = tree.getroot()
+
+    valid_edges = {e.get("id") for e in root.findall("edge") if e.get("id") and not e.get("id").startswith(":")}
+    raw: Dict[str, Dict[str, set]] = {}
+    for conn in root.findall("connection"):
+        from_edge = conn.get("from")
+        to_edge = conn.get("to")
+        direction = conn.get("dir", "")
+        if not from_edge or not to_edge:
+            continue
+        if from_edge not in valid_edges or to_edge not in valid_edges:
+            continue
+        if direction not in {"l", "s", "r"}:
+            continue
+        dir_map = raw.setdefault(from_edge, {"l": set(), "s": set(), "r": set()})
+        dir_map.setdefault(direction, set()).add(to_edge)
+
+    conn_map: Dict[str, List[Tuple[str, str]]] = {}
+    for from_edge, dir_map in raw.items():
+        entries: List[Tuple[str, str]] = []
+        for direction, to_edges in dir_map.items():
+            for to_edge in sorted(to_edges):
+                entries.append((to_edge, direction))
+        conn_map[from_edge] = entries
+    return conn_map
+
+
+def _compute_turn_probabilities_for_edge(
+    conns: List[Tuple[str, str]],
+    left_weight: float,
+    straight_weight: float,
+    right_weight: float,
+) -> List[Tuple[str, float]]:
+    """
+    Given outgoing connections for an edge, compute probability per connection
+    using target weights (80% straight, 10% left, 10% right by default) and
+    renormalizing to available directions.
+    """
+    by_dir: Dict[str, List[str]] = {"l": [], "s": [], "r": []}
+    for to_edge, d in conns:
+        by_dir.setdefault(d, []).append(to_edge)
+
+    base_weight = {"l": left_weight, "s": straight_weight, "r": right_weight}
+    present_dirs = [d for d in ["l", "s", "r"] if len(by_dir.get(d, [])) > 0 and base_weight[d] > 0.0]
+    if len(present_dirs) == 0:
+        # No valid connections; return empty and caller will treat as sink.
+        return []
+
+    total_present_weight = sum(base_weight[d] for d in present_dirs)
+    probabilities: List[Tuple[str, float]] = []
+    for d in present_dirs:
+        share = base_weight[d] / total_present_weight
+        choices = by_dir[d]
+        per_conn = share / float(len(choices))
+        for to_edge in choices:
+            probabilities.append((to_edge, per_conn))
+    # Normalize to ensure numerical stability
+    total = sum(p for _, p in probabilities)
+    if total > 0:
+        probabilities = [(edge, p / total) for edge, p in probabilities]
+    return probabilities
+
+
+def build_transition_probabilities(
+    conn_map: Dict[str, List[Tuple[str, str]]],
+    left_weight: float = TURN_LEFT_WEIGHT,
+    straight_weight: float = TURN_STRAIGHT_WEIGHT,
+    right_weight: float = TURN_RIGHT_WEIGHT,
+) -> Dict[str, List[Tuple[str, float]]]:
+    transitions: Dict[str, List[Tuple[str, float]]] = {}
+    for from_edge, conns in conn_map.items():
+        probs = _compute_turn_probabilities_for_edge(conns, left_weight, straight_weight, right_weight)
+        if probs:
+            transitions[from_edge] = probs
+    return transitions
+
+
+def enumerate_paths_from_source(
+    source_edge: str,
+    transitions: Dict[str, List[Tuple[str, float]]],
+    sink_edges: List[str],
+    max_steps: int = MAX_PATH_STEPS,
+    min_prob: float = MIN_PATH_PROB,
+) -> List[Tuple[float, List[str]]]:
+    sink_set = set(sink_edges)
+    paths: List[Tuple[float, List[str]]] = []
+    stack: List[Tuple[float, List[str]]] = [(1.0, [source_edge])]
+
+    while stack:
+        prob, path = stack.pop()
+        current = path[-1]
+
+        if prob < min_prob:
+            continue
+        if current in sink_set or current not in transitions or len(path) >= max_steps:
+            paths.append((prob, path))
+            continue
+
+        for to_edge, p_conn in transitions[current]:
+            if to_edge in path:
+                continue  # avoid cycles
+            stack.append((prob * p_conn, path + [to_edge]))
+
+    total_prob = sum(p for p, _ in paths)
+    if total_prob == 0:
+        return []
+    normalized = [(p / total_prob, path) for p, path in paths]
+    return normalized
+
+
+def generate_flows_xml(
+    output_path: Path,
+    sources_info: Dict[str, int],
+    sinks: List[str],
+    transitions: Dict[str, List[Tuple[str, float]]],
+    duration: int,
+    global_scale: float,
+    base_flow: float = HANOI_BASE_FLOW_PER_LANE,
+) -> None:
     root = ET.Element("routes")
 
     vtypes = [
@@ -101,27 +228,39 @@ def generate_flows_xml(output_path: Path, sources_info: Dict[str, int], sinks: L
         edge_noise = random.uniform(0.6, 1.1)
         total_edge_flow = base_edge_flow * float(global_scale) * float(edge_noise)
 
-        # Randomly split this edge's demand across all sink edges
-        weights = [random.random() + 1e-6 for _ in sinks]
-        total_w = sum(weights)
-        norm_weights = [w / total_w for w in weights]
+        path_probs = enumerate_paths_from_source(
+            source_edge=edge_id,
+            transitions=transitions,
+            sink_edges=sinks,
+            max_steps=MAX_PATH_STEPS,
+            min_prob=MIN_PATH_PROB,
+        )
 
-        for sink_id, sink_weight in zip(sinks, norm_weights):
-            sink_flow = float(total_edge_flow) * sink_weight
+        if not path_probs:
+            continue
+
+        for idx, (path_prob, path_edges) in enumerate(path_probs):
+            route_flow = float(total_edge_flow) * float(path_prob)
+            route_str = " ".join(path_edges)
+            last_edge = path_edges[-1]
             for v_type, ratio in veh_distribution.items():
-                flow_rate = sink_flow * float(ratio)
+                flow_rate = route_flow * float(ratio)
 
                 if flow_rate > 1.0:
                     flow = ET.SubElement(root, "flow")
-                    flow.set("id", f"f_{edge_id}_{sink_id}_{v_type}")
+                    flow.set("id", f"f_{edge_id}_{idx}_{v_type}")
                     flow.set("from", str(edge_id))
-                    flow.set("to", str(sink_id))
+                    flow.set("to", str(last_edge))
                     flow.set("begin", "0")
                     flow.set("end", str(int(duration)))
-                    flow.set("vehsPerHour", f"{flow_rate:.2f}")
+                    # Use perHour for compatibility across SUMO GUI versions (vehsPerHour is newer alias).
+                    flow.set("perHour", f"{flow_rate:.2f}")
                     flow.set("type", str(v_type))
                     flow.set("departLane", "best")
                     flow.set("departSpeed", "max")
+
+                    route = ET.SubElement(flow, "route")
+                    route.set("edges", route_str)
 
     tree = ET.ElementTree(root)
     ET.indent(tree, space="    ")
@@ -168,11 +307,7 @@ def main() -> None:
         sys.exit(f"Network file not found: {net_path}")
 
     out_path = Path(args.output_route)
-    temp_dir = out_path.parent / "temp_jtr"
-    temp_dir.mkdir(parents=True, exist_ok=True)
-
-    flow_file = temp_dir / f"flows_{int(args.seed)}.xml"
-    turn_file = temp_dir / f"turns_{int(args.seed)}.xml"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
 
     sources_info, sinks = get_source_edges_info(net_path)
 
@@ -194,31 +329,20 @@ def main() -> None:
 
     base_flow = max(100.0, float(args.base_flow))
     print(f"  Base flow: {base_flow:.0f} veh/hr/lane")
-    generate_flows_xml(flow_file, sources_info, sinks, duration, volume_scale, base_flow)
-    generate_turnfile_xml(turn_file, sinks, duration)
+    print(f"  Turning ratios per intersection: straight={TURN_STRAIGHT_WEIGHT:.2f}, left={TURN_LEFT_WEIGHT:.2f}, right={TURN_RIGHT_WEIGHT:.2f}")
 
-    cmd = [
-        "duarouter",
-        "--net-file",
-        str(net_path),
-        "--route-files",
-        str(flow_file),
-        "--output-file",
-        str(out_path),
-        "--ignore-errors",
-        "--route-steps",
-        str(int(duration)),
-        "--keep-flows",
-    ]
+    conn_map = build_connection_map(net_path)
+    transitions = build_transition_probabilities(conn_map, TURN_LEFT_WEIGHT, TURN_STRAIGHT_WEIGHT, TURN_RIGHT_WEIGHT)
 
-    try:
-        result = subprocess.run(cmd, capture_output=True, text=True, check=False)
-        if result.returncode != 0:
-            print(f"Warning: Route generation had issues: {result.stderr}")
-    except Exception as exc:
-        print(f"Warning: Could not run SUMO route generation: {exc}")
-        print("Creating minimal fallback route file...")
-        generate_flows_xml(out_path, sources_info, sinks, duration, volume_scale)
+    generate_flows_xml(
+        output_path=out_path,
+        sources_info=sources_info,
+        sinks=sinks,
+        transitions=transitions,
+        duration=duration,
+        global_scale=volume_scale,
+        base_flow=base_flow,
+    )
 
     if out_path.exists():
         file_size_kb = out_path.stat().st_size / 1024.0

@@ -39,7 +39,7 @@ def validate_action_table(
     _validate_action_splits(action_splits, rho_min)
     expected_cycles = len(allowed_cycles)
     expected_splits = len(action_splits)
-    if state_dim == 12:
+    if state_dim in (12, 14):  # Multi-agent mode (12D local or 14D with global broadcast)
         if expected_cycles != 3:
             raise ValueError(f"allowed_cycles_sec must have exactly 3 entries for state_dim=12, got {expected_cycles}")
         if expected_splits != 5:
@@ -77,10 +77,10 @@ def validate_action_table(
             if g_ns_check < g_min_sec or g_ew_check < g_min_sec:
                 raise ValueError(f"action_table[{idx}] green times must be >= g_min_sec={g_min_sec}")
             split_idx = _split_index(rho_ns_val, rho_ew_val, action_splits)
-            if state_dim == 12 and split_idx < 0:
+            if state_dim in (12, 14) and split_idx < 0:
                 raise ValueError(f"action_table[{idx}] split must match one of action_splits")
             entries.append((cycle_val, rho_ns_val, rho_ew_val, split_idx))
-        if state_dim == 12:
+        if state_dim in (12, 14):  # Multi-agent mode (12D local or 14D with global broadcast)
             expected = expected_cycles * expected_splits
             seen = {}
             for cycle_val, rho_ns_val, rho_ew_val, split_idx in entries:
@@ -102,7 +102,7 @@ def validate_action_table(
         else:
             for cycle_val, rho_ns_val, rho_ew_val, _ in entries:
                 processed_action_table.append({"cycle_sec": cycle_val, "rho_ns": rho_ns_val, "rho_ew": rho_ew_val})
-    elif state_dim == 12:
+    elif state_dim in (12, 14):  # Multi-agent mode
         if len(allowed_cycles) == 0:
             raise ValueError("allowed_cycles_sec must not be empty when state_dim=12 and action_table is empty")
         for cycle in allowed_cycles:

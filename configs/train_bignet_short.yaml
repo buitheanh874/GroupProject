@@ -53,7 +53,7 @@ env:
     enable_kpi_tracker: true
     normalize_state: true
     return_raw_state: false
-    state_dim: 12
+    state_dim: 14  # SMDP v5: 12 local + 2 global broadcast
     enable_downstream_occupancy: true
     enable_spillback_penalty: true
     alpha_spillback: 3.0
@@ -164,7 +164,7 @@ env:
         ew_green: 3
 
 normalization:
-  file: configs/norm_curriculum_v4.json
+  file: configs/norm_curriculum_v5.json
 
 agent:
   hidden_dims: [192, 192]
@@ -186,9 +186,9 @@ exploration:
   eps_decay_steps: 45000
 
 train:
-  episodes: 300
-  save_every_episodes: 30
-  print_every_episodes: 5
+  episodes: 1200
+  save_every_episodes: 50
+  print_every_episodes: 10
 
 baseline:
   fixed_action_id: 12
@@ -196,50 +196,39 @@ baseline:
 curriculum:
   enabled: true
   phases:
-
-    - name: "phase1_easy"
-      episodes: 30
-      demand_scale: 0.50
+    - name: "phase1_d500"
+      episodes: 360  # 30%
       max_sim_seconds: 1800
-      route_pool_manifest: networks/variants/train/manifest_d400.txt
-      description: "400 veh/hr/lane - easy warmup (10%)"
+      route_pool_manifest: networks/variants/train_turn801010/500/manifest.txt
+      description: "500 veh/hr - 30min (30%)"
 
-    - name: "phase2_moderate"
-      episodes: 45
-      demand_scale: 0.75
+    - name: "phase2_d750"
+      episodes: 480  # 40%
       max_sim_seconds: 1800
-      route_pool_manifest: networks/variants/train/manifest_d600.txt
-      description: "600 veh/hr/lane - moderate (15%)"
+      route_pool_manifest: networks/variants/train_turn801010/750/manifest.txt
+      description: "750 veh/hr - 30min (40%)"
 
-    - name: "phase3a_hard_short"
-      episodes: 112
-      demand_scale: 1.0
+    - name: "phase3_d1000"
+      episodes: 360  # 30%
       max_sim_seconds: 1800
-      route_pool_manifest: networks/variants/train/manifest_d800.txt
-      description: "800 veh/hr/lane - hard 30min (37.5%)"
-
-    - name: "phase3b_hard_long"
-      episodes: 38
-      demand_scale: 1.0
-      max_sim_seconds: 3600
-      route_pool_manifest: networks/variants/train/manifest_d800.txt
-      description: "800 veh/hr/lane - hard 60min (12.5%)"
-
-    - name: "phase4a_challenge_short"
-      episodes: 55
-      demand_scale: 1.25
-      max_sim_seconds: 1800
-      route_pool_manifest: networks/variants/train/manifest_d1000.txt
-      description: "1000 veh/hr/lane - challenge 30min (15%)"
-    
-    - name: "phase4b_challenge_long"
-      episodes: 20
-      demand_scale: 1.25
-      max_sim_seconds: 3600
-      route_pool_manifest: networks/variants/train/manifest_d1000.txt
-      description: "1000 veh/hr/lane - challenge 60min (10%)"
+      route_pool_manifest: networks/variants/train_turn801010/1000/manifest.txt
+      description: "1000 veh/hr - 30min (30%)"
 
 logging:
-  log_dir: logs/bignet_300ep
-  model_dir: models/bignet_300ep
-  results_dir: results/bignet_300ep
+  log_dir: logs/bignet_short
+  model_dir: models/bignet_short
+  results_dir: results/bignet_short
+
+parallel:
+  enabled: true  
+  num_actors: 2  
+  base_port: 9600
+  base_seed: 42
+  chunk_size: 256
+  queue_max_chunks: 200
+  sync_every_updates: 100
+  epsilon_worker_multipliers: [0.90, 1.10]
+  reset_max_retries: 3
+  reset_backoff_base_sec: 1.0
+  reset_backoff_cap_sec: 8.0
+  max_update_time_ms: 50.0

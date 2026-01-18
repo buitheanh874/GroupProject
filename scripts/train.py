@@ -123,6 +123,16 @@ def run_training(config: Dict[str, Any], resume_path: Optional[str] = None, star
     ensure_dir(str(logging_cfg.get("results_dir", "results")))
 
     config_copy_path = os.path.join(log_dir, f"{run_id}_config.yaml")
+
+    # [Reproducibility] Try to get git commit hash
+    try:
+        import subprocess
+        git_hash = subprocess.check_output(["git", "rev-parse", "HEAD"], stderr=subprocess.DEVNULL).decode().strip()
+        config["meta"] = config.get("meta", {})
+        config["meta"]["git_commit"] = git_hash
+    except Exception:
+        pass
+        
     save_yaml_config(config, config_copy_path)
 
     metrics_path = os.path.join(log_dir, f"{run_id}_train_metrics.csv")
@@ -189,7 +199,10 @@ def run_training(config: Dict[str, Any], resume_path: Optional[str] = None, star
                 "avg_queue",
                 "decision_cycle_sec",
                 "decision_steps",
+                "decision_steps",
                 "waiting_total",
+                "env_seed",
+                "route_file",
             ]
             
             if len(allowed_cycles) > 0:
@@ -316,8 +329,9 @@ def run_training(config: Dict[str, Any], resume_path: Optional[str] = None, star
                             reward_value = rewards.get(tls_id, 0.0) if isinstance(rewards, dict) else rewards
                             agent.store_transition(state[tls_id], action_id, reward_value, next_obs, done, gamma=gamma_value)
 
-                        loss_value = agent.update()
-                        if loss_value is not None:
+                        metrics = agent.update()
+                        if metrics is not None:
+                            loss_value = metrics.get('loss', 0.0) if isinstance(metrics, dict) else float(metrics)
                             losses.append(float(loss_value))
                             if len(losses) > 500:
                                 losses.pop(0)
@@ -343,8 +357,9 @@ def run_training(config: Dict[str, Any], resume_path: Optional[str] = None, star
 
                         gamma_value = agent.compute_gamma(info.get("t_step") if isinstance(info, dict) else None)
                         agent.store_transition(state, action_id, reward, next_state, done, gamma=gamma_value)
-                        loss_value = agent.update()
-                        if loss_value is not None:
+                        metrics = agent.update()
+                        if metrics is not None:
+                            loss_value = metrics.get('loss', 0.0) if isinstance(metrics, dict) else float(metrics)
                             losses.append(float(loss_value))
 
                         state = next_state
@@ -393,6 +408,8 @@ def run_training(config: Dict[str, Any], resume_path: Optional[str] = None, star
                     "waiting_total": float(
                         info.get("waiting_total", info.get("total_wait_reward", info.get("total_weighted_wait", 0.0))) if isinstance(info, dict) else 0.0
                     ),
+                    "env_seed": int(seed + episode) if hasattr(env, "set_seed") else 0,
+                    "route_file": str(os.path.basename(env._route_file)) if hasattr(env, "_route_file") and env._route_file else "",
                 }
                 
                 if len(allowed_cycles) > 0:

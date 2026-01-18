@@ -315,8 +315,9 @@ def run_independent_training(config: Dict[str, Any]) -> str:
                         agent.store_transition(local_state, action_id, local_reward, local_next_state, done, gamma=gamma_value)
                         
                         # Update agent independently
-                        loss_value = agent.update()
-                        if loss_value is not None:
+                        metrics = agent.update()
+                        if metrics is not None:
+                            loss_value = metrics.get('loss', 0.0) if isinstance(metrics, dict) else float(metrics)
                             losses_per_agent[tls_id].append(float(loss_value))
                             if len(losses_per_agent[tls_id]) > 500:
                                 losses_per_agent[tls_id].pop(0)

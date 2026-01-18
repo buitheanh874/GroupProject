@@ -2,7 +2,7 @@
 
 > Defense-ready synthesis of technical novelty, strictly grounded in code.
 
-**Updated:** 2026-01-11
+**Updated:** 2026-01-16 (SMDP v5 - Synchronized with mainline spec)
 
 ---
 
@@ -16,7 +16,7 @@ Standard MDP-based RL traffic controllers assume uniform timesteps. When actions
 | Component | Function | Code Reference |
 |-----------|----------|----------------|
 | Variable-duration actions | Actions encode cycle length | [sumo_env.py L140-144](file:///c:/Users/Dell/GroupProject2/env/sumo_env.py#L140): `SumoActionDefinition(cycle_sec, rho_ns, rho_ew)` |
-| Time-normalized reward | $R = R_{\text{base}} \cdot \frac{T_{\text{step}}}{T_{\text{actual}}}$ | [sumo_env.py L693-697](file:///c:/Users/Dell/GroupProject2/env/sumo_env.py#L693) |
+| Time-normalized reward | SMDP exposure formula | [mdp_metrics.py](file:///c:/Users/Dell/GroupProject2/env/mdp_metrics.py): `compute_normalized_reward_smdp()` |
 | Time-aware discount | $\gamma_t = \gamma_0^{t/t_{\text{ref}}}$ | [agent.py L87-99](file:///c:/Users/Dell/GroupProject2/rl/agent.py#L87): `compute_gamma(t_step)` |
 
 **Time-Aware Gamma Formula:**
@@ -34,7 +34,7 @@ target_q = batch.rewards + batch.gammas * next_q_target * (1.0 - batch.dones)
 
 ---
 
-## 2) Spillback Prevention via Network-Level State Awareness
+## 2) Spillback Prevention via Squared Occupancy Penalty
 
 ### Problem Solved
 Local intersection controllers optimize their own queues, causing **"green wave collapse"**—clearing traffic into already-saturated downstream links, triggering gridlock.
@@ -43,31 +43,67 @@ Local intersection controllers optimize their own queues, causing **"green wave 
 
 **State Vector Indices 8-11: Downstream Occupancy**
 ```python
-# sumo_env.py L1076-1078
-occupancy = np.zeros(4, dtype=np.float32)
-if self._enable_downstream_occupancy and tls_id == self._center_tls_id:
-    occupancy = self._read_downstream_occupancy()  # [N, E, S, W]
+# sumo_env.py - Center TLS observes downstream congestion
+occupancy = self._read_downstream_occupancy()  # [N, E, S, W], range [0, 1]
 ```
 
-**Spillback Penalty Computation:**
+**Squared Spillback Penalty (SMDP v5):**
 ```python
-# sumo_env.py L1354-1367
-def _compute_spillback_penalty(self):
-    occupancy = self._read_downstream_occupancy()
-    over_thresh = np.maximum(occupancy - occ_threshold, 0.0)
-    penalty = float(self._beta) * float(np.sum(over_thresh))
-    return penalty
+# mdp_metrics.py - compute_normalized_reward_smdp()
+spill_scalar = alpha * np.sum(downstream_occ ** 2)
+spill_term = -(spill_scalar / M) * (t_step / t_ref)
 ```
 
-$$P_{\text{spillback}} = \beta \sum_{d \in \{N,E,S,W\}} \max(0, \text{Occ}_d - \theta_{\text{occ}})$$
+$$P_{\text{spillback}} = \alpha \sum_{d \in \{N,E,S,W\}} \text{Occ}_d^2$$
+
+| Design Choice | Rationale |
+|---------------|-----------|
+| **Squared** (not linear) | Convex penalty provides smooth gradient from 0% occupancy |
+| **No threshold** | Avoids cliff-edge behavior; penalizes any congestion proportionally |
+| **Time-normalized** | Dividing by $t_{\text{ref}}$ prevents cycle-length gaming |
 
 ### Why This is Novel
 - **Network-aware state**: The agent observes not just *incoming* queues but *downstream capacity*—enables **metering**.
-- **Continuous penalty**: Proportional to over-threshold occupancy, providing smooth gradient signal.
+- **Smooth gradient**: Squared function provides gradient signal even at low occupancy, preventing creep toward gridlock.
 
 ---
 
-## 3) Sensor Robustness: Distinct-Cycle Queue Counting
+## 3) Global State Broadcast for Markov Property (SMDP v5)
+
+### Problem Solved
+The reward function depends on global variables (total vehicles $N$, total spillback). If agents only observe local state, the system becomes a **Dec-POMDP**—agents cannot predict their own reward.
+
+### Implementation
+
+**14D State = 12D Local + 2D Global Broadcast**
+
+| Index | Feature | Scope |
+|-------|---------|-------|
+| 0-7 | Queue counts, Waiting times | Local per-TLS |
+| 8-11 | Downstream occupancy | Center TLS only |
+| **12** | `n_present_norm` = $\min(1, N/N_{\text{CAP}})$ | **Global broadcast** |
+| **13** | `spill_scalar_norm` = normalized spillback | **Global broadcast** |
+
+```python
+# sumo_env.py - _step_multi()
+n_present = traci.vehicle.getIDCount()
+n_present_norm = min(1.0, float(n_present) / N_CAP)  # N_CAP = 10000
+
+spill_scalar = ALPHA * sum(downstream_occ ** 2)
+spill_scalar_norm = min(1.0, spill_scalar / (ALPHA * M))
+
+# Broadcast to ALL agents
+state[12] = n_present_norm
+state[13] = spill_scalar_norm
+```
+
+### Why This is Novel
+- **Restores Markov property**: Agents observe what determines their reward → MDP, not POMDP.
+- **Enables credit assignment**: Agents can correlate actions with global outcomes.
+
+---
+
+## 4) Sensor Robustness: Distinct-Cycle Queue Counting
 
 ### Problem Solved
 Snapshot-based queue measurements (single timestep) suffer from high variance and phase boundary artifacts.
@@ -90,27 +126,6 @@ if self._queue_mode == "distinct_cycle":
 
 ---
 
-## 4) Stability: Anti-Flicker Temporal Regularization
-
-### Problem Solved
-RL agents can oscillate between short (60s) and long (120s) cycles, causing driver unpredictability and coordination breakdown.
-
-### Implementation
-
-```python
-# sumo_env.py L1369-1374
-def _compute_anti_flicker_penalty(self, cycle_sec: int) -> float:
-    if not self._enable_anti_flicker:
-        return 0.0
-    if self._prev_cycle_sec is None:
-        return 0.0
-    return float(self._kappa) if int(cycle_sec) != int(self._prev_cycle_sec) else 0.0
-```
-
-$$P_{\text{anti-flicker}} = \begin{cases} \kappa & \text{if } C_t \neq C_{t-1} \\ 0 & \text{otherwise} \end{cases}$$
-
----
-
 ## 5) System-Level Architecture
 
 ```
@@ -118,24 +133,39 @@ $$P_{\text{anti-flicker}} = \begin{cases} \kappa & \text{if } C_t \neq C_{t-1} \
 │                    SEMI-MDP TRAFFIC CONTROL SYSTEM                   │
 ├──────────────────────────────────────────────────────────────────────┤
 │                                                                      │
-│  State Space (12D)                     Action Space (15 discrete)    │
+│  State Space (14D)                     Action Space (15 discrete)    │
 │  ├─ Local queues (4D)                  ├─ Cycle: [60, 90, 120]s      │
 │  ├─ Waiting times (4D)                 └─ Split: 5 NS/EW ratios      │
-│  └─ Downstream occupancy (4D)          ════════════════════════      │
-│                                         = 3 × 5 = 15 actions         │
+│  ├─ Downstream occupancy (4D)          ════════════════════════      │
+│  └─ Global broadcast (2D) ← NEW        = 3 × 5 = 15 actions         │
 │                                                                      │
 │  Function Approximator                 SMDP Mechanisms               │
 │  ├─ Dueling DQN                        ├─ Time-aware γ               │
-│  │   └─ V(s) + A(s,a) - mean(A)        ├─ Reward time normalization  │
+│  │   └─ V(s) + A(s,a) - mean(A)        ├─ SMDP exposure reward       │
 │  └─ Double DQN target selection        └─ Per-transition γ storage   │
 │                                                                      │
-│  Safety & Robustness                   Stability                     │
-│  ├─ Spillback penalty (network-aware)  └─ Anti-flicker regularization│
+│  Safety & Robustness                                                 │
+│  ├─ Squared spillback penalty (α∑Occ²)                               │
 │  └─ Distinct-cycle queue counting                                    │
 │                                                                      │
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
-### Core Novelty Statement (Defense-Ready)
+---
 
-> This system advances beyond heuristic RL-for-traffic by implementing a **mathematically grounded Semi-MDP formulation**. The three pillars—time-aware discounting, reward normalization, and per-transition gamma storage—ensure that value estimates are temporally consistent regardless of action duration. Coupled with network-level spillback awareness and robust queue sensing, this controller achieves what actuated and naive RL cannot: **principled optimization over variable-duration actions with safety guarantees**.
+## Core Novelty Statement (Defense-Ready)
+
+> This system advances beyond heuristic RL-for-traffic by implementing a **mathematically grounded Semi-MDP formulation**. The three pillars—time-aware discounting, SMDP exposure reward, and per-transition gamma storage—ensure that value estimates are temporally consistent regardless of action duration. The **14D state with global broadcast** restores the Markov property for multi-agent coordination, while **squared spillback penalty** provides smooth gradient signal for congestion prevention. Coupled with robust distinct-cycle queue sensing, this controller achieves what actuated and naive RL cannot: **principled optimization over variable-duration actions with network-level awareness**.
+
+---
+
+## Historical Components (Ablation Only)
+
+The following were explored but **removed from mainline** due to complexity/redundancy:
+
+| Component | Reason Removed |
+|-----------|----------------|
+| Anti-flicker penalty ($\kappa$) | Non-Markovian dependency; squared spillback provides sufficient stability |
+| Threshold-linear spillback | Hard cutoff provides no gradient below threshold |
+| Teleport penalty | Simulation artifact, not agent decision |
+| Deadlock penalty | Should be prevented by design, not penalized post-hoc |

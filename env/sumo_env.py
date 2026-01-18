@@ -12,7 +12,7 @@ import numpy as np
 from env.base_env import BaseEnv
 from env.kpi import EpisodeKpiTracker
 from env.normalization import StateNormalizer
-from env.mdp_metrics import CycleMetricsAggregator, compute_normalized_reward
+from env.mdp_metrics import CycleMetricsAggregator, compute_normalized_reward, compute_normalized_reward_smdp
 
 DEFAULT_ACTION_SPLITS: List[Tuple[float, float]] = [
     (0.30, 0.70),
@@ -230,10 +230,10 @@ class SUMOEnv(BaseEnv):
         print(f"[SUMOEnv] Initialized with {len(self._tls_ids)} TLS: {self._tls_ids}")
 
         self._state_dim = int(config.state_dim)
-        if self._state_dim not in (4, 12):
-            raise ValueError(f"state_dim must be 4 or 12, got {self._state_dim}")
+        if self._state_dim not in (4, 12, 14):
+            raise ValueError(f"state_dim must be 4, 12, or 14, got {self._state_dim}")
         if len(self._tls_ids) > 1 and self._state_dim == 4:
-            raise ValueError("state_dim must be 12 when using multiple tls_ids")
+            raise ValueError("state_dim must be 12 or 14 when using multiple tls_ids")
 
         self._multi_mode = len(self._tls_ids) > 1 or self._state_dim > 4
         self._legacy_mode = not self._multi_mode
@@ -669,15 +669,29 @@ class SUMOEnv(BaseEnv):
 
         spill_penalty = self._compute_spillback_penalty()
         
+        # FIX A: Get number of vehicles CURRENTLY IN NETWORK (not including queued/future)
+        n_present = 1
+        if self._traci is not None:
+            try:
+                n_present = max(1, int(self._traci.vehicle.getIDCount()))  # FIXED: was getMinExpectedNumber
+            except Exception:
+                n_present = 1  # Fail-safe: no normalization this step
+        
+        # Number of downstream links for spillback normalization
+        num_downstream = len(self._downstream_links) if self._downstream_links else 4
+        
         reward = compute_normalized_reward(
             wait_total=total_wait,
             t_step=float(t_step_value),
             decision_cycle_sec=float(decision_cycle_sec),
             spill_penalty=float(spill_penalty),
+            n_present=n_present,
+            num_downstream=num_downstream,
         )
 
-        # Note: teleport and deadlock penalties removed (v2.0)
-        # Formula is now purely: R = -W/T - α∑(Occ)²
+        # Note: Formula is now demand-invariant (v3.0)
+        # R = -W / (T * N) - α∑(Occ)² / M
+        # where N = vehicles in network, M = downstream links
 
         if self._reward_time_normalize:
             if transition_total_sec > 0:
@@ -729,6 +743,8 @@ class SUMOEnv(BaseEnv):
             "all_red_sec": int(self._config.all_red_sec),
             "t_step": float(t_step_value),
             "spill_penalty": float(spill_penalty),
+            "n_present": int(n_present),
+            "num_downstream": int(num_downstream),
             "total_wait_reward": float(total_wait),
             "wait_ns": float(w_ns),
             "wait_ew": float(w_ew),
@@ -772,10 +788,10 @@ class SUMOEnv(BaseEnv):
                 raise ValueError(f"Invalid action_id {action_id_int} for tls {tls_id}")
             selected_actions[tls_id] = self._action_defs[action_id_int]
 
-        cycle_set = {int(defn.cycle_sec) for defn in selected_actions.values()}
-        if len(cycle_set) != 1:
-            raise ValueError(f"All TLS actions must share the same cycle_sec in multi-agent mode. Got: {cycle_set}")
-        cycle_sec = cycle_set.pop()
+        # Allow different cycle_sec per TLS - use max for decision duration
+        # Shorter cycles will loop within the decision period
+        cycles_by_tls = {tls_id: int(defn.cycle_sec) for tls_id, defn in selected_actions.items()}
+        max_cycle_sec = max(cycles_by_tls.values())
 
         intervals_by_tls: Dict[str, List[Tuple[int, int, bool]]] = {}
         g_plan: Dict[str, Tuple[int, int]] = {}
@@ -791,12 +807,10 @@ class SUMOEnv(BaseEnv):
             intervals_by_tls[tls_id] = intervals
             g_plan[tls_id] = (g_ns, g_ew)
 
+        # Use max total steps across all TLS for decision duration
         total_steps_per_tls = {tls_id: sum(d for _, d, _ in intervals) for tls_id, intervals in intervals_by_tls.items()}
-        step_values = set(total_steps_per_tls.values())
-        if len(step_values) != 1:
-            raise ValueError("All TLS intervals must produce the same number of steps")
-        decision_steps = step_values.pop()
-        decision_cycle_sec = float(cycle_sec)
+        decision_steps = max(total_steps_per_tls.values())  # Use MAX, not require all same
+        decision_cycle_sec = float(max_cycle_sec)
         decision_teleport_count = 0
         t0_sim = float(self._traci.simulation.getTime())
 
@@ -893,6 +907,10 @@ class SUMOEnv(BaseEnv):
                 remaining_steps[tls_id] -= 1
                 if remaining_steps[tls_id] <= 0:
                     interval_pos[tls_id] += 1
+                    # If this TLS has completed its cycle, loop back to start
+                    # (allows shorter cycles to repeat within max decision period)
+                    if interval_pos[tls_id] >= len(intervals_by_tls[tls_id]):
+                        interval_pos[tls_id] = 0  # Restart cycle
                     if interval_pos[tls_id] < len(intervals_by_tls[tls_id]):
                         phase_index, duration_steps, _ = intervals_by_tls[tls_id][interval_pos[tls_id]]
                         remaining_steps[tls_id] = duration_steps
@@ -904,7 +922,7 @@ class SUMOEnv(BaseEnv):
         rewards: Dict[str, float] = {}
         states: Dict[str, np.ndarray] = {}
 
-        t_step_value = float(cycle_sec + 2 * int(self._config.yellow_sec) + 2 * int(self._config.all_red_sec))
+        t_step_value = float(max_cycle_sec + 2 * int(self._config.yellow_sec) + 2 * int(self._config.all_red_sec))
         wait_exponent = float(self._reward_exponent if self._use_enhanced_reward else 1.0)
         wait_totals: Dict[str, float] = {}
         w_dir: Dict[str, np.ndarray] = {}
@@ -922,29 +940,61 @@ class SUMOEnv(BaseEnv):
         else:
             t1_sim = float(self._stepped_seconds)
         decision_duration_sec = max(1e-6, t1_sim - t0_sim)
-        decision_cycle_sec = float(cycle_sec)
-        t_step_value = float(cycle_sec + 2 * int(self._config.yellow_sec) + 2 * int(self._config.all_red_sec))
+        decision_cycle_sec = float(max_cycle_sec)
+        t_step_value = float(max_cycle_sec + 2 * int(self._config.yellow_sec) + 2 * int(self._config.all_red_sec))
         transition_total_sec = 2 * int(self._config.yellow_sec) + 2 * int(self._config.all_red_sec)
         spill_penalty = self._compute_spillback_penalty()
+        
+        # FIX A: Get number of vehicles CURRENTLY IN NETWORK (not including queued/future)
+        n_present = 1
+        if self._traci is not None:
+            try:
+                n_present = max(1, int(self._traci.vehicle.getIDCount()))  # FIXED: was getMinExpectedNumber
+            except Exception:
+                n_present = 1  # Fail-safe: no normalization this step
+        
+        # Number of downstream links for spillback normalization
+        num_downstream = len(self._downstream_links) if self._downstream_links else 4
+
+        # SMDP REWARD v5 (FINAL): Shared global reward with time exposure
+        # Objective: minimize avg waiting per vehicle for ENTIRE NETWORK
+        W_global = float(sum(float(wait_totals[tid]) for tid in self._tls_ids))
+        
+        # t_ref = 60s (reference time for scaling, same as time-aware gamma)
+        T_REF = 60.0
+        
+        # Compute spill scalar for broadcasting to state later
+        spill_scalar = float(spill_penalty)  # α * sum(occ^2)
+        
+        R_global = compute_normalized_reward_smdp(
+            wait_total=W_global,
+            delta_t=float(t_step_value),
+            t_ref=T_REF,
+            spill_penalty=spill_scalar,
+            n_present=int(n_present),
+            num_downstream=int(num_downstream),
+        )
+        
+        # NOTE: No additional time normalization needed - SMDP formula handles it
+        # The reward_time_normalize flag is now deprecated for SMDP reward
+
+        # Normalize global scalars for broadcasting to state (FIX D)
+        # These ensure all agents can observe variables that affect reward
+        N_CAP = 10000.0  # Max expected vehicles in network (for normalization)
+        ALPHA = 3.0      # Spillback weight from config
+        M = float(num_downstream)
+        
+        n_present_norm = min(1.0, float(n_present) / N_CAP)
+        spill_scalar_norm = min(1.0, spill_scalar / (ALPHA * M)) if ALPHA * M > 0 else 0.0
 
         for tls_id in self._tls_ids:
-            rewards[tls_id] = compute_normalized_reward(
-                wait_total=float(wait_totals[tls_id]),
-                t_step=float(t_step_value),
-                decision_cycle_sec=float(decision_cycle_sec),
-                spill_penalty=float(spill_penalty),
-            )
-            # Note: teleport and deadlock penalties removed (v2.0)
-            # Formula is now purely: R = -W/T - α∑(Occ)²
-            if self._reward_time_normalize:
-                if transition_total_sec > 0:
-                    rewards[tls_id] = float(rewards[tls_id]) * float(t_step_value) / float(decision_duration_sec)
-                else:
-                    rewards[tls_id] = float(rewards[tls_id]) / float(decision_duration_sec)
+            rewards[tls_id] = float(R_global)  # SHARED: same reward for all TLS
             state_raw = self._build_state_vector(
                 tls_id=tls_id,
                 last_q_dir=last_q_dir[tls_id],
                 w_dir=w_dir[tls_id],
+                n_present_norm=n_present_norm,
+                spill_scalar_norm=spill_scalar_norm,
             )
             state_norm = self._normalizer.normalize(state_raw) if self._normalize_state else state_raw
             state_value = state_raw if self._return_raw_state else state_norm
@@ -954,7 +1004,7 @@ class SUMOEnv(BaseEnv):
             self._last_state_raw[tls_id] = state_raw.copy()
 
         self._cycle_index += 1
-        self._prev_cycle_sec = int(cycle_sec)
+        self._prev_cycle_sec = int(max_cycle_sec)
 
         done = False
 
@@ -977,7 +1027,7 @@ class SUMOEnv(BaseEnv):
             "cycle_index": int(self._cycle_index),
             "action_ids": {tls: int(action_map[tls]) for tls in self._tls_ids},
             "g_plan": {tls: {"g_ns": int(g_plan[tls][0]), "g_ew": int(g_plan[tls][1])} for tls in self._tls_ids},
-            "cycle_sec": int(cycle_sec),
+            "cycle_sec": int(max_cycle_sec),
             "yellow_sec": int(self._config.yellow_sec),
             "decision_cycle_sec": float(decision_cycle_sec),
             "decision_steps": int(executed_steps),
@@ -986,6 +1036,8 @@ class SUMOEnv(BaseEnv):
             "step_length_sec": float(self._config.step_length_sec),
             "t_step": float(t_step_value),
             "spill_penalty": float(spill_penalty),
+            "n_present": int(n_present),
+            "num_downstream": int(num_downstream),
             "total_wait_reward": float(sum(wait_totals.values())),
             "mean_reward": float(np.mean(list(rewards.values()))),
             "state_raw": {tls: state.tolist() for tls, state in ((k, self._last_state_raw[k]) for k in self._tls_ids)},
@@ -1027,7 +1079,26 @@ class SUMOEnv(BaseEnv):
             return {str(tls): int(a) for tls, a in zip(self._tls_ids, actions)}
         else:
             raise ValueError(f"Unsupported actions type: {type(actions)}, expected dict, int, or list/tuple")
-    def _build_state_vector(self, tls_id: str, last_q_dir: np.ndarray, w_dir: np.ndarray) -> np.ndarray:
+    def _build_state_vector(
+        self, 
+        tls_id: str, 
+        last_q_dir: np.ndarray, 
+        w_dir: np.ndarray,
+        n_present_norm: float = 0.0,
+        spill_scalar_norm: float = 0.0,
+    ) -> np.ndarray:
+        """Build state vector for a TLS agent.
+        
+        State dimensions (14D total):
+        - [0:4] queue_counts: number of vehicles queued per direction (N,E,S,W)
+        - [4:8] waiting_times: accumulated waiting time per direction (veh-sec)
+        - [8:12] downstream_occupancy: occupancy of downstream lanes [0,1]
+        - [12] n_present_norm: normalized global vehicle count (BROADCAST)
+        - [13] spill_scalar_norm: normalized global spillback penalty (BROADCAST)
+        
+        The last 2 dimensions are GLOBAL scalars broadcast to all agents,
+        ensuring the MDP is fully observable (reward depends only on state).
+        """
         if tls_id not in self._direction_lanes_by_tls:
             raise ValueError(f"Unknown tls_id: {tls_id}")
 
@@ -1035,10 +1106,13 @@ class SUMOEnv(BaseEnv):
         if self._enable_downstream_occupancy and tls_id == self._center_tls_id and len(self._downstream_links) > 0:
             occupancy = self._read_downstream_occupancy()
 
-        state = np.zeros(12, dtype=np.float32)
-        state[0:4] = last_q_dir.astype(np.float32)
-        state[4:8] = w_dir.astype(np.float32)
-        state[8:12] = occupancy
+        # State vector: 14D (expanded from 12D to include global scalars)
+        state = np.zeros(14, dtype=np.float32)
+        state[0:4] = last_q_dir.astype(np.float32)      # Queue counts (4)
+        state[4:8] = w_dir.astype(np.float32)            # Waiting times (4)
+        state[8:12] = occupancy                           # Downstream occupancy (4)
+        state[12] = float(n_present_norm)                 # Global N_present (1) - BROADCAST
+        state[13] = float(spill_scalar_norm)              # Global spill scalar (1) - BROADCAST
         return state
 
     def _compute_green_split(self, action_def: SumoActionDefinition) -> Tuple[int, int]:
