@@ -8,36 +8,32 @@ import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from env.mdp_metrics import compute_anti_flicker_penalty, compute_normalized_reward
+from env.mdp_metrics import compute_normalized_reward
 from rl.agent import AgentConfig, DQNAgent
 
 
 def test_compute_normalized_reward_time_scaling():
+    """Test simplified reward formula: R = -W/T - spill (spill NOT divided by T)"""
     reward = compute_normalized_reward(
         wait_total=120.0,
-        fairness_penalty=30.0,
-        spill_penalty=0.0,
-        anti_flicker_penalty=0.0,
+        spill_penalty=30.0,
         t_step=150.0,
         decision_cycle_sec=200.0,
     )
-    assert math.isclose(reward, -(120.0 + 30.0) / 150.0)
+    # R = -120/150 - 30 = -0.8 - 30 = -30.8
+    assert math.isclose(reward, -120.0 / 150.0 - 30.0)
 
 
 def test_compute_normalized_reward_with_variable_cycle():
     reward_short = compute_normalized_reward(
         wait_total=30.0,
-        fairness_penalty=0.0,
         spill_penalty=0.0,
-        anti_flicker_penalty=0.0,
         t_step=30.0,
         decision_cycle_sec=30.0,
     )
     reward_long = compute_normalized_reward(
         wait_total=30.0,
-        fairness_penalty=0.0,
         spill_penalty=0.0,
-        anti_flicker_penalty=0.0,
         t_step=90.0,
         decision_cycle_sec=90.0,
     )
@@ -46,24 +42,16 @@ def test_compute_normalized_reward_with_variable_cycle():
     assert math.isclose(reward_long, -(30.0 / 90.0))
 
 
-def test_compute_normalized_reward_with_penalties():
+def test_compute_normalized_reward_with_spill_penalty():
+    """Test that spill_penalty is NOT divided by T (critical for proper weighting)"""
     reward = compute_normalized_reward(
         wait_total=50.0,
-        fairness_penalty=5.0,
-        spill_penalty=2.0,
-        anti_flicker_penalty=3.0,
+        spill_penalty=2.0,  # e.g., alpha=1.0, sum(occ^2)=2.0
         t_step=60.0,
         decision_cycle_sec=60.0,
     )
-    assert math.isclose(reward, -60.0 / 60.0)
-
-
-def test_anti_flicker_penalty_toggle():
-    prev_cycle = 30
-    kappa = 2.5
-    assert math.isclose(compute_anti_flicker_penalty(prev_cycle_sec=prev_cycle, cycle_sec=30, enabled=True, kappa=kappa), 0.0)
-    assert math.isclose(compute_anti_flicker_penalty(prev_cycle_sec=prev_cycle, cycle_sec=60, enabled=True, kappa=kappa), 2.5)
-    assert math.isclose(compute_anti_flicker_penalty(prev_cycle_sec=prev_cycle, cycle_sec=90, enabled=False, kappa=kappa), 0.0)
+    # R = -50/60 - 2.0 = -0.833 - 2.0 = -2.833
+    assert math.isclose(reward, -50.0 / 60.0 - 2.0)
 
 
 def test_time_aware_gamma_computation():
@@ -118,7 +106,6 @@ def test_reward_monotonic_with_weights_and_exponent():
 
 if __name__ == "__main__":
     test_compute_normalized_reward_time_scaling()
-    test_compute_normalized_reward_with_penalties()
-    test_anti_flicker_penalty_toggle()
+    test_compute_normalized_reward_with_spill_penalty()
     test_time_aware_gamma_computation()
     print("test_reward_and_penalties passed")

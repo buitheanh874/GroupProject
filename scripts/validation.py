@@ -39,7 +39,7 @@ def validate_action_table(
     _validate_action_splits(action_splits, rho_min)
     expected_cycles = len(allowed_cycles)
     expected_splits = len(action_splits)
-    if state_dim == 12:
+    if state_dim in (12, 14):  # Multi-agent mode (12D local or 14D with global broadcast)
         if expected_cycles != 3:
             raise ValueError(f"allowed_cycles_sec must have exactly 3 entries for state_dim=12, got {expected_cycles}")
         if expected_splits != 5:
@@ -77,10 +77,10 @@ def validate_action_table(
             if g_ns_check < g_min_sec or g_ew_check < g_min_sec:
                 raise ValueError(f"action_table[{idx}] green times must be >= g_min_sec={g_min_sec}")
             split_idx = _split_index(rho_ns_val, rho_ew_val, action_splits)
-            if state_dim == 12 and split_idx < 0:
+            if state_dim in (12, 14) and split_idx < 0:
                 raise ValueError(f"action_table[{idx}] split must match one of action_splits")
             entries.append((cycle_val, rho_ns_val, rho_ew_val, split_idx))
-        if state_dim == 12:
+        if state_dim in (12, 14):  # Multi-agent mode (12D local or 14D with global broadcast)
             expected = expected_cycles * expected_splits
             seen = {}
             for cycle_val, rho_ns_val, rho_ew_val, split_idx in entries:
@@ -102,7 +102,7 @@ def validate_action_table(
         else:
             for cycle_val, rho_ns_val, rho_ew_val, _ in entries:
                 processed_action_table.append({"cycle_sec": cycle_val, "rho_ns": rho_ns_val, "rho_ew": rho_ew_val})
-    elif state_dim == 12:
+    elif state_dim in (12, 14):  # Multi-agent mode
         if len(allowed_cycles) == 0:
             raise ValueError("allowed_cycles_sec must not be empty when state_dim=12 and action_table is empty")
         for cycle in allowed_cycles:
@@ -135,17 +135,12 @@ def validate_scalar_params(
     all_red_sec: int,
     rho_min: float,
     g_min_sec: int,
-    lambda_fairness: float,
-    fairness_metric: str,
     queue_count_mode: str,
     halt_speed_threshold: float,
     use_enhanced_reward: bool,
     reward_exponent: float,
-    enable_anti_flicker: bool,
-    kappa: float,
     enable_spillback_penalty: bool,
-    beta: float,
-    occ_threshold: float,
+    alpha_spillback: float,
     allowed_cycles: List[int],
 ) -> None:
     mode = str(queue_count_mode).lower()
@@ -158,10 +153,6 @@ def validate_scalar_params(
         raise ValueError("rho_min must be in (0, 0.5]")
     if g_min_sec < 0:
         raise ValueError("g_min_sec must be >=0")
-    if lambda_fairness < 0.0:
-        raise ValueError("lambda_fairness must be >=0")
-    if fairness_metric not in {"max", "p95"}:
-        raise ValueError("fairness_metric must be max or p95")
     if mode == "snapshot_last_step":
         raise ValueError(
             "queue_count_mode='snapshot_last_step' is no longer supported.\n"
@@ -174,12 +165,7 @@ def validate_scalar_params(
         raise ValueError("halt_speed_threshold must be >=0")
     if use_enhanced_reward and reward_exponent < 1.0:
         raise ValueError("reward_exponent must be >=1 when use_enhanced_reward is True")
-    if enable_anti_flicker and kappa < 0.0:
-        raise ValueError("kappa must be >=0 when enable_anti_flicker is True")
-    if enable_spillback_penalty:
-        if beta < 0.0:
-            raise ValueError("beta must be >=0 when enable_spillback_penalty is True")
-        if occ_threshold < 0.0 or occ_threshold > 1.0:
-            raise ValueError("occ_threshold must be in [0,1] when enable_spillback_penalty is True")
+    if enable_spillback_penalty and alpha_spillback < 0.0:
+        raise ValueError("alpha_spillback must be >=0 when enable_spillback_penalty is True")
     if len(allowed_cycles) == 0 or any(cycle <= 0 for cycle in allowed_cycles):
         raise ValueError("allowed_cycles_sec must contain positive cycle lengths")

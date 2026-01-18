@@ -6,7 +6,7 @@ This file operationalizes `docs/upgrade_9_tls_plan.md` with concrete code/config
 - TLS discovery utility: `scripts/sumo_network_tools.py::extract_tls_ids` (order-preserving, stdlib XML).
 - Config validation + auto TLS wiring: `scripts/common.py` (`auto_tls_ids`, uniqueness, center membership, downstream warnings).
 - Env robustness: `env/sumo_env.py` (TLS count logging, fail-fast downstream occupancy validation).
-- Controllers & wiring for N TLS: `controllers/max_pressure.py` (12D-aware + helper), `scripts/train.py`/`scripts/eval.py` (cycle masking helper, multi-TLS baseline actions, metrics `num_tls` column).
+- Controllers & wiring for N TLS: `controllers/max_pressure.py` (12D/14D-aware + helper), `scripts/train.py`/`scripts/eval.py` (cycle masking helper, multi-TLS baseline actions, metrics `num_tls` column).
 - 9-TLS templates: `configs/train_bignet_9tls.yaml`, `configs/eval_bignet_9tls.yaml`, placeholder routes `networks/BIGNET.rou.xml`.
 - Tests covering TLS validation/discovery/controllers: `tests/test_tls_discovery.py`.
 - README note and run samples updated (see `README.md`).
@@ -33,7 +33,7 @@ This file operationalizes `docs/upgrade_9_tls_plan.md` with concrete code/config
 
 ## Regression Checklist (5-TLS remains intact)
 - Hub-spoke templates untouched: `configs/train_hub_spoke_demo.yaml`, `configs/eval_hub_spoke.yaml`.
-- Default behavior preserved: single-TLS configs still work (`tls_id` fallback) and state_dim validation unchanged (4/12).
+- Default behavior preserved: single-TLS configs still work (`tls_id` fallback) and state_dim validation unchanged (4/12/14).
 - Existing tests remain applicable; new tests avoid SUMO/traci dependency.
 
 ## Risks & Mitigations

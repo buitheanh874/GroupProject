@@ -1,0 +1,234 @@
+run:
+  run_name: train_bignet_300ep
+  seed: 42
+  device: cpu
+
+env:
+  type: sumo
+  sumo:
+    teleport_penalty_lambda: 5.0
+    teleport_time_cap_sec: null
+    sumo_binary: sumo
+    net_file: networks/BIGNET.net.xml
+    route_file: networks/variants/train/bignet_train_seed00042.rou.xml
+    additional_files: []
+    tls_ids: ["J0", "J1", "J2", "J3", "J4", "J6", "J7", "J14", "J17"]
+    center_tls_id: "J0"
+    downstream_links:
+      N: "E3"
+      E: "E0"
+      S: "E2"
+      W: "E1"
+    vehicle_weights:
+      motorcycle: 0.25
+      passenger: 1.0
+      bus: 3.0
+    step_length_sec: 1.0
+    green_cycle_sec: 90
+    yellow_sec: 3
+    all_red_sec: 2
+    max_cycles: 60
+    max_sim_seconds: 1800
+    terminate_on_empty: true
+    rho_min: 0.1
+    g_min_sec: 10
+    cycle_options_sec: [60, 90, 120]
+    action_splits:
+      - [0.30, 0.70]
+      - [0.40, 0.60]
+      - [0.50, 0.50]
+      - [0.60, 0.40]
+      - [0.70, 0.30]
+    action_table: []
+    include_transition_in_waiting: false
+    reward_time_normalize: true
+
+    sumo_extra_args:
+      - "--ignore-junction-blocker"
+      - "1"
+      - "--time-to-teleport"
+      - "300"
+      - "--no-warnings"
+
+    enable_kpi_tracker: true
+    normalize_state: true
+    return_raw_state: false
+    state_dim: 14  # SMDP v5: 12 local + 2 global broadcast
+    enable_downstream_occupancy: true
+    enable_spillback_penalty: true
+    alpha_spillback: 3.0
+    deadlock_early_no_arrival_sec: 0
+    deadlock_no_arrival_sec: 0
+    deadlock_queue_threshold: 0
+    deadlock_downstream_occ_threshold: 0
+    deadlock_active_min: 0
+    deadlock_early_penalty_max: 0
+    deadlock_penalty: 0
+    terminate_on_deadlock: false
+    teleport_failure_when_congested: false
+
+    lane_groups_by_tls:
+      J0:
+        lanes_ns_ctrl: ["-E2_0", "-E2_1", "-E2_2", "-E3_0", "-E3_1", "-E3_2"]
+        lanes_ew_ctrl: ["-E0_0", "-E0_1", "-E0_2", "-E1_0", "-E1_1", "-E1_2"]
+        approach_lanes:
+          N: ["-E2_0", "-E2_1", "-E2_2"]
+          E: ["-E0_0", "-E0_1", "-E0_2"]
+          S: ["-E3_0", "-E3_1", "-E3_2"]
+          W: ["-E1_0", "-E1_1", "-E1_2"]
+      J3:
+        lanes_ns_ctrl: ["-E25_0", "-E25_1", "-E25_2", "E2_0", "E2_1", "E2_2"]
+        lanes_ew_ctrl: ["-E26_0", "-E26_1", "-E26_2", "E24_0", "E24_1", "E24_2"]
+        approach_lanes:
+          N: ["-E25_0", "-E25_1", "-E25_2"]
+          E: ["-E26_0", "-E26_1", "-E26_2"]
+          S: ["E2_0", "E2_1", "E2_2"]
+          W: ["E24_0", "E24_1", "E24_2"]
+      J1:
+        lanes_ns_ctrl: ["-E6_0", "-E6_1", "-E6_2", "-E5_0", "-E5_1", "-E5_2"]
+        lanes_ew_ctrl: ["-E4_0", "-E4_1", "-E4_2", "E0_0", "E0_1", "E0_2"]
+        approach_lanes:
+          N: ["-E6_0", "-E6_1", "-E6_2"]
+          E: ["-E4_0", "-E4_1", "-E4_2"]
+          S: ["-E5_0", "-E5_1", "-E5_2"]
+          W: ["E0_0", "E0_1", "E0_2"]
+      J4:
+        lanes_ns_ctrl: ["E3_0", "E3_1", "E3_2", "-E16_0", "-E16_1", "-E16_2"]
+        lanes_ew_ctrl: ["E14_0", "E14_1", "E14_2", "-E15_0", "-E15_1", "-E15_2"]
+        approach_lanes:
+          N: ["E3_0", "E3_1", "E3_2"]
+          E: ["E14_0", "E14_1", "E14_2"]
+          S: ["-E16_0", "-E16_1", "-E16_2"]
+          W: ["-E15_0", "-E15_1", "-E15_2"]
+      J2:
+        lanes_ns_ctrl: ["-E19_0", "-E19_1", "-E19_2", "-E18_0", "-E18_1", "-E18_2"]
+        lanes_ew_ctrl: ["E1_0", "E1_1", "E1_2", "-E17_0", "-E17_1", "-E17_2"]
+        approach_lanes:
+          N: ["-E19_0", "-E19_1", "-E19_2"]
+          E: ["E1_0", "E1_1", "E1_2"]
+          S: ["-E18_0", "-E18_1", "-E18_2"]
+          W: ["-E17_0", "-E17_1", "-E17_2"]
+      J7:
+        lanes_ns_ctrl: ["-E27_0", "-E27_1", "-E27_2", "E6_0", "E6_1", "E6_2"]
+        lanes_ew_ctrl: ["-E28_0", "-E28_1", "-E28_2", "E26_0", "E26_1", "E26_2"]
+        approach_lanes:
+          N: ["-E27_0", "-E27_1", "-E27_2"]
+          E: ["-E28_0", "-E28_1", "-E28_2"]
+          S: ["E6_0", "E6_1", "E6_2"]
+          W: ["E26_0", "E26_1", "E26_2"]
+      J6:
+        lanes_ns_ctrl: ["E5_0", "E5_1", "E5_2", "-E13_0", "-E13_1", "-E13_2"]
+        lanes_ew_ctrl: ["-E12_0", "-E12_1", "-E12_2", "-E14_0", "-E14_1", "-E14_2"]
+        approach_lanes:
+          N: ["E5_0", "E5_1", "E5_2"]
+          E: ["-E12_0", "-E12_1", "-E12_2"]
+          S: ["-E13_0", "-E13_1", "-E13_2"]
+          W: ["-E14_0", "-E14_1", "-E14_2"]
+      J14:
+        lanes_ns_ctrl: ["E18_0", "E18_1", "E18_2", "-E21_0", "-E21_1", "-E21_2"]
+        lanes_ew_ctrl: ["E15_0", "E15_1", "E15_2", "-E20_0", "-E20_1", "-E20_2"]
+        approach_lanes:
+          N: ["E18_0", "E18_1", "E18_2"]
+          E: ["E15_0", "E15_1", "E15_2"]
+          S: ["-E21_0", "-E21_1", "-E21_2"]
+          W: ["-E20_0", "-E20_1", "-E20_2"]
+      J17:
+        lanes_ns_ctrl: ["-E22_0", "-E22_1", "-E22_2", "E19_0", "E19_1", "E19_2"]
+        lanes_ew_ctrl: ["-E24_0", "-E24_1", "-E24_2", "-E23_0", "-E23_1", "-E23_2"]
+        approach_lanes:
+          N: ["-E22_0", "-E22_1", "-E22_2"]
+          E: ["-E24_0", "-E24_1", "-E24_2"]
+          S: ["E19_0", "E19_1", "E19_2"]
+          W: ["-E23_0", "-E23_1", "-E23_2"]
+    phase_program:
+      ew_green: 0
+      ew_yellow: 1
+      all_red: 2
+      ns_green: 3
+      ns_yellow: 4
+    tls_phase_overrides:
+      J17:
+        ns_green: 0
+        ew_green: 3
+      J2:
+        ns_green: 0
+        ew_green: 3
+      J3:
+        ns_green: 0
+        ew_green: 3
+      J14:
+        ns_green: 0
+        ew_green: 3
+      J7:
+        ns_green: 0
+        ew_green: 3
+
+normalization:
+  file: configs/norm_curriculum_v5.json
+
+agent:
+  hidden_dims: [192, 192]
+  gamma: 0.99
+  use_time_aware_gamma: true
+  t_ref: 60.0
+  learning_rate: 0.0003
+  batch_size: 256
+  replay_buffer_size: 200000
+  target_update_freq: 3000
+  clip_grad_norm: 10.0
+  learning_starts: 600
+  train_freq: 4
+  use_huber_loss: true
+
+exploration:
+  eps_start: 1.0
+  eps_end: 0.05
+  eps_decay_steps: 20000
+
+train:
+  episodes: 200
+  save_every_episodes: 20
+  print_every_episodes: 10
+
+baseline:
+  fixed_action_id: 12
+
+curriculum:
+  enabled: true
+  phases:
+    - name: "phase1_mixed_easy"
+      episodes: 60  # 30%
+      max_sim_seconds: 1800
+      route_pool_manifest: networks/variants/train_turn801010/manifest_mixed_phase1.txt
+      description: "Mixed: 70% d500, 20% d750, 10% d1000 (30%)"
+
+    - name: "phase2_mixed_moderate"
+      episodes: 80  # 40%
+      max_sim_seconds: 1800
+      route_pool_manifest: networks/variants/train_turn801010/manifest_mixed_phase2.txt
+      description: "c
+
+    - name: "phase3_mixed_hard"
+      episodes: 60  # 30%
+      max_sim_seconds: 1800
+      route_pool_manifest: networks/variants/train_turn801010/manifest_mixed_phase3.txt
+      description: "Mixed: 10% d500, 30% d750, 60% d1000 (30%)"
+
+logging:
+  log_dir: logs/bignet_short
+  model_dir: models/bignet_short
+  results_dir: results/bignet_short
+
+parallel:
+  enabled: true  
+  num_actors: 2  
+  base_port: 9600
+  base_seed: 42
+  chunk_size: 256
+  queue_max_chunks: 200
+  sync_every_updates: 100
+  epsilon_worker_multipliers: [0.90, 1.10]
+  reset_max_retries: 3
+  reset_backoff_base_sec: 1.0
+  reset_backoff_cap_sec: 8.0
+  max_update_time_ms: 50.0

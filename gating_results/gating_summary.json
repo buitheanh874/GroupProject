@@ -1,0 +1,59 @@
+{
+  "thresholds": {
+    "strict": {
+      "teleport_rate": 0.02,
+      "wrong_lane_share": 0.2,
+      "completion_rate": 0.95,
+      "throughput_end_ratio": 0.7
+    },
+    "relaxed": {
+      "teleport_rate": 0.05,
+      "wrong_lane_share": 0.3,
+      "throughput_end_ratio": 0.5
+    }
+  },
+  "analysis": {
+    "600": {
+      "n_runs": 2,
+      "strict_pass": 0,
+      "relaxed_pass": 2,
+      "fail": 0,
+      "final_status": "RELAXED_PASS",
+      "avg_teleport_rate": 0.010081956051235009,
+      "avg_wrong_lane_share": 0.19797297297297298,
+      "avg_completion_rate": 0.6107437505890025,
+      "avg_throughput_end_ratio": 0.6852683636753393
+    },
+    "800": {
+      "n_runs": 2,
+      "strict_pass": 0,
+      "relaxed_pass": 2,
+      "fail": 0,
+      "final_status": "RELAXED_PASS",
+      "avg_teleport_rate": 0.011228688603912903,
+      "avg_wrong_lane_share": 0.1980882420039239,
+      "avg_completion_rate": 0.5147460983269607,
+      "avg_throughput_end_ratio": 0.7453543830692098
+    },
+    "1000": {
+      "n_runs": 2,
+      "strict_pass": 0,
+      "relaxed_pass": 2,
+      "fail": 0,
+      "final_status": "RELAXED_PASS",
+      "avg_teleport_rate": 0.010471654132403512,
+      "avg_wrong_lane_share": 0.19955752212389383,
+      "avg_completion_rate": 0.4641719568649707,
+      "avg_throughput_end_ratio": 0.777113856124369
+    }
+  },
+  "recommendation": {
+    "train_set": [],
+    "stress_set": [
+      600,
+      800,
+      1000
+    ],
+    "highest_strict_demand": null
+  }
+}

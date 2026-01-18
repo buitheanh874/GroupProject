@@ -70,52 +70,23 @@ def test_rho_min_enforced():
         pass
 
 
-def test_spillback_threshold_validation():
+def test_spillback_alpha_validation():
+    """Test that alpha_spillback must be >=0 when spillback penalty is enabled."""
     try:
         validate_scalar_params(
             yellow_sec=0,
             all_red_sec=0,
             rho_min=0.1,
             g_min_sec=5,
-            lambda_fairness=0.12,
-            fairness_metric="max",
             queue_count_mode="distinct_cycle",
             halt_speed_threshold=0.1,
             use_enhanced_reward=False,
             reward_exponent=1.0,
-            enable_anti_flicker=False,
-            kappa=0.0,
             enable_spillback_penalty=True,
-            beta=1.0,
-            occ_threshold=1.5,
+            alpha_spillback=-1.0,
             allowed_cycles=[30],
         )
-        assert False, "Expected ValueError for invalid occ_threshold"
-    except ValueError:
-        pass
-
-
-def test_anti_flicker_requires_nonnegative_kappa():
-    try:
-        validate_scalar_params(
-            yellow_sec=0,
-            all_red_sec=0,
-            rho_min=0.1,
-            g_min_sec=5,
-            lambda_fairness=0.12,
-            fairness_metric="max",
-            queue_count_mode="distinct_cycle",
-            halt_speed_threshold=0.1,
-            use_enhanced_reward=False,
-            reward_exponent=1.0,
-            enable_anti_flicker=True,
-            kappa=-1.0,
-            enable_spillback_penalty=False,
-            beta=0.0,
-            occ_threshold=0.0,
-            allowed_cycles=[30],
-        )
-        assert False, "Expected ValueError for negative kappa"
+        assert False, "Expected ValueError for negative alpha_spillback"
     except ValueError:
         pass
 
@@ -127,17 +98,12 @@ def test_snapshot_last_step_rejected():
             all_red_sec=0,
             rho_min=0.1,
             g_min_sec=5,
-            lambda_fairness=0.12,
-            fairness_metric="max",
             queue_count_mode="snapshot_last_step",
             halt_speed_threshold=0.1,
             use_enhanced_reward=False,
             reward_exponent=1.0,
-            enable_anti_flicker=False,
-            kappa=0.0,
             enable_spillback_penalty=False,
-            beta=0.0,
-            occ_threshold=0.0,
+            alpha_spillback=1.0,
             allowed_cycles=[30],
         )
 
@@ -146,6 +112,5 @@ if __name__ == "__main__":
     test_invalid_action_cycle_rejected()
     test_g_min_enforced()
     test_rho_min_enforced()
-    test_spillback_threshold_validation()
-    test_anti_flicker_requires_nonnegative_kappa()
+    test_spillback_alpha_validation()
     print("test_action_table_validation_strict passed")

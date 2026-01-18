@@ -1,0 +1,485 @@
+agent:
+  batch_size: 256
+  clip_grad_norm: 10.0
+  gamma: 0.99
+  hidden_dims:
+  - 256
+  - 256
+  learning_rate: 0.0001
+  learning_starts: 2000
+  replay_buffer_size: 200000
+  t_ref: 60.0
+  target_update_freq: 5000
+  train_freq: 4
+  use_huber_loss: true
+  use_time_aware_gamma: true
+baseline:
+  fixed_action_id: 12
+curriculum:
+  enabled: true
+  phases:
+  - description: 800 veh/hr/lane - 20min (27%)
+    episodes: 350
+    max_sim_seconds: 1200
+    name: phase1_short
+    route_pool_manifest: networks/variants/train/manifest_d800.txt
+  - description: 800 veh/hr/lane - 25min (32%)
+    episodes: 400
+    max_sim_seconds: 1500
+    name: phase2_medium
+    route_pool_manifest: networks/variants/train/manifest_d800.txt
+  - description: 800 veh/hr/lane - 30min (41%)
+    episodes: 450
+    max_sim_seconds: 1800
+    name: phase3_full
+    route_pool_manifest: networks/variants/train/manifest_d800.txt
+env:
+  sumo:
+    action_splits:
+    - - 0.3
+      - 0.7
+    - - 0.4
+      - 0.6
+    - - 0.5
+      - 0.5
+    - - 0.6
+      - 0.4
+    - - 0.7
+      - 0.3
+    action_table: []
+    additional_files: []
+    all_red_sec: 2
+    alpha_spillback: 3.0
+    center_tls_id: J0
+    cycle_options_sec:
+    - 60
+    - 90
+    - 120
+    deadlock_active_min: 0
+    deadlock_downstream_occ_threshold: 0
+    deadlock_early_no_arrival_sec: 0
+    deadlock_early_penalty_max: 0
+    deadlock_no_arrival_sec: 0
+    deadlock_penalty: 0
+    deadlock_queue_threshold: 0
+    downstream_links:
+      E: E0
+      N: E3
+      S: E2
+      W: E1
+    enable_downstream_occupancy: true
+    enable_kpi_tracker: true
+    enable_spillback_penalty: true
+    g_min_sec: 10
+    green_cycle_sec: 90
+    include_transition_in_waiting: false
+    lane_groups_by_tls:
+      J0:
+        approach_lanes:
+          E:
+          - -E0_0
+          - -E0_1
+          - -E0_2
+          N:
+          - -E2_0
+          - -E2_1
+          - -E2_2
+          S:
+          - -E3_0
+          - -E3_1
+          - -E3_2
+          W:
+          - -E1_0
+          - -E1_1
+          - -E1_2
+        lanes_ew_ctrl:
+        - -E0_0
+        - -E0_1
+        - -E0_2
+        - -E1_0
+        - -E1_1
+        - -E1_2
+        lanes_ns_ctrl:
+        - -E2_0
+        - -E2_1
+        - -E2_2
+        - -E3_0
+        - -E3_1
+        - -E3_2
+        lanes_right_turn_slip_ew: []
+        lanes_right_turn_slip_ns: []
+      J1:
+        approach_lanes:
+          E:
+          - -E4_0
+          - -E4_1
+          - -E4_2
+          N:
+          - -E6_0
+          - -E6_1
+          - -E6_2
+          S:
+          - -E5_0
+          - -E5_1
+          - -E5_2
+          W:
+          - E0_0
+          - E0_1
+          - E0_2
+        lanes_ew_ctrl:
+        - -E4_0
+        - -E4_1
+        - -E4_2
+        - E0_0
+        - E0_1
+        - E0_2
+        lanes_ns_ctrl:
+        - -E6_0
+        - -E6_1
+        - -E6_2
+        - -E5_0
+        - -E5_1
+        - -E5_2
+        lanes_right_turn_slip_ew: []
+        lanes_right_turn_slip_ns: []
+      J14:
+        approach_lanes:
+          E:
+          - E15_0
+          - E15_1
+          - E15_2
+          N:
+          - E18_0
+          - E18_1
+          - E18_2
+          S:
+          - -E21_0
+          - -E21_1
+          - -E21_2
+          W:
+          - -E20_0
+          - -E20_1
+          - -E20_2
+        lanes_ew_ctrl:
+        - E15_0
+        - E15_1
+        - E15_2
+        - -E20_0
+        - -E20_1
+        - -E20_2
+        lanes_ns_ctrl:
+        - E18_0
+        - E18_1
+        - E18_2
+        - -E21_0
+        - -E21_1
+        - -E21_2
+        lanes_right_turn_slip_ew: []
+        lanes_right_turn_slip_ns: []
+      J17:
+        approach_lanes:
+          E:
+          - -E24_0
+          - -E24_1
+          - -E24_2
+          N:
+          - -E22_0
+          - -E22_1
+          - -E22_2
+          S:
+          - E19_0
+          - E19_1
+          - E19_2
+          W:
+          - -E23_0
+          - -E23_1
+          - -E23_2
+        lanes_ew_ctrl:
+        - -E24_0
+        - -E24_1
+        - -E24_2
+        - -E23_0
+        - -E23_1
+        - -E23_2
+        lanes_ns_ctrl:
+        - -E22_0
+        - -E22_1
+        - -E22_2
+        - E19_0
+        - E19_1
+        - E19_2
+        lanes_right_turn_slip_ew: []
+        lanes_right_turn_slip_ns: []
+      J2:
+        approach_lanes:
+          E:
+          - E1_0
+          - E1_1
+          - E1_2
+          N:
+          - -E19_0
+          - -E19_1
+          - -E19_2
+          S:
+          - -E18_0
+          - -E18_1
+          - -E18_2
+          W:
+          - -E17_0
+          - -E17_1
+          - -E17_2
+        lanes_ew_ctrl:
+        - E1_0
+        - E1_1
+        - E1_2
+        - -E17_0
+        - -E17_1
+        - -E17_2
+        lanes_ns_ctrl:
+        - -E19_0
+        - -E19_1
+        - -E19_2
+        - -E18_0
+        - -E18_1
+        - -E18_2
+        lanes_right_turn_slip_ew: []
+        lanes_right_turn_slip_ns: []
+      J3:
+        approach_lanes:
+          E:
+          - -E26_0
+          - -E26_1
+          - -E26_2
+          N:
+          - -E25_0
+          - -E25_1
+          - -E25_2
+          S:
+          - E2_0
+          - E2_1
+          - E2_2
+          W:
+          - E24_0
+          - E24_1
+          - E24_2
+        lanes_ew_ctrl:
+        - -E26_0
+        - -E26_1
+        - -E26_2
+        - E24_0
+        - E24_1
+        - E24_2
+        lanes_ns_ctrl:
+        - -E25_0
+        - -E25_1
+        - -E25_2
+        - E2_0
+        - E2_1
+        - E2_2
+        lanes_right_turn_slip_ew: []
+        lanes_right_turn_slip_ns: []
+      J4:
+        approach_lanes:
+          E:
+          - E14_0
+          - E14_1
+          - E14_2
+          N:
+          - E3_0
+          - E3_1
+          - E3_2
+          S:
+          - -E16_0
+          - -E16_1
+          - -E16_2
+          W:
+          - -E15_0
+          - -E15_1
+          - -E15_2
+        lanes_ew_ctrl:
+        - E14_0
+        - E14_1
+        - E14_2
+        - -E15_0
+        - -E15_1
+        - -E15_2
+        lanes_ns_ctrl:
+        - E3_0
+        - E3_1
+        - E3_2
+        - -E16_0
+        - -E16_1
+        - -E16_2
+        lanes_right_turn_slip_ew: []
+        lanes_right_turn_slip_ns: []
+      J6:
+        approach_lanes:
+          E:
+          - -E12_0
+          - -E12_1
+          - -E12_2
+          N:
+          - E5_0
+          - E5_1
+          - E5_2
+          S:
+          - -E13_0
+          - -E13_1
+          - -E13_2
+          W:
+          - -E14_0
+          - -E14_1
+          - -E14_2
+        lanes_ew_ctrl:
+        - -E12_0
+        - -E12_1
+        - -E12_2
+        - -E14_0
+        - -E14_1
+        - -E14_2
+        lanes_ns_ctrl:
+        - E5_0
+        - E5_1
+        - E5_2
+        - -E13_0
+        - -E13_1
+        - -E13_2
+        lanes_right_turn_slip_ew: []
+        lanes_right_turn_slip_ns: []
+      J7:
+        approach_lanes:
+          E:
+          - -E28_0
+          - -E28_1
+          - -E28_2
+          N:
+          - -E27_0
+          - -E27_1
+          - -E27_2
+          S:
+          - E6_0
+          - E6_1
+          - E6_2
+          W:
+          - E26_0
+          - E26_1
+          - E26_2
+        lanes_ew_ctrl:
+        - -E28_0
+        - -E28_1
+        - -E28_2
+        - E26_0
+        - E26_1
+        - E26_2
+        lanes_ns_ctrl:
+        - -E27_0
+        - -E27_1
+        - -E27_2
+        - E6_0
+        - E6_1
+        - E6_2
+        lanes_right_turn_slip_ew: []
+        lanes_right_turn_slip_ns: []
+    max_cycles: 60
+    max_sim_seconds: 1800
+    net_file: networks/BIGNET.net.xml
+    normalize_state: false
+    phase_program:
+      all_red: 2
+      ew_green: 0
+      ew_yellow: 1
+      ns_green: 3
+      ns_yellow: 4
+    return_raw_state: false
+    reward_time_normalize: true
+    rho_min: 0.1
+    route_file: networks/variants/train/800/bignet_train_seed00042_d800.rou.xml
+    state_dim: 14
+    step_length_sec: 1.0
+    sumo_binary: sumo
+    sumo_extra_args:
+    - --ignore-junction-blocker
+    - '1'
+    - --time-to-teleport
+    - '300'
+    - --no-warnings
+    - 'true'
+    teleport_failure_when_congested: false
+    teleport_penalty_lambda: 5.0
+    teleport_time_cap_sec: null
+    terminate_on_deadlock: false
+    terminate_on_empty: false
+    tls_ids:
+    - J0
+    - J1
+    - J2
+    - J3
+    - J4
+    - J6
+    - J7
+    - J14
+    - J17
+    tls_phase_overrides:
+      J14:
+        ew_green: 3
+        ns_green: 0
+      J17:
+        ew_green: 3
+        ns_green: 0
+      J2:
+        ew_green: 3
+        ns_green: 0
+      J3:
+        ew_green: 3
+        ns_green: 0
+      J7:
+        ew_green: 3
+        ns_green: 0
+    vehicle_weights:
+      bus: 3.0
+      motorcycle: 0.25
+      passenger: 1.0
+    yellow_sec: 3
+  type: sumo
+exploration:
+  eps_decay_steps: 15000
+  eps_end: 0.05
+  eps_start: 0.6
+  warmup_global_steps: 4000
+logging:
+  log_dir: logs/1
+  model_dir: models/1
+  results_dir: results/1
+normalization:
+  file: configs/norm_curriculum_v5.json
+parallel:
+  base_port: 9500
+  base_seed: 42
+  chunk_size: 256
+  enabled: true
+  epsilon_worker_multipliers:
+  - 0.8
+  - 0.85
+  - 0.9
+  - 0.95
+  - 1.0
+  - 1.05
+  - 1.1
+  - 1.15
+  - 1.2
+  - 1.25
+  max_update_time_ms: 50.0
+  num_actors: 2
+  queue_max_chunks: 200
+  reset_backoff_base_sec: 1.0
+  reset_backoff_cap_sec: 8.0
+  reset_max_retries: 3
+  sync_every_updates: 100
+run:
+  device: cpu
+  run_name: train_bignet_deep_opt
+  seed: 42
+train:
+  episodes: 20
+  print_every_episodes: 10
+  save_every_episodes: 50

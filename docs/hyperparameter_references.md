@@ -276,11 +276,12 @@ Training strategy where the agent learns on **easier tasks first** (low traffic 
 curriculum:
   enabled: true
   phases:
-    - name: "phase1_warmup"      # 100 eps @ 400 veh/hr/lane (50%)
-    - name: "phase2_moderate"    # 150 eps @ 600 veh/hr/lane (75%)
-    - name: "phase3_baseline"    # 500 eps @ 800 veh/hr/lane (100%)
-    - name: "phase4_high"        # 250 eps @ 1000 veh/hr/lane (125%)
+    - name: "phase1_warmup"      # 200 eps @ 1200s duration
+    - name: "phase2_learn"       # 400 eps @ 1500s duration
+    - name: "phase3_master"      # 600 eps @ 1800s duration
 ```
+
+**Demand**: 2000 veh/hr/lane (86% motorcycle, 12% car, 2% bus)
 
 ### Theoretical Foundation
 
@@ -295,50 +296,18 @@ The foundational paper on Curriculum Learning:
 |---------|-------------|
 | **Faster Convergence** | Agent learns basic timing patterns without gridlock interference |
 | **Better Generalization** | Foundational skills transfer to complex scenarios |
-| **Avoids Poor Local Minima** | Low-demand provides clearer reward signal |
-| **Sample Efficiency** | Fewer samples needed vs. random demand mixing |
-
-### Mathematical Justification
-
-In standard RL, the learning objective is:
-```
-J(θ) = E[Σ γ^t * r_t]
-```
-
-With curriculum learning, we decompose this into phases:
-```
-Phase 1: J₁(θ) = E[Σ γ^t * r_t | demand = low]      ← Easier to optimize
-Phase 2: J₂(θ) = E[Σ γ^t * r_t | demand = moderate] ← Build on Phase 1
-...
-Phase n: Jₙ(θ) = E[Σ γ^t * r_t | demand = high]     ← Fine-tune for stress
-```
-
-This is a form of **continuation method** in non-convex optimization (Bengio et al., 2009).
-
-### Traffic Signal Control Specific Literature
-
-Several TSC papers have adopted curriculum learning:
-
-1. **Accelerated Convergence in Large-Scale Networks**:
-   > "Curriculum learning helps agents tackle challenges such as long-term planning in sparse-reward settings, which are common in complex traffic networks."
-   — Recent TSC curriculum learning research
-
-2. **Teacher-Student Framework for TSC**:
-   > "A teacher agent guides a student agent through an importance function, helping to refine actions and improve stability."
-   — Multi-agent TSC with curriculum learning
+| **Avoids Poor Local Minima** | Shorter durations provide clearer reward signal |
+| **Sample Efficiency** | Progressive difficulty vs. random mixing |
 
 ### Episode Distribution Justification
 
-Distribution (100 + 150 + 500 + 250 = 1000 episodes):
+Distribution (200 + 400 + 600 = 1200 episodes):
 
-| Phase | Episodes | % | Rationale |
-|-------|----------|---|-----------|
-| Warmup (50%) | 100 | 10% | Quick foundation learning |
-| Moderate (75%) | 150 | 15% | Transition phase |
-| **Baseline (100%)** | **500** | **50%** | Primary training - most samples |
-| High (125%) | 250 | 25% | Congestion handling with significant allocation |
-
-This follows the principle of **allocating most training to the target difficulty** while using easier phases for initialization. The 1200 veh/hr stress phase was removed as it provided insufficient episodes (5%) for meaningful learning and risked destabilizing the model.
+| Phase | Episodes | % | Duration | Rationale |
+|-------|----------|---|----------|-----------|
+| Warmup | 200 | 17% | 1200s | Learn basic patterns before congestion |
+| Learn | 400 | 33% | 1500s | Moderate congestion handling |
+| **Master** | **600** | **50%** | 1800s | Primary training - before severe gridlock |
 
 ### Variable Episode Length / Horizon Curriculum (Advanced)
 

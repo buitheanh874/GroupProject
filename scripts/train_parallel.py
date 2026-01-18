@@ -4,7 +4,7 @@ import os
 import sys
 import argparse
 import multiprocessing as mp
-from multiprocessing import Queue, Event, Process
+from multiprocessing import Queue, Event, Process, Value
 from pathlib import Path
 from typing import Any, Dict, List
 from queue import Empty, Full
@@ -26,6 +26,7 @@ def main(argv: List[str] = None) -> int:
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--resume", type=str, default=None, help="Path to checkpoint to resume from")
     parser.add_argument("--resume-episode", type=int, default=0, help="Starting episode for curriculum resume")
+    parser.add_argument("--episode-offset", type=int, default=0, help="Offset for episode numbering (log only)")
     args = parser.parse_args(argv)
     
     config = load_yaml_config(args.config)
@@ -33,7 +34,11 @@ def main(argv: List[str] = None) -> int:
     
     if args.resume_episode > 0:
         parallel_cfg["resume_episode"] = args.resume_episode
-        config["parallel"] = parallel_cfg
+    
+    if args.episode_offset > 0:
+        parallel_cfg["episode_offset"] = args.episode_offset
+        
+    config["parallel"] = parallel_cfg
     
     if not parallel_cfg.get("enabled", False):
         print("parallel.enabled is false or missing. Use scripts/train.py for standard training.")
@@ -74,13 +79,19 @@ def main(argv: List[str] = None) -> int:
     weight_queues = [Queue(maxsize=1) for _ in range(num_actors)]
     stop_event = Event()
     
+    # Shared counter for epsilon decay (joint decision steps across all workers)
+    # Definition: 1 global_step = 1 joint decision step = 1 env.step() call
+    # With N TLS agents, this counts the shared decision, NOT individual agent actions
+    # NOTE: Use 'l' (long int) instead of 'i' (int) for safety with large step counts
+    global_step_counter = Value('l', 0)
+    
     from rl.parallel_collector_1 import collector_process
     
     actors: List[Process] = []
     for i in range(num_actors):
         p = Process(
             target=collector_process,
-            args=(i, config, experience_queue, weight_queues[i], stop_event),
+            args=(i, config, experience_queue, weight_queues[i], stop_event, global_step_counter),
             daemon=True,
         )
         p.start()
@@ -96,6 +107,7 @@ def main(argv: List[str] = None) -> int:
         stop_event=stop_event,
         sync_every_updates=sync_every_updates,
         resume_path=args.resume,
+        global_step_counter=global_step_counter,  # Pass counter to restore on resume
     )
     
     stop_event.set()
@@ -115,6 +127,7 @@ def _run_learner(
     stop_event: Event,
     sync_every_updates: int,
     resume_path: str = None,
+    global_step_counter: Value = None,
 ) -> None:
     from rl.agent import AgentConfig, DQNAgent
     
@@ -175,23 +188,37 @@ def _run_learner(
     last_ckpt_step = -1
     
     if resume_path and os.path.exists(resume_path):
-        print(f"Resuming from checkpoint: {resume_path}")
+        # RESUME SEMANTICS (IMPORTANT FOR ACADEMIC CLAIMS):
+        # - Restores: network weights, optimizer state, global_step_counter (epsilon decay)
+        # - NOT restored: replay buffer (starts empty)
+        # - This is "FINE-TUNING with epsilon continuity", NOT true continuation
+        # - For true continuation: would need to restore full replay buffer state
+        print(f"[Fine-tuning] Loading checkpoint: {resume_path}")
+        print(f"[Fine-tuning] Note: Replay buffer NOT restored (training dynamics partially restart)")
+        
         checkpoint = torch.load(resume_path, map_location=device)
         agent.online_net.load_state_dict(checkpoint["online_state_dict"])
         agent.target_net.load_state_dict(checkpoint["target_state_dict"])
         agent.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
         
-        
         learner_updates = checkpoint.get("learner_updates", 0)
         agent_transitions_total = checkpoint.get("agent_transitions_total", 0)
         global_env_steps_total = checkpoint.get("global_env_steps_total", 0)
+        
+        # CRITICAL: Restore global_step_counter for epsilon decay continuity
+        resumed_global_steps = checkpoint.get("global_decision_steps", global_env_steps_total)
+        if global_step_counter is not None:
+            with global_step_counter.get_lock():
+                global_step_counter.value = resumed_global_steps
+            print(f"[Fine-tuning] Restored epsilon clock: global_step={resumed_global_steps}")
+        
         last_ckpt_step = learner_updates
         last_logged_updates = learner_updates
         
         if agent_transitions_total >= learning_starts:
             learning_started = True
         
-        print(f"Resumed: learner_updates={learner_updates}, transitions={agent_transitions_total}, global_steps={global_env_steps_total}")
+        print(f"[Fine-tuning] Restored: learner_updates={learner_updates}, prev_transitions={agent_transitions_total}")
     
     print(f"Learner config: learning_starts={learning_starts}, train_freq={train_freq}, "
           f"max_update_time_ms={max_update_time_ms}, num_tls={num_tls}")
@@ -246,11 +273,13 @@ def _run_learner(
                 if elapsed_ms > max_update_time_ms:
                     break
                     
-                loss = agent.update()
-                if loss is not None:
+                metrics = agent.update()
+                if metrics is not None:
                     learner_updates += 1
                     updates_this_iter += 1
-                    recent_losses.append(loss)
+                    # Extract loss from metrics dict (agent.update now returns dict)
+                    loss_value = metrics.get('loss', 0.0) if isinstance(metrics, dict) else float(metrics)
+                    recent_losses.append(loss_value)
                 pending_transitions -= train_freq
                 
                 if learner_updates % sync_every_updates == 0:
@@ -272,26 +301,32 @@ def _run_learner(
                 last_logged_updates = learner_updates
             
             if now - last_checkpoint_time >= checkpoint_interval_sec and learner_updates > 0 and learner_updates != last_ckpt_step:
+                # Get current global_step for epsilon decay continuity
+                current_global_steps = global_step_counter.value if global_step_counter else global_env_steps_total
                 ckpt_path = os.path.join(model_dir, f"parallel_ckpt_step{learner_updates}.pt")
                 agent.save_checkpoint(ckpt_path, {
                     "learner_updates": learner_updates,
                     "agent_transitions_total": agent_transitions_total,
                     "global_env_steps_total": global_env_steps_total,
+                    "global_decision_steps": current_global_steps,  # For epsilon decay resume
                 })
-                print(f"[Checkpoint] Saved: {ckpt_path}")
+                print(f"[Checkpoint] Saved: {ckpt_path} (global_decision_steps={current_global_steps})")
                 last_checkpoint_time = now
                 last_ckpt_step = learner_updates
                     
     except KeyboardInterrupt:
         pass
     finally:
+        # Get final global_step for epsilon decay continuity
+        final_global_steps = global_step_counter.value if global_step_counter else global_env_steps_total
         final_path = os.path.join(model_dir, f"parallel_final_step{learner_updates}.pt")
         agent.save_checkpoint(final_path, {
             "learner_updates": learner_updates,
             "agent_transitions_total": agent_transitions_total,
             "global_env_steps_total": global_env_steps_total,
+            "global_decision_steps": final_global_steps,  # For epsilon decay resume
         })
-        print(f"Saved: {final_path}")
+        print(f"Saved: {final_path} (global_decision_steps={final_global_steps})")
         utd_agent = learner_updates / max(1, agent_transitions_total)
         print(f"Final UTD_agent: {utd_agent:.4f} (target: 0.25)")
 

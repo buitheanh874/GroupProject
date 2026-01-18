@@ -1,0 +1,33 @@
+# v1_fixed.yaml - Fixed epsilon baseline
+# Epsilon is fixed at 0.20 for all workers, no decay
+
+# Inherit from base train_1.yaml but override exploration and parallel
+_inherit: ../../configs/train_1.yaml
+
+run:
+  run_name: ablation_v1_fixed
+
+exploration:
+  eps_start: 0.20
+  eps_end: 0.20
+  warmup_global_steps: 0
+  eps_decay_steps: 1  
+
+parallel:
+  enabled: true
+  num_actors: 4
+  base_port: 9500
+  base_seed: 42  
+  chunk_size: 256
+  queue_max_chunks: 200
+  sync_every_updates: 100
+  epsilon_worker_multipliers: [1.0, 1.0, 1.0, 1.0]
+  reset_max_retries: 3
+  reset_backoff_base_sec: 1.0
+  reset_backoff_cap_sec: 8.0
+  max_update_time_ms: 50.0
+
+logging:
+  log_dir: experiments/ablation_epsilon_v1/runs/v1_fixed/curriculum_seed42
+  model_dir: experiments/ablation_epsilon_v1/runs/v1_fixed/curriculum_seed42/checkpoints
+  results_dir: experiments/ablation_epsilon_v1/runs/v1_fixed/curriculum_seed42/eval

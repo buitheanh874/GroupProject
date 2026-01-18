@@ -65,6 +65,114 @@ class MaxPressureSplitController:
         return int(best_action)
 
 
+class OriginalMaxPressureController:
+    """
+    Original MaxPressure controller with pressure-based phase switching.
+    
+    Unlike discrete action-space MP, this controller:
+    - Extends green time as long as the current phase has higher pressure
+    - Switches phase when opposing queue pressure exceeds current
+    - Respects min_green constraint (typically 5-10s per paper)
+    
+    Reference: Varaiya (2013) "The Max-Pressure Controller for Arbitrary Networks of Signalized Intersections"
+    """
+    
+    def __init__(
+        self,
+        min_green_sec: float = 5.0,
+        max_green_sec: float = 60.0,
+        yellow_sec: float = 3.0,
+        all_red_sec: float = 2.0,
+    ):
+        self.min_green_sec = float(min_green_sec)
+        self.max_green_sec = float(max_green_sec)
+        self.yellow_sec = float(yellow_sec)
+        self.all_red_sec = float(all_red_sec)
+        
+        # Per-TLS state tracking
+        self._current_phase: dict = {}  # tls_id -> 'NS' or 'EW'
+        self._phase_start_time: dict = {}  # tls_id -> when phase started
+        self._in_transition: dict = {}  # tls_id -> bool
+    
+    def reset(self):
+        """Reset controller state for new episode."""
+        self._current_phase.clear()
+        self._phase_start_time.clear()
+        self._in_transition.clear()
+    
+    def decide_phase(
+        self,
+        tls_id: str,
+        q_ns: float,
+        q_ew: float,
+        current_time: float,
+    ) -> tuple:
+        """
+        Decide whether to switch phase based on queue pressure.
+        
+        Returns:
+            (phase, extend_green) where:
+            - phase: 'NS' or 'EW' (current/next phase)
+            - extend_green: True if should extend current green, False if switch
+        """
+        # Initialize if first call for this TLS
+        if tls_id not in self._current_phase:
+            # Start with phase that has higher pressure
+            initial_phase = 'NS' if q_ns >= q_ew else 'EW'
+            self._current_phase[tls_id] = initial_phase
+            self._phase_start_time[tls_id] = current_time
+            self._in_transition[tls_id] = False
+            return (initial_phase, True)
+        
+        current_phase = self._current_phase[tls_id]
+        phase_duration = current_time - self._phase_start_time[tls_id]
+        
+        # Check min green constraint
+        if phase_duration < self.min_green_sec:
+            return (current_phase, True)  # Must extend
+        
+        # Check max green constraint
+        if phase_duration >= self.max_green_sec:
+            # Force switch
+            new_phase = 'EW' if current_phase == 'NS' else 'NS'
+            self._current_phase[tls_id] = new_phase
+            self._phase_start_time[tls_id] = current_time
+            return (new_phase, False)
+        
+        # Pressure-based decision
+        current_pressure = q_ns if current_phase == 'NS' else q_ew
+        opposing_pressure = q_ew if current_phase == 'NS' else q_ns
+        
+        # Switch if opposing pressure significantly exceeds current
+        # Use hysteresis to avoid oscillation
+        if opposing_pressure > current_pressure * 1.2:  # 20% hysteresis
+            new_phase = 'EW' if current_phase == 'NS' else 'NS'
+            self._current_phase[tls_id] = new_phase
+            self._phase_start_time[tls_id] = current_time
+            return (new_phase, False)
+        
+        return (current_phase, True)  # Extend current phase
+    
+    def get_phase_for_state(
+        self,
+        tls_id: str,
+        state: np.ndarray,
+        current_time: float,
+    ) -> str:
+        """Get phase decision from state vector."""
+        state = np.asarray(state, dtype=np.float32).reshape(-1)
+        
+        q_ns = float(state[0]) if len(state) > 0 else 0.0
+        q_ew = float(state[1]) if len(state) > 1 else 0.0
+        if len(state) >= 3:
+            q_ns += float(state[2])  # Add South to North
+        if len(state) >= 4:
+            q_ew += float(state[3])  # Add West to East
+        
+        phase, _ = self.decide_phase(tls_id, q_ns, q_ew, current_time)
+        return phase
+
+
 def select_action_from_defs(
     state_raw: np.ndarray,
     action_defs: Sequence,
