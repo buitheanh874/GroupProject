@@ -151,6 +151,8 @@ class WebsterController:
         self,
         state: np.ndarray,
         tls_id: str = "default",
+        *args: Any,
+        **kwargs: Any,
     ) -> int:
         """
         Select action based on Webster's formula.
@@ -214,6 +216,8 @@ class WebsterController:
         self,
         states: dict,
         current_time: float = 0.0,
+        *args: Any,
+        **kwargs: Any,
     ) -> dict:
         """
         Select actions for multiple TLS.

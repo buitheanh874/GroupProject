@@ -13,15 +13,21 @@ from rl.agent import AgentConfig, DQNAgent
 
 
 def test_compute_normalized_reward_time_scaling():
-    """Test simplified reward formula: R = -W/T - spill (spill NOT divided by T)"""
+    """Test SMDP v5 reward formula: R = -W/(N*t_ref) - (spill/M)*(Δt/t_ref)
+    
+    With default n_present=1, num_downstream=4, t_ref=t_step:
+    R = -W/(1*t_step) - (spill/4)*(t_step/t_step) = -W/t_step - spill/4
+    """
     reward = compute_normalized_reward(
         wait_total=120.0,
         spill_penalty=30.0,
         t_step=150.0,
         decision_cycle_sec=200.0,
+        n_present=1,
+        num_downstream=4,
     )
-    # R = -120/150 - 30 = -0.8 - 30 = -30.8
-    assert math.isclose(reward, -120.0 / 150.0 - 30.0)
+    # R = -120/(1*150) - (30/4)*(150/150) = -0.8 - 7.5 = -8.3
+    assert math.isclose(reward, -120.0 / 150.0 - 30.0 / 4.0)
 
 
 def test_compute_normalized_reward_with_variable_cycle():
@@ -43,15 +49,21 @@ def test_compute_normalized_reward_with_variable_cycle():
 
 
 def test_compute_normalized_reward_with_spill_penalty():
-    """Test that spill_penalty is NOT divided by T (critical for proper weighting)"""
+    """Test SMDP v5 spill penalty: (spill/M)*(Δt/t_ref) with default M=4
+    
+    With default n_present=1, num_downstream=4, t_ref=t_step:
+    R = -W/(1*t_step) - (spill/4)*(t_step/t_step) = -W/t_step - spill/4
+    """
     reward = compute_normalized_reward(
         wait_total=50.0,
         spill_penalty=2.0,  # e.g., alpha=1.0, sum(occ^2)=2.0
         t_step=60.0,
         decision_cycle_sec=60.0,
+        n_present=1,
+        num_downstream=4,
     )
-    # R = -50/60 - 2.0 = -0.833 - 2.0 = -2.833
-    assert math.isclose(reward, -50.0 / 60.0 - 2.0)
+    # R = -50/(1*60) - (2.0/4)*(60/60) = -0.833 - 0.5 = -1.333
+    assert math.isclose(reward, -50.0 / 60.0 - 2.0 / 4.0)
 
 
 def test_time_aware_gamma_computation():

@@ -292,7 +292,7 @@ env:
         ew_green: 3
 
 normalization:
-  file: configs/norm_curriculum_v5.json
+  file: configs/norm_turn801010.json
 
 agent:
   hidden_dims: [256, 256]
@@ -309,39 +309,112 @@ agent:
   use_huber_loss: true       
 
 exploration:
+  # === EPSILON CALCULATION FOR 10 WORKERS (100 eps/worker) ===
+  # max_sim_seconds=1800, cycle=[60,90,120]s → ~20 steps/episode (1800/90=20)
+  # 100 eps/worker × 20 steps = ~2000 steps/worker
+  # 
+  # Timeline (per worker):
+  #   Step 0-750    (eps 0-37):   Warmup, ε=0.60 constant → 450 random/worker
+  #   Step 750-1750 (eps 37-87):  Decay, ε=0.60→0.05 linear → 325 random/worker
+  #   Step 1750-2000 (eps 87-100): Exploitation, ε=0.05 constant
+  #
+  # Total random actions: (450+325+12.5) × 10 workers ≈ 7,875
+  # Per action (15 actions): ~525 samples/action ✓
   eps_start: 0.60 
   eps_end: 0.05
-  warmup_global_steps: 4000   
-  eps_decay_steps: 15000      
+  warmup_global_steps: 750    # ~37 episodes warmup per worker (extended)
+  eps_decay_steps: 1000       # Decay over ~50 episodes per worker (ends at step 1750)
 
 train:
-  episodes: 500  
-  save_every_episodes: 50
-  print_every_episodes: 10
+  episodes: 1000  # TOTAL: 10 workers x 100 episodes = 1000 episodes
+  save_every_episodes: 100
+  print_every_episodes: 20
+  # === GATE 3 & 4 EVIDENCE ===
+  smoke_eval_every: 100    # Smoke eval mỗi 100 eps → 10 entries (Gate 3)
+  smoke_eval_demand: 750
+  smoke_eval_horizon_sec: 750
+  curriculum_hist_every: 50   # Curriculum hist mỗi 50 eps → 20 snapshots (Gate 4 sớm tại ~150 eps)
 
 baseline:
   fixed_action_id: 12
 
 curriculum:
+  # === MIX PHASE DESIGN (300/400/300 = 1000 episodes) ===
+  # Mục tiêu: Không quên phase dễ khi train phase khó
+  # Strategy: Interleaved curriculum với revisit phases
+  # 
+  # PHASE DISTRIBUTION:
+  #   Phase 1 (Easy-500):     150 eps - Foundation learning
+  #   Phase 2 (Medium-750):   200 eps - Scale up difficulty  
+  #   Phase 3 (Hard-1000):    150 eps - Initial hard exposure
+  #   --- REVISIT BLOCK (prevent forgetting) ---
+  #   Phase 4 (Easy-500):      50 eps - Refresh easy patterns
+  #   Phase 5 (Medium-750):   100 eps - Reinforce medium
+  #   Phase 6 (Hard-1000):    100 eps - More hard exposure
+  #   --- FINAL POLISH ---
+  #   Phase 7 (Easy-500):     100 eps - Final easy polish
+  #   Phase 8 (Medium-750):   100 eps - Final medium polish
+  #   Phase 9 (Hard-1000):     50 eps - Final hard test
+  #
+  # TOTALS: Easy=300, Medium=400, Hard=300 ✓
   enabled: true
   phases:
-    - name: "demand_500"
+    # === INITIAL LEARNING BLOCK (500 episodes) ===
+    - name: "easy_foundation"
       episodes: 150
-      max_sim_seconds: 3600
+      max_sim_seconds: 1800
       route_pool_manifest: networks/variants/train_turn801010/500/manifest.txt
-      description: "500 veh/hr/lane - 30% of training"
+      description: "Phase 1: Easy (500 veh/hr) - Foundation learning"
 
-    - name: "demand_750"
+    - name: "medium_scaleup"
       episodes: 200
-      max_sim_seconds: 3600
+      max_sim_seconds: 1800
       route_pool_manifest: networks/variants/train_turn801010/750/manifest.txt
-      description: "750 veh/hr/lane - 40% of training"
+      description: "Phase 2: Medium (750 veh/hr) - Scale up difficulty"
 
-    - name: "demand_1000"
+    - name: "hard_initial"
       episodes: 150
-      max_sim_seconds: 3600
+      max_sim_seconds: 1800
       route_pool_manifest: networks/variants/train_turn801010/1000/manifest.txt
-      description: "1000 veh/hr/lane - 30% of training"
+      description: "Phase 3: Hard (1000 veh/hr) - Initial hard exposure"
+
+    # === REVISIT BLOCK (250 episodes) - Prevent forgetting ===
+    - name: "easy_refresh"
+      episodes: 50
+      max_sim_seconds: 1800
+      route_pool_manifest: networks/variants/train_turn801010/500/manifest.txt
+      description: "Phase 4: Easy refresh - Prevent forgetting easy patterns"
+
+    - name: "medium_reinforce"
+      episodes: 100
+      max_sim_seconds: 1800
+      route_pool_manifest: networks/variants/train_turn801010/750/manifest.txt
+      description: "Phase 5: Medium reinforcement"
+
+    - name: "hard_expand"
+      episodes: 100
+      max_sim_seconds: 1800
+      route_pool_manifest: networks/variants/train_turn801010/1000/manifest.txt
+      description: "Phase 6: Hard expansion - More hard exposure"
+
+    # === FINAL POLISH BLOCK (250 episodes) ===
+    - name: "easy_polish"
+      episodes: 100
+      max_sim_seconds: 1800
+      route_pool_manifest: networks/variants/train_turn801010/500/manifest.txt
+      description: "Phase 7: Final easy polish"
+
+    - name: "medium_polish"
+      episodes: 100
+      max_sim_seconds: 1800
+      route_pool_manifest: networks/variants/train_turn801010/750/manifest.txt
+      description: "Phase 8: Final medium polish"
+
+    - name: "hard_final"
+      episodes: 50
+      max_sim_seconds: 1800
+      route_pool_manifest: networks/variants/train_turn801010/1000/manifest.txt
+      description: "Phase 9: Final hard test - Low epsilon exploitation"
 
 logging:
   log_dir: logs/1

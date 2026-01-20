@@ -1,0 +1,30 @@
+{
+  "env_seed": [
+    42,
+    43
+  ],
+  "agent_seed": [
+    42,
+    43
+  ],
+  "policy": "max_pressure (baseline gating only)",
+  "demands": [
+    500,
+    750,
+    1000
+  ],
+  "injection_end_sec": 3600,
+  "sim_end_sec": {
+    "snapshots": 5400,
+    "feasibility": 4200
+  },
+  "warmup_sec": 300,
+  "route_manifests": {
+    "500": "networks/variants/train_turn801010/500/manifest.txt",
+    "750": "networks/variants/train_turn801010/750/manifest.txt",
+    "1000": "networks/variants/train_turn801010/1000/manifest.txt"
+  },
+  "unseen_manifest": "networks/variants/train_turn801010/manifest_eval_unseen.txt",
+  "git_commit": "a659ac8ea1b9f0758fa7143d1942a61591fcec96",
+  "timestamp": "2026-01-18T16:09:54"
+}

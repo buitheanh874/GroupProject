@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import csv
+import json
 import os
 import sys
 from collections import Counter
@@ -29,6 +31,155 @@ from scripts.repo_root import find_repo_root
 project_root = find_repo_root(__file__)
 sys.path.insert(0, str(project_root))
 
+
+def _select_route_for_demand(demand: int, seed: int) -> str:
+    """Select deterministic route from manifest for a given demand/seed."""
+    manifest_path = project_root / f"networks/variants/train_turn801010/{demand}/manifest.txt"
+    if not manifest_path.exists():
+        return ""
+    try:
+        with open(manifest_path, "r") as f:
+            routes = [line.strip() for line in f if line.strip() and not line.startswith("#")]
+    except Exception:
+        return ""
+    if not routes:
+        return ""
+    route_file = routes[(int(seed) - 42) % len(routes)]
+    full_path = manifest_path.parent / route_file
+    return str(full_path) if full_path.exists() else ""
+
+
+def _append_csv_row(path: str, fieldnames: list[str], row: Dict[str, Any]) -> None:
+    """Append a row to CSV, writing header if file is new."""
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    new_file = not os.path.exists(path)
+    with open(path, "a", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        if new_file:
+            writer.writeheader()
+        writer.writerow(row)
+
+
+def run_smoke_eval_episode(
+    agent,
+    base_config: Dict[str, Any],
+    demand: int,
+    seed: int,
+    horizon_sec: int,
+    warmup_sec: int,
+    log_path: str,
+    episode_idx: int,
+    phase_name: str,
+) -> Dict[str, Any]:
+    """Run a quick greedy evaluation with the current agent."""
+    from scripts.common import build_env, resolve_allowed_action_ids
+    from scripts.route_pool_loader import load_route_pool_from_config
+    cfg = copy.deepcopy(base_config)
+    cfg.setdefault("env", {}).setdefault("sumo", {})
+    cfg.setdefault("run", {})
+    cfg["run"]["seed"] = int(seed)
+    cfg["env"]["sumo"]["max_sim_seconds"] = int(horizon_sec)
+    cfg["env"]["sumo"]["warmup_sec"] = int(warmup_sec)
+
+    route_file = _select_route_for_demand(demand, seed)
+    if route_file:
+        cfg["env"]["sumo"]["route_file"] = route_file
+    else:
+        # Fallback: use existing route pool if configured
+        try:
+            pool = load_route_pool_from_config(cfg, split="train", project_root=project_root)
+            if pool:
+                cfg["env"]["sumo"]["route_file"] = pool[seed % len(pool)]
+        except Exception:
+            pass
+
+    env = build_env(cfg)
+    agent.to_eval_mode()
+    state = env.reset()
+    done = False
+    total_reward = 0.0
+    step_count = 0
+    last_info: Dict[str, Any] = {}
+
+    while not done:
+        allowed_action_ids = resolve_allowed_action_ids(env, target_action=None, fallback_action=None)
+        if isinstance(state, dict):
+            actions: Dict[str, int] = {}
+            for tls_id, tls_state in state.items():
+                allowed_ids = None
+                if isinstance(allowed_action_ids, dict):
+                    allowed_ids = allowed_action_ids.get(tls_id)
+                actions[tls_id] = agent.select_action(
+                    state=np.asarray(tls_state, dtype=np.float32),
+                    epsilon=0.0,
+                    allowed_action_ids=allowed_ids,
+                )
+        else:
+            actions = agent.select_action(state=np.asarray(state, dtype=np.float32), epsilon=0.0)
+
+        next_state, rewards, done, info = env.step(actions)
+        reward_values = list(rewards.values()) if isinstance(rewards, dict) else [float(rewards)]
+        total_reward += float(np.mean(reward_values))
+        step_count += 1
+        state = next_state
+        last_info = info if isinstance(info, dict) else {}
+
+        if step_count >= int(horizon_sec * 2):
+            break
+
+    kpi = env.episode_kpi() if hasattr(env, "episode_kpi") else {}
+    if not kpi and isinstance(last_info, dict):
+        kpi = last_info.get("episode_kpi", {})
+
+    n_present_end = 0
+    if hasattr(env, "_traci") and env._traci is not None:
+        try:
+            n_present_end = int(env._traci.vehicle.getIDCount())
+        except Exception:
+            n_present_end = 0
+
+    env.close()
+    agent.to_train_mode()
+
+    row = {
+        "episode": int(episode_idx),
+        "phase_name": phase_name,
+        "demand": int(demand),
+        "seed": int(seed),
+        "horizon_sec": int(horizon_sec),
+        "avg_wait_time_corr": float(kpi.get("avg_wait_time_corr", 0.0)),
+        "throughput_corr": float(kpi.get("throughput_corr", 0.0)),
+        "completion_rate": float(kpi.get("completion_rate", 0.0)),
+        "teleport_rate": float(kpi.get("teleport_rate", 0.0)),
+        "n_present_end": int(n_present_end),
+        "route_file": os.path.basename(route_file) if route_file else "",
+        "total_reward": float(total_reward),
+        "episode_steps": int(step_count),
+        "timestamp": time.time(),
+    }
+    _append_csv_row(
+        log_path,
+        fieldnames=[
+            "episode",
+            "phase_name",
+            "demand",
+            "seed",
+            "horizon_sec",
+            "avg_wait_time_corr",
+            "throughput_corr",
+            "completion_rate",
+            "teleport_rate",
+            "n_present_end",
+            "route_file",
+            "total_reward",
+            "episode_steps",
+            "timestamp",
+        ],
+        row=row,
+    )
+    return row
+
+
 from rl.cycle_tracker import CycleDistributionTracker
 from rl.utils import ensure_dir, generate_run_id, linear_epsilon, load_yaml_config, save_yaml_config, set_global_seed
 from scripts.common import build_agent, build_env, resolve_allowed_action_ids
@@ -41,6 +192,10 @@ def run_training(config: Dict[str, Any], resume_path: Optional[str] = None, star
     config = apply_calibration_overrides(config, project_root=project_root)
     config = normalize_action_table_schema(config)
     train_cfg = config.get("train", {})
+    smoke_eval_every = int(train_cfg.get("smoke_eval_every", 0))
+    smoke_eval_demand = int(train_cfg.get("smoke_eval_demand", 750))
+    smoke_eval_horizon = int(train_cfg.get("smoke_eval_horizon_sec", 750))
+    curriculum_hist_every = int(train_cfg.get("curriculum_hist_every", 0))
     
     curriculum_cfg = config.get("curriculum", {})
     curriculum_enabled = curriculum_cfg.get("enabled", False)
@@ -136,6 +291,8 @@ def run_training(config: Dict[str, Any], resume_path: Optional[str] = None, star
     save_yaml_config(config, config_copy_path)
 
     metrics_path = os.path.join(log_dir, f"{run_id}_train_metrics.csv")
+    smoke_eval_log_path = os.path.join(log_dir, f"{run_id}_smoke_eval.csv")
+    curriculum_stats_path = os.path.join(log_dir, f"{run_id}_curriculum_stats.jsonl")
 
     episodes = total_episodes
     save_every_episodes = int(train_cfg.get("save_every_episodes", 50))
@@ -151,6 +308,8 @@ def run_training(config: Dict[str, Any], resume_path: Optional[str] = None, star
         allowed_cycles = sorted(set(int(a.cycle_sec) for a in env._action_defs))
     cycle_tracker = CycleDistributionTracker(allowed_cycles) if len(allowed_cycles) > 0 else None
     log_cycle_every = int(train_cfg.get("log_cycle_distribution_every", 10))
+    episode_to_phase: Dict[int, int] = {}
+    episode_uid_base = int(train_cfg.get("episode_uid_base", 0))
 
     best_reward = resume_best_reward
     global_step = resume_global_step
@@ -186,6 +345,7 @@ def run_training(config: Dict[str, Any], resume_path: Optional[str] = None, star
         with open(metrics_path, "w", newline="", encoding="utf-8") as csv_file:
             fieldnames = [
                 "episode",
+                "episode_uid",
                 "episode_reward",
                 "avg_loss",
                 "episode_steps",
@@ -221,6 +381,7 @@ def run_training(config: Dict[str, Any], resume_path: Optional[str] = None, star
             writer.writeheader()
 
             for episode in range(start_episode, int(episodes) + 1):
+                episode_uid = int(episode_uid_base + episode)
                 if curriculum_enabled:
                     phase_episode_count += 1
                     if phase_episode_count > current_phase["episodes"] and current_phase_idx < len(phase_schedule) - 1:
@@ -327,7 +488,7 @@ def run_training(config: Dict[str, Any], resume_path: Optional[str] = None, star
                             action_id = actions[tls_id]
                             next_obs = next_state.get(tls_id) if isinstance(next_state, dict) else next_state
                             reward_value = rewards.get(tls_id, 0.0) if isinstance(rewards, dict) else rewards
-                            agent.store_transition(state[tls_id], action_id, reward_value, next_obs, done, gamma=gamma_value)
+                            agent.store_transition(state[tls_id], action_id, reward_value, next_obs, done, gamma=gamma_value, episode_uid=episode_uid)
 
                         metrics = agent.update()
                         if metrics is not None:
@@ -356,7 +517,7 @@ def run_training(config: Dict[str, Any], resume_path: Optional[str] = None, star
                                 pass
 
                         gamma_value = agent.compute_gamma(info.get("t_step") if isinstance(info, dict) else None)
-                        agent.store_transition(state, action_id, reward, next_state, done, gamma=gamma_value)
+                        agent.store_transition(state, action_id, reward, next_state, done, gamma=gamma_value, episode_uid=episode_uid)
                         metrics = agent.update()
                         if metrics is not None:
                             loss_value = metrics.get('loss', 0.0) if isinstance(metrics, dict) else float(metrics)
@@ -392,6 +553,7 @@ def run_training(config: Dict[str, Any], resume_path: Optional[str] = None, star
 
                 row: Dict[str, Any] = {
                     "episode": int(episode),
+                    "episode_uid": int(episode_uid),
                     "episode_reward": float(episode_reward),
                     "avg_loss": float(avg_loss),
                     "episode_steps": int(episode_steps),
@@ -424,12 +586,58 @@ def run_training(config: Dict[str, Any], resume_path: Optional[str] = None, star
                 if curriculum_enabled:
                     row["phase_name"] = current_phase["name"]
                     row["phase_episode"] = phase_episode_count
+                    episode_to_phase[int(episode_uid)] = int(current_phase_idx)
+                else:
+                    episode_to_phase[int(episode_uid)] = 0
 
                 writer.writerow(row)
                 csv_file.flush()
 
+                if curriculum_hist_every > 0 and (episode % curriculum_hist_every == 0) and len(agent.replay_buffer) > 0:
+                    buffer_hist = agent.replay_buffer.get_phase_histogram(episode_to_phase)
+                    sampled_hist: Dict[int, int] = {}
+                    try:
+                        sample_size = min(256, len(agent.replay_buffer))
+                        batch = agent.replay_buffer.sample(batch_size=sample_size, device=torch.device("cpu"))
+                        ep_uids = batch.episode_uids.cpu().numpy().reshape(-1)
+                        for uid in ep_uids:
+                            phase_val = episode_to_phase.get(int(uid), -1)
+                            sampled_hist[phase_val] = sampled_hist.get(phase_val, 0) + 1
+                    except Exception as hist_err:
+                        sampled_hist = {"error": str(hist_err)}
+                    hist_entry = {
+                        "timestamp": time.time(),
+                        "episode": int(episode),
+                        "episode_uid": int(episode_uid),
+                        "global_step": int(global_step),
+                        "buffer_size": len(agent.replay_buffer),
+                        "buffer_phase_histogram": buffer_hist,
+                        "sampled_batch_phase_histogram": sampled_hist,
+                        "phase_idx": int(current_phase_idx),
+                        "phase_name": current_phase.get("name", "default"),
+                    }
+                    with open(curriculum_stats_path, "a", encoding="utf-8") as f:
+                        f.write(json.dumps(hist_entry) + "\n")
+
                 losses.clear()
                 del row
+
+                if smoke_eval_every > 0 and (episode % smoke_eval_every == 0):
+                    warmup_eval = int(config.get("env", {}).get("sumo", {}).get("warmup_sec", 300))
+                    try:
+                        run_smoke_eval_episode(
+                            agent=agent,
+                            base_config=config,
+                            demand=smoke_eval_demand,
+                            seed=int(seed + episode + 999),
+                            horizon_sec=smoke_eval_horizon,
+                            warmup_sec=warmup_eval,
+                            log_path=smoke_eval_log_path,
+                            episode_idx=int(episode),
+                            phase_name=current_phase.get("name", "default"),
+                        )
+                    except Exception as smoke_err:
+                        print(f"[SmokeEval] Failed at episode {episode}: {smoke_err}")
 
                 should_save_periodic = int(save_every_episodes) > 0 and (int(episode) % int(save_every_episodes) == 0)
                 is_best = float(episode_reward) > float(best_reward)

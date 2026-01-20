@@ -172,16 +172,33 @@ def collector_process(
     reset_fail_count = 0
     step_error_count = 0
     
+    # Episode UID: globally unique = worker_id * 1_000_000 + local_episode_counter
+    # This ensures no collision when merging episode_to_phase mappings from workers
+    local_episode_counter = 0
+    current_episode_uid = worker_id * 1_000_000 + local_episode_counter
+    
     # Logging counters for diversity and fairness analysis
     episode_random_actions = 0
     episode_total_actions = 0
     cumulative_sim_time = 0.0  # Track total simulation time for fairness analysis
     cumulative_worker_steps = 0  # Track this worker's total steps
 
+    def distribute_episodes(total: int, num_workers: int, worker_idx: int) -> int:
+        """Distribute episodes fairly: first (total % num_workers) workers get base+1."""
+        base = total // num_workers
+        remainder = total % num_workers
+        return base + (1 if worker_idx < remainder else 0)
+
     if curriculum_enabled and phase_info:
         total_episodes = sum(p["episodes"] for p in phase_info)
         num_workers = int(parallel_cfg.get("num_actors", 2))
-        worker_episodes_per_phase = [max(1, p["episodes"] // num_workers) for p in phase_info]
+        # Fix: distribute remainder to first R workers instead of floor division
+        worker_episodes_per_phase = [
+            distribute_episodes(p["episodes"], num_workers, worker_id)
+            for p in phase_info
+        ]
+        worker_total_episodes = sum(worker_episodes_per_phase)
+        print(f"[Worker {worker_id}] Assigned {worker_total_episodes} episodes total (phases: {worker_episodes_per_phase})")
 
         resume_episode = int(parallel_cfg.get("resume_episode", 0))
         episode_offset = int(parallel_cfg.get("episode_offset", 0))
@@ -309,17 +326,19 @@ def collector_process(
                 
                 if isinstance(state, dict):
                     for tls_id in state.keys():
+                        # 6-tuple: (s, a, r, ns, done, episode_uid)
                         transition = (
                             state[tls_id].copy(),
                             actions[tls_id],
                             reward.get(tls_id, 0.0),
                             next_state[tls_id].copy(),
                             done,
+                            current_episode_uid,  # For curriculum tracking
                         )
                         local_buffer.append(transition)
                     global_steps_in_buffer += 1
                 else:
-                    transition = (state.copy(), actions, reward, next_state.copy(), done)
+                    transition = (state.copy(), actions, reward, next_state.copy(), done, current_episode_uid)
                     local_buffer.append(transition)
                     global_steps_in_buffer += 1
                 
@@ -332,17 +351,27 @@ def collector_process(
                 local_step += 1
                 
                 if len(local_buffer) >= chunk_size:
-                    _send_chunk_with_metadata(experience_queue, local_buffer, global_steps_in_buffer)
+                    _send_chunk_with_metadata(
+                        experience_queue, local_buffer, global_steps_in_buffer,
+                        phase_idx=current_phase_idx,
+                        episode_uid=current_episode_uid,
+                    )
                     local_buffer = []
                     global_steps_in_buffer = 0
             
             if len(local_buffer) > 0:
-                _send_chunk_with_metadata(experience_queue, local_buffer, global_steps_in_buffer)
+                _send_chunk_with_metadata(
+                    experience_queue, local_buffer, global_steps_in_buffer,
+                    phase_idx=current_phase_idx,
+                    episode_uid=current_episode_uid,
+                )
                 local_buffer = []
                 global_steps_in_buffer = 0
             
             episode_count += 1
             phase_episode_count += 1
+            local_episode_counter += 1
+            current_episode_uid = worker_id * 1_000_000 + local_episode_counter
             
             # Calculate episode sim_time (approximate: steps × avg_cycle)
             # Note: Actual cycle depends on action chosen; default ~90s average
@@ -375,6 +404,13 @@ def collector_process(
                         print(f"[Worker {worker_id}] === Switched to Phase {current_phase_idx} ({phase['name']}): {len(route_pool) if route_pool else 0} routes, max_sim={phase['max_sim_seconds']}s ===")
                     except Exception as e:
                         print(f"[Worker {worker_id}] Failed to switch phase: {e}")
+            
+            # Check if worker completed all assigned episodes (at final phase)
+            elif curriculum_enabled and phase_info and current_phase_idx == len(phase_info) - 1:
+                target_eps = worker_episodes_per_phase[current_phase_idx]
+                if phase_episode_count >= target_eps:
+                    print(f"[Worker {worker_id}] Completed all {episode_count} assigned episodes. Stopping.")
+                    break  # Exit the main while loop
                 
     except Exception as e:
         print(f"[Worker {worker_id}] Fatal error: {e}")
@@ -385,11 +421,14 @@ def collector_process(
         except Exception:
             pass
         # Log worker summary for diversity/fairness verification
+        total_assigned = sum(worker_episodes_per_phase) if (curriculum_enabled and phase_info) else episode_count
         print(f"[Worker {worker_id}] === SUMMARY ===")
-        print(f"[Worker {worker_id}]   Total episodes: {episode_count}")
+        print(f"[Worker {worker_id}]   Assigned episodes: {total_assigned}")
+        print(f"[Worker {worker_id}]   Completed episodes: {episode_count}")
         print(f"[Worker {worker_id}]   Total steps: {cumulative_worker_steps}")
         print(f"[Worker {worker_id}]   Approx sim_time: {cumulative_sim_time/3600:.2f} hours")
         print(f"[Worker {worker_id}]   Multiplier: {worker_multiplier:.2f}")
+
 
 
 def _select_action_with_tracking(policy_net: DuelingDQN, state: np.ndarray, action_dim: int, epsilon: float) -> Tuple[int, bool]:
@@ -427,10 +466,18 @@ def _drain_and_load_weights(policy_net: DuelingDQN, weight_queue: Queue) -> None
         policy_net.load_state_dict(latest_weights)
 
 
-def _send_chunk_with_metadata(queue: Queue, buffer: List[Tuple], global_steps: int) -> None:
+def _send_chunk_with_metadata(
+    queue: Queue, 
+    buffer: List[Tuple], 
+    global_steps: int,
+    phase_idx: int = -1,
+    episode_uid: int = -1,
+) -> None:
     chunk_data = {
         "transitions": list(buffer),
         "global_steps": global_steps,
+        "phase_idx": phase_idx,
+        "episode_uid": episode_uid,
     }
     try:
         queue.put_nowait(chunk_data)
