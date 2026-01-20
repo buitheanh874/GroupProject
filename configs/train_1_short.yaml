@@ -10,7 +10,7 @@ env:
     teleport_time_cap_sec: null
     sumo_binary: sumo
     net_file: networks/BIGNET.net.xml
-    route_file: networks/variants/train/bignet_train_seed00042.rou.xml
+    route_file: networks/variants/train_turn801010/500/bignet_turn801010_seed00042_d500.rou.xml
     additional_files: []
     tls_ids: ["J0", "J1", "J2", "J3", "J4", "J6", "J7", "J14", "J17"]
     center_tls_id: "J0"
@@ -206,7 +206,7 @@ curriculum:
       episodes: 80  # 40%
       max_sim_seconds: 1800
       route_pool_manifest: networks/variants/train_turn801010/manifest_mixed_phase2.txt
-      description: "c
+      description: "Mixed: 20% d500, 50% d750, 30% d1000 (40%)"
 
     - name: "phase3_mixed_hard"
       episodes: 60  # 30%
@@ -220,7 +220,7 @@ logging:
   results_dir: results/bignet_short
 
 parallel:
-  enabled: true  
+  enabled: false  # Disabled - running single threaded  
   num_actors: 2  
   base_port: 9600
   base_seed: 42
