@@ -1,5 +1,13 @@
+# Unified Evaluation Configuration
+# =================================
+# Usage: python scripts/eval_unified.py --config configs/eval.yaml
+#        python scripts/eval_unified.py --config configs/eval.yaml --policies rl_full
+#        python scripts/eval_unified.py --config configs/eval.yaml --demands 1000,1500
+#
+# All parameters can be overridden via command line arguments
+
 run:
-  run_name: eval_1
+  run_name: eval
   seed: 42
   device: cpu
 
@@ -10,7 +18,7 @@ env:
     teleport_time_cap_sec: null
     sumo_binary: sumo
     net_file: networks/BIGNET.net.xml
-    route_file: networks/variants/eval/bignet_low_eval_seed100042.rou.xml
+    route_file: networks/variants/train_turn801010/500/manifest.txt  # Will be overridden per demand
     additional_files: []
     tls_ids: ["J0", "J1", "J2", "J3", "J4", "J6", "J7", "J14", "J17"]
     center_tls_id: "J0"
@@ -28,7 +36,7 @@ env:
     yellow_sec: 3
     all_red_sec: 2
     max_cycles: 60
-    max_sim_seconds: 1800
+    max_sim_seconds: 1500
     terminate_on_empty: false
     rho_min: 0.1
     g_min_sec: 10
@@ -50,7 +58,7 @@ env:
     enable_kpi_tracker: true
     normalize_state: true
     return_raw_state: false
-    state_dim: 14  # SMDP v5: 12 local + 2 global broadcast
+    state_dim: 14
     enable_downstream_occupancy: true
     enable_spillback_penalty: true
     alpha_spillback: 1.0
@@ -187,13 +195,42 @@ env:
 normalization:
   file: configs/norm_curriculum_v5.json
 
-eval:
-  model_path: models/bignet_short/train_bignet_300ep_20260118_092429_best.pt
-  runs: 10
-  route_pool_manifest: networks/variants/eval/manifest_1.txt
+# Evaluation parameters
+# All can be overridden via CLI: --policies, --demands, --seeds, --horizon, --warmup, --unseen, --output
+eval_matrix:
+  # Policies to evaluate (override: --policies fixed,rl_full,...)
+  policies:
+    - fixed
+    - max_pressure
+    - actuated
+    - webster
+  
+  # Demand levels (override: --demands 500,750,1000)
+  demands:
+    - 500
+    - 750
+    - 1000
+  
+  # Number of seeds starting from 42 (override: --seeds N)
+  seeds: 10
+  
+  # Simulation parameters (override: --horizon N, --warmup N)
+  horizon: 1500
+  warmup: 300
+  
+  # Use unseen routes for generalization test (override: --unseen flag)
+  unseen: true
+  
+  # Output CSV path (override: --output path)
+  output: results/eval_results.csv
+
+# Model paths for RL policies (override: --rl-full-model, --rl-plain-model)
+models:
+  rl_full: models/bignet_short/train_bignet_300ep_20260118_092429_best.pt
+  rl_plain: models/1_plain/best_model.pt
 
 baseline:
   fixed_action_id: 2
 
 logging:
-  results_dir: results/1_eval
+  results_dir: results/eval
