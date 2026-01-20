@@ -195,18 +195,52 @@ def run_single_eval(
         config['run']['seed'] = seed
         
         # Set route based on demand and seed
-        manifest_name = "manifest_holdout.txt" if unseen else f"manifest_d{demand}.txt"
-        manifest_dir = "networks/variants/eval" if unseen else "networks/variants/train_1000s"
-        manifest_path = project_root / manifest_dir / manifest_name
-        
+        # For unseen mode: enforce route pool from manifest_eval_unseen.txt
         route_file = ""
-        if manifest_path.exists():
-            with open(manifest_path, 'r') as f:
-                routes = [l.strip() for l in f if l.strip() and not l.startswith('#')]
-            if routes:
-                route_file = routes[seed % len(routes)]
-                full_route_path = project_root / manifest_dir / route_file
-                config['env']['sumo']['route_file'] = str(full_route_path)
+        if unseen:
+            unseen_manifest = project_root / "networks/variants/train_turn801010/manifest_eval_unseen.txt"
+            if not unseen_manifest.exists():
+                raise FileNotFoundError(f"Unseen manifest not found: {unseen_manifest}")
+            
+            manifest_dir = unseen_manifest.parent  # Directory containing the manifest
+            with open(unseen_manifest, 'r') as f:
+                all_unseen_routes = [l.strip() for l in f if l.strip() and not l.startswith('#')]
+            
+            # Filter by demand
+            demand_unseen = [r for r in all_unseen_routes if f"_d{demand}.rou.xml" in r]
+            if not demand_unseen:
+                raise ValueError(f"No unseen routes found for demand {demand}")
+            
+            # Validate no overlap with training manifests
+            train_manifest = project_root / f"networks/variants/train_turn801010/{demand}/manifest.txt"
+            if train_manifest.exists():
+                with open(train_manifest, 'r') as f:
+                    train_routes = set(l.strip() for l in f if l.strip() and not l.startswith('#'))
+                unseen_basenames = set(Path(r).name for r in demand_unseen)
+                overlap = train_routes & unseen_basenames
+                if overlap:
+                    raise ValueError(f"Route overlap detected between train and unseen: {overlap}")
+            
+            # Select route by seed
+            route_file = demand_unseen[seed % len(demand_unseen)]
+            # Resolve path relative to manifest directory (handles ../eval_turn801010/... paths)
+            full_route_path = (manifest_dir / route_file).resolve()
+            if not full_route_path.exists():
+                raise FileNotFoundError(f"Unseen route file not found: {full_route_path}")
+            config['env']['sumo']['route_file'] = str(full_route_path)
+            print(f"    [UNSEEN] Using route: {Path(route_file).name}")
+        else:
+            # Standard training routes
+            manifest_dir = f"networks/variants/train_turn801010/{demand}"
+            manifest_path = project_root / manifest_dir / "manifest.txt"
+            
+            if manifest_path.exists():
+                with open(manifest_path, 'r') as f:
+                    routes = [l.strip() for l in f if l.strip() and not l.startswith('#')]
+                if routes:
+                    route_file = routes[seed % len(routes)]
+                    full_route_path = project_root / manifest_dir / route_file
+                    config['env']['sumo']['route_file'] = str(full_route_path)
         
         # Build env
         set_global_seed(seed)
@@ -229,13 +263,24 @@ def run_single_eval(
         elif policy in ("rl_full", "rl_plain"):
             if model_path and Path(model_path).exists():
                 agent = build_agent(config, env)
+                # Handle legacy build_agent returning (agent, device)
+                if isinstance(agent, tuple):
+                    agent, _device = agent
+                # Resolve policy net attribute
+                policy_net = getattr(agent, "_policy_net", None)
+                if policy_net is None and hasattr(agent, "online_net"):
+                    policy_net = agent.online_net
+                if policy_net is None:
+                    raise AttributeError("Agent has no policy network attribute (_policy_net or online_net)")
+
                 import torch
                 ckpt = torch.load(model_path, map_location="cpu")
-                if 'model_state_dict' in ckpt:
-                    agent._policy_net.load_state_dict(ckpt['model_state_dict'])
+                if 'online_state_dict' in ckpt:
+                    state_dict = ckpt['online_state_dict']
                 else:
-                    agent._policy_net.load_state_dict(ckpt)
-                agent._policy_net.eval()
+                    state_dict = ckpt.get('model_state_dict', ckpt)
+                policy_net.load_state_dict(state_dict, strict=False)
+                policy_net.eval()
             else:
                 # Fallback to random if no model
                 controller = FixedTimeController(action_defs, FixedTimeControllerConfig())
@@ -264,7 +309,10 @@ def run_single_eval(
                         import torch
                         with torch.no_grad():
                             s = torch.as_tensor(tls_state, dtype=torch.float32).unsqueeze(0)
-                            q = agent._policy_net(s)
+                            policy_net = getattr(agent, "_policy_net", None)
+                            if policy_net is None and hasattr(agent, "online_net"):
+                                policy_net = agent.online_net
+                            q = policy_net(s)
                             actions[tls] = int(q.argmax(dim=1).item())
                     elif controller is not None:
                         if hasattr(controller, 'act'):
@@ -287,7 +335,10 @@ def run_single_eval(
                     import torch
                     with torch.no_grad():
                         s = torch.as_tensor(state, dtype=torch.float32).unsqueeze(0)
-                        q = agent._policy_net(s)
+                        policy_net = getattr(agent, "_policy_net", None)
+                        if policy_net is None and hasattr(agent, "online_net"):
+                            policy_net = agent.online_net
+                        q = policy_net(s)
                         action = int(q.argmax(dim=1).item())
                 elif controller is not None:
                     if hasattr(controller, 'act') and policy in ("actuated", "webster"):
@@ -433,7 +484,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                 
                 results.append(result)
                 
-                status_icon = "✅" if result.status == "OK" else "❌"
+                status_icon = "[OK]" if result.status == "OK" else "[FAIL]"
                 print(f"{status_icon} wait={result.avg_wait_time_corr:.1f}s comp={result.completion_rate:.2%}")
     
     elapsed = time.time() - start_time

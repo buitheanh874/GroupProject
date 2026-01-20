@@ -169,12 +169,11 @@ class SanityChecker:
         self.log("\n[3] Checking route manifests...")
         
         all_ok = True
-        
+        # Standard demands we care about: 500 / 750 / 1000 for turn801010
         manifests = [
-            "networks/variants/train/manifest_d800.txt",
-            "networks/variants/train_1000s/manifest_d600.txt",
-            "networks/variants/train_1000s/manifest_d800.txt",
-            "networks/variants/train_1000s/manifest_d1000.txt",
+            "networks/variants/train_turn801010/500/manifest.txt",
+            "networks/variants/train_turn801010/750/manifest.txt",
+            "networks/variants/train_turn801010/1000/manifest.txt",
         ]
         
         for manifest in manifests:
@@ -207,22 +206,94 @@ class SanityChecker:
             reader = csv.DictReader(f)
             for row_idx, row in enumerate(reader):
                 # Check completion_rate in [0, 1]
-                if 'completion_rate' in row:
-                    cr = float(row['completion_rate'])
-                    if not (0 <= cr <= 1.0):
-                        issues.append(f"row {row_idx}: completion_rate={cr} out of [0,1]")
+                if 'completion_rate' in row or 'completion_after_drain' in row:
+                    cr_key = 'completion_rate' if 'completion_rate' in row else 'completion_after_drain'
+                    try:
+                        cr = float(row[cr_key])
+                        if not (0 <= cr <= 1.0 + 1e-6):  # Small tolerance
+                            issues.append(f"row {row_idx}: {cr_key}={cr} out of [0,1]")
+                    except ValueError:
+                        pass
                 
-                # Check teleport_rate in [0, 1]
-                if 'teleport_rate' in row:
-                    tr = float(row['teleport_rate'])
-                    if not (0 <= tr <= 1.0):
-                        issues.append(f"row {row_idx}: teleport_rate={tr} out of [0,1]")
+                # Check teleport_rate in [0, 1]  
+                if 'teleport_rate' in row or 'teleport_rate_asif' in row:
+                    tr_key = 'teleport_rate' if 'teleport_rate' in row else 'teleport_rate_asif'
+                    try:
+                        tr = float(row[tr_key])
+                        if not (0 <= tr <= 1.0 + 1e-6):  # Small tolerance
+                            issues.append(f"row {row_idx}: {tr_key}={tr} out of [0,1]")
+                    except ValueError:
+                        pass
                 
                 # Check arrived >= 0
-                if 'arrived_vehicles' in row:
-                    av = int(row['arrived_vehicles'])
-                    if av < 0:
-                        issues.append(f"row {row_idx}: arrived_vehicles={av} < 0")
+                if 'arrived_vehicles' in row or 'arrived_cum' in row:
+                    av_key = 'arrived_vehicles' if 'arrived_vehicles' in row else 'arrived_cum'
+                    try:
+                        av = int(row[av_key])
+                        if av < 0:
+                            issues.append(f"row {row_idx}: {av_key}={av} < 0")
+                    except ValueError:
+                        pass
+                
+                # Conservation check: departed ≈ arrived + present (+ teleport)
+                # residual = departed - arrived - present
+                # With teleport: abs(residual - teleport) <= tol
+                departed = None
+                arrived = None
+                present = None
+                teleport = None
+                
+                for k in ['departed_cum', 'departed_3600']:
+                    if k in row:
+                        try:
+                            departed = int(row[k])
+                            break
+                        except ValueError:
+                            pass
+                
+                for k in ['arrived_cum', 'arrived_vehicles']:
+                    if k in row:
+                        try:
+                            arrived = int(row[k])
+                            break
+                        except ValueError:
+                            pass
+                
+                for k in ['n_present', 'n_present_end']:
+                    if k in row:
+                        try:
+                            present = int(row[k])
+                            break
+                        except ValueError:
+                            pass
+                
+                for k in ['teleport_unique_cum', 'teleport_unique']:
+                    if k in row:
+                        try:
+                            teleport = int(row[k])
+                            break
+                        except ValueError:
+                            pass
+                
+                if departed is not None and arrived is not None and present is not None:
+                    residual = departed - arrived - present
+                    tol = max(5, int(0.01 * departed))  # 1% tolerance or 5 vehicles
+                    
+                    if teleport is not None:
+                        # Check: residual should be close to teleport count
+                        if abs(residual - teleport) > tol:
+                            issues.append(
+                                f"row {row_idx}: conservation violation - "
+                                f"departed({departed}) - arrived({arrived}) - present({present}) = {residual}, "
+                                f"but teleport = {teleport} (diff = {abs(residual - teleport)}, tol = {tol})"
+                            )
+                    else:
+                        # Soft check: residual should be >= -tol (not losing vehicles)
+                        if residual < -tol:
+                            issues.append(
+                                f"row {row_idx}: conservation warning - "
+                                f"residual = {residual} < -{tol} (vehicles appearing from nowhere?)"
+                            )
         
         if issues:
             for issue in issues[:5]:  # Show first 5
@@ -231,7 +302,7 @@ class SanityChecker:
             if len(issues) > 5:
                 self.warn("metrics bounds", f"... and {len(issues) - 5} more issues")
         else:
-            self.check("metrics bounds", True)
+            self.check("metrics bounds (including conservation)", True)
         
         return all_ok
     

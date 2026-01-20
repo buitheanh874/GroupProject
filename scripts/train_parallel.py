@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import sys
 import argparse
+import json
 import multiprocessing as mp
 from multiprocessing import Queue, Event, Process, Value
 from pathlib import Path
@@ -130,10 +131,13 @@ def _run_learner(
     global_step_counter: Value = None,
 ) -> None:
     from rl.agent import AgentConfig, DQNAgent
+    from scripts.train import run_smoke_eval_episode  # Import smoke eval capability
     
     agent_cfg = config.get("agent", {})
     parallel_cfg = config.get("parallel", {})
+    train_cfg = config.get("train", {})  # Get train config for smoke eval settings
     sumo_cfg = config.get("env", {}).get("sumo", {})
+    logging_cfg = config.get("logging", {})
     
     state_dim = sumo_cfg.get("state_dim", 12)
     tls_ids = sumo_cfg.get("tls_ids", [])
@@ -153,6 +157,26 @@ def _run_learner(
     train_freq = int(agent_cfg.get("train_freq", 4))
     max_update_time_ms = float(parallel_cfg.get("max_update_time_ms", 50.0))
     
+    # Smoke eval settings
+    smoke_eval_every = int(train_cfg.get("smoke_eval_every", 0))
+    smoke_eval_demand = int(train_cfg.get("smoke_eval_demand", 750))
+    smoke_eval_horizon = int(train_cfg.get("smoke_eval_horizon_sec", 750))
+    log_dir = str(logging_cfg.get("log_dir", "logs"))
+    os.makedirs(log_dir, exist_ok=True)
+    run_name = str(config.get("run", {}).get("run_name", "train"))
+    smoke_eval_log_path = os.path.join(log_dir, f"{run_name}_smoke_eval.csv")
+    
+    # Curriculum histogram settings (Gate 4)
+    curriculum_hist_every = int(train_cfg.get("curriculum_hist_every", 0))
+    curriculum_stats_path = os.path.join(log_dir, f"{run_name}_curriculum_stats.jsonl")
+    last_curriculum_hist_episode = 0
+    
+    # We need to track episodes for smoke eval and curriculum hist
+    # In parallel, episodes are distributed. We can approximate 'every N episodes' 
+    # by tracking total episodes reported by workers.
+    total_episodes_completed = 0
+    last_smoke_eval_episode = 0
+
     agent_config = AgentConfig(
         state_dim=state_dim,
         action_dim=action_dim,
@@ -224,17 +248,77 @@ def _run_learner(
           f"max_update_time_ms={max_update_time_ms}, num_tls={num_tls}")
     print("Learner waiting for experiences...")
     
+    # Curriculum tracking: episode_uid -> phase_idx mapping
+    episode_to_phase: Dict[int, int] = {}
+    sampled_batch_phase_counts: Dict[int, int] = {}  # Rolling histogram of sampled batches
+    last_histogram_log_updates = 0
+    HISTOGRAM_LOG_INTERVAL = 1000  # Log histogram every N updates
+    
+    # Calculate total target episodes for stop condition
+    curriculum_cfg = config.get("curriculum", {})
+    phase_idx_to_name: Dict[int, str] = {}  # Map phase_idx -> phase_name for Gate 4 logs
+    if curriculum_cfg.get("enabled", False) and curriculum_cfg.get("phases"):
+        total_target_episodes = sum(p.get("episodes", 0) for p in curriculum_cfg["phases"])
+        for idx, p in enumerate(curriculum_cfg["phases"]):
+            phase_idx_to_name[idx] = p.get("name", f"phase_{idx}")
+    else:
+        total_target_episodes = int(train_cfg.get("episodes", 100))
+    print(f"Learner expects ~{total_target_episodes} total episodes")
+    if phase_idx_to_name:
+        print(f"Curriculum phases: {phase_idx_to_name}")
+    
+    # Track queue empty time for graceful shutdown
+    queue_empty_start_time = None
+    QUEUE_EMPTY_TIMEOUT_SEC = 30.0  # Stop if queue empty for 30s after target reached
+    
     try:
         while not stop_event.is_set():
             chunk_data = _receive_chunk(experience_queue, timeout=0.1)
             
+            # Check for graceful shutdown when training complete
+            if chunk_data is None:
+                if int(total_episodes_completed) >= total_target_episodes:
+                    if queue_empty_start_time is None:
+                        queue_empty_start_time = time.time()
+                        print(f"[Learner] Training complete: {int(total_episodes_completed)}/{total_target_episodes} episodes. Waiting for workers to finish...")
+                    elif time.time() - queue_empty_start_time > QUEUE_EMPTY_TIMEOUT_SEC:
+                        print(f"[Learner] All workers finished. Stopping learner.")
+                        break
+            else:
+                queue_empty_start_time = None  # Reset timer if we get data
+
             if chunk_data is not None:
                 if isinstance(chunk_data, dict):
                     transitions = chunk_data.get("transitions", [])
                     chunk_global_steps = chunk_data.get("global_steps", 0)
+                    chunk_phase_idx = chunk_data.get("phase_idx", -1)
+                    chunk_episode_uid = chunk_data.get("episode_uid", -1)
+                    
+                    # Track completed episodes (approximate via unique new UIDs seen or provided explicitly?)
+                    # A better proxy for parallel might be transitions / average_steps, but we want exact count
+                    # Ideally workers send a "episode_done" signal. 
+                    # Assuming we just infer from chunk: if chunk contains 'done', we might count.
+                    # But chunk_data doesn't explicitly aggregate episode counts. 
+                    # We'll use a simple heuristic or checking for 'done' in transitions.
+                    
+                    # Update episode_to_phase mapping
+                    if chunk_episode_uid >= 0 and chunk_phase_idx >= 0:
+                        episode_to_phase[chunk_episode_uid] = chunk_phase_idx
+                        
+                    # Check for done flags to count episodes
+                    dones_in_chunk = sum(1 for t in transitions if (len(t)==6 and t[4]) or (len(t)==5 and t[4]))
+                    # Note: one episode produces done signal for EACH agent (num_tls).
+                    # So roughly dones / num_tls = episodes.
+                    if num_tls > 0:
+                        total_episodes_completed += (dones_in_chunk / num_tls)
+                        
                 else:
                     transitions = chunk_data
                     chunk_global_steps = len(chunk_data) // num_tls
+                    # Fallback for legacy format
+                    dones_in_chunk = sum(1 for t in transitions if t[4])
+                    if num_tls > 0:
+                        total_episodes_completed += (dones_in_chunk / num_tls)
                 
                 chunk_len = len(transitions)
                 expected_len = chunk_global_steps * num_tls
@@ -242,18 +326,93 @@ def _run_learner(
                     print(f"[WARN] Chunk invariant violation: len={chunk_len} != {chunk_global_steps}*{num_tls}={expected_len}")
                 
                 for transition in transitions:
-                    s, a, r, ns, d = transition
+                    # Handle both 5-tuple (legacy) and 6-tuple (with episode_uid)
+                    if len(transition) == 6:
+                        s, a, r, ns, d, ep_uid = transition
+                    else:
+                        s, a, r, ns, d = transition
+                        ep_uid = -1  # Unknown (backward compat)
+                    
                     agent.replay_buffer.push(
                         state=np.asarray(s, dtype=np.float32),
                         action=int(a),
                         reward=float(r),
                         next_state=np.asarray(ns, dtype=np.float32),
                         done=bool(d),
+                        episode_uid=int(ep_uid),
                     )
                 
                 agent_transitions_total += chunk_len
                 global_env_steps_total += chunk_global_steps
                 pending_transitions += chunk_len
+
+            # Check for Smoke Eval trigger
+            if smoke_eval_every > 0 and int(total_episodes_completed) > last_smoke_eval_episode:
+                # Check if we crossed a multiple of smoke_eval_every
+                # Example: last=0, current=10, every=10 -> run.
+                # Example: last=10, current=19 -> no.
+                # Example: last=19, current=21 -> run (crossed 20).
+                
+                # Logic: Find the highest multiple of every <= current.
+                target_multiple = (int(total_episodes_completed) // smoke_eval_every) * smoke_eval_every
+                
+                if target_multiple > 0 and target_multiple > last_smoke_eval_episode:
+                    print(f"[SmokeEval] Triggered at ~{int(total_episodes_completed)} episodes (target {target_multiple})")
+                    warmup_eval = int(config.get("env", {}).get("sumo", {}).get("warmup_sec", 300))
+                    try:
+                        run_smoke_eval_episode(
+                            agent=agent,
+                            base_config=config,
+                            demand=smoke_eval_demand,
+                            seed=int(seed + target_multiple + 123456), # Distinct seed
+                            horizon_sec=smoke_eval_horizon,
+                            warmup_sec=warmup_eval,
+                            log_path=smoke_eval_log_path,
+                            episode_idx=int(target_multiple),
+                            phase_name="parallel_mix", # Hard to get exact phase in parallel learner
+                        )
+                        last_smoke_eval_episode = target_multiple # Update marker
+                    except Exception as smoke_err:
+                        print(f"[SmokeEval] Failed: {smoke_err}")
+
+            # Check for Curriculum Histogram trigger (Gate 4)
+            if curriculum_hist_every > 0 and int(total_episodes_completed) > last_curriculum_hist_episode:
+                target_hist = (int(total_episodes_completed) // curriculum_hist_every) * curriculum_hist_every
+                
+                if target_hist > 0 and target_hist > last_curriculum_hist_episode and len(agent.replay_buffer) > 0:
+                    print(f"[CurriculumHist] Logging at ~{int(total_episodes_completed)} episodes (target {target_hist})")
+                    try:
+                        buffer_hist = agent.replay_buffer.get_phase_histogram(episode_to_phase)
+                        sampled_hist: Dict[int, int] = {}
+                        sample_size = min(256, len(agent.replay_buffer))
+                        batch = agent.replay_buffer.sample(batch_size=sample_size, device=torch.device("cpu"))
+                        ep_uids = batch.episode_uids.cpu().numpy().reshape(-1)
+                        for uid in ep_uids:
+                            phase_val = episode_to_phase.get(int(uid), -1)
+                            sampled_hist[phase_val] = sampled_hist.get(phase_val, 0) + 1
+                        
+                        # Create named histograms (phase_name -> count) for readability
+                        buffer_hist_named = {phase_idx_to_name.get(k, f"unknown_{k}"): v for k, v in buffer_hist.items()}
+                        sampled_hist_named = {phase_idx_to_name.get(k, f"unknown_{k}"): v for k, v in sampled_hist.items()}
+                        
+                        hist_entry = {
+                            "timestamp": time.time(),
+                            "episode": int(target_hist),
+                            "global_step": int(global_env_steps_total),
+                            "buffer_size": len(agent.replay_buffer),
+                            "buffer_phase_histogram": buffer_hist,
+                            "buffer_phase_histogram_named": buffer_hist_named,
+                            "sampled_batch_phase_histogram": sampled_hist,
+                            "sampled_batch_phase_histogram_named": sampled_hist_named,
+                            "phase_idx_to_name": phase_idx_to_name,
+                            "learner_updates": int(learner_updates),
+                        }
+                        with open(curriculum_stats_path, "a", encoding="utf-8") as f:
+                            f.write(json.dumps(hist_entry) + "\n")
+                        last_curriculum_hist_episode = target_hist
+                        print(f"[CurriculumHist] Saved snapshot: buffer_size={len(agent.replay_buffer)}, sampled_hist_named={sampled_hist_named}")
+                    except Exception as hist_err:
+                        print(f"[CurriculumHist] Failed: {hist_err}")
 
             if not learning_started:
                 if agent_transitions_total >= learning_starts:
@@ -261,7 +420,7 @@ def _run_learner(
                     print(f"Learning started at {agent_transitions_total} transitions "
                           f"(buffer: {len(agent.replay_buffer)})")
                 else:
-                    if agent_transitions_total % 1000 == 0 and agent_transitions_total > 0:
+                    if agent_transitions_total % 25000 == 0 and agent_transitions_total > 0:
                         print(f"Warmup: {agent_transitions_total}/{learning_starts} transitions...")
                     continue
 

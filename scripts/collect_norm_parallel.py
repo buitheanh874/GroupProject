@@ -1,183 +1,120 @@
+"""
+Parallel normalization stats collection for a single demand level.
+Usage: python scripts/collect_norm_parallel.py --demand 500 --episodes 9 --workers 9 --out norm_500.json
+"""
 from __future__ import annotations
 
 import argparse
 import json
 import sys
-import multiprocessing as mp
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
-import os
-
-os.environ["OMP_NUM_THREADS"] = "1"
-os.environ["MKL_NUM_THREADS"] = "1"
-os.environ["OPENBLAS_NUM_THREADS"] = "1"
-os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
-os.environ["NUMEXPR_NUM_THREADS"] = "1"
+from typing import List, Tuple
+import numpy as np
+from multiprocessing import Pool, cpu_count
 
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from rl.utils import load_yaml_config, set_global_seed
+from scripts.common import build_env
 
-def collect_phase_stats(
-    phase_idx: int,
-    phase_config: Dict[str, Any],
-    manifest: str,
-    num_episodes: int,
-    fixed_action_id: int,
-    base_port: int,
-    seed: int,
-) -> Tuple[int, List[List[float]]]:
-    import numpy as np
-    import torch
-    torch.set_num_threads(1)
+repo_root = Path(__file__).resolve().parents[1]
+
+
+def run_single_episode(args_tuple: Tuple[int, int, str, int, str]) -> List[List[float]]:
+    """Run a single episode and return collected states."""
+    ep_idx, demand, config_path, fixed_action, route_file = args_tuple
     
-    from rl.utils import set_global_seed
-    from scripts.common import build_env
-    from scripts.route_pool_loader import load_route_pool_from_config
+    set_global_seed(42 + ep_idx)
     
-    repo_root = Path(__file__).resolve().parents[1]
+    config = load_yaml_config(config_path)
+    config.setdefault("run", {})["seed"] = 42 + ep_idx
+    config.setdefault("env", {}).setdefault("sumo", {})
+    config["env"]["sumo"]["normalize_state"] = False
+    config["env"]["sumo"]["return_raw_state"] = False
+    config["env"]["sumo"]["max_sim_seconds"] = 3600
+    config["env"]["sumo"]["route_file"] = route_file
     
-    set_global_seed(seed)
-    
-    phase_config = phase_config.copy()
-    phase_config.setdefault("run", {})["seed"] = seed
-    phase_config.setdefault("env", {}).setdefault("sumo", {})
-    phase_config["env"]["sumo"]["normalize_state"] = False
-    phase_config["env"]["sumo"]["return_raw_state"] = False
-    phase_config["env"]["sumo"]["worker_id"] = phase_idx
-    phase_config["env"]["sumo"]["base_port"] = base_port
-    phase_config["env"]["sumo"]["sumo_extra_args"] = ["--no-warnings", "true"]
-    phase_config.setdefault("baseline", {})["fixed_action_id"] = fixed_action_id
-    phase_config.setdefault("train", {})["route_pool_manifest"] = manifest
-    
-    print(f"[Phase {phase_idx}] Starting {num_episodes} episodes on port {base_port}...")
-    
-    phase_states: List[List[float]] = []
+    states = []
     
     try:
-        route_pool = load_route_pool_from_config(phase_config, split="train", project_root=repo_root)
-        env = build_env(phase_config)
-        if route_pool and hasattr(env, "set_route_file_pool"):
-            try:
-                env.set_route_file_pool(route_pool)
-            except Exception:
-                pass
-    except Exception as e:
-        print(f"[Phase {phase_idx}] Failed to create env: {e}")
-        return phase_idx, []
-    
-    for ep in range(num_episodes):
-        try:
-            state = env.reset()
-        except Exception as e:
-            print(f"[Phase {phase_idx}] Episode {ep + 1}: reset failed - {e}")
-            continue
-        
+        env = build_env(config)
+        state = env.reset()
         done = False
         step_count = 0
+        
         while not done:
             if isinstance(state, dict):
                 for tls_id, s in state.items():
                     if hasattr(s, "tolist"):
-                        phase_states.append(s.tolist())
+                        states.append(s.tolist())
                     elif isinstance(s, list):
-                        phase_states.append(s)
+                        states.append(s)
             else:
                 if hasattr(state, "tolist"):
-                    phase_states.append(state.tolist())
+                    states.append(state.tolist())
                 elif isinstance(state, list):
-                    phase_states.append(state)
+                    states.append(state)
             
-            try:
-                action_input = {tls: fixed_action_id for tls in sorted(state.keys())} if isinstance(state, dict) else fixed_action_id
-                state, _, done, info = env.step(action_input)
-                step_count += 1
-            except Exception as e:
-                print(f"[Phase {phase_idx}] Step error: {e}")
-                break
+            action_input = {tls: fixed_action for tls in sorted(state.keys())} if isinstance(state, dict) else fixed_action
+            state, _, done, info = env.step(action_input)
+            step_count += 1
         
-        if (ep + 1) % 1 == 0:
-            print(f"[Phase {phase_idx}] Episode {ep + 1}/{num_episodes} done ({step_count} steps)")
-    
-    try:
         env.close()
-    except Exception:
-        pass
+        print(f"  [Worker {ep_idx}] Done: {step_count} steps, {len(states)} samples")
+        
+    except Exception as e:
+        print(f"  [Worker {ep_idx}] Error: {e}")
+        return []
     
-    print(f"[Phase {phase_idx}] Complete: {len(phase_states)} samples collected")
-    return phase_idx, phase_states
+    return states
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=str, required=True)
-    parser.add_argument("--total-episodes", type=int, default=40)
-    parser.add_argument("--out", type=str, default="configs/norm_curriculum_v4.json")
+    parser = argparse.ArgumentParser(description="Parallel norm collection for single demand")
+    parser.add_argument("--demand", type=int, required=True, help="Demand level (e.g., 500)")
+    parser.add_argument("--episodes", type=int, default=9, help="Number of episodes")
+    parser.add_argument("--workers", type=int, default=None, help="Number of parallel workers (default: episodes)")
+    parser.add_argument("--out", type=str, required=True, help="Output JSON file")
+    parser.add_argument("--config", type=str, default="configs/train_1.yaml", help="Base config")
     parser.add_argument("--fixed-action-id", type=int, default=12)
-    parser.add_argument("--base-port", type=int, default=9000)
-    parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--max-workers", type=int, default=3)
     args = parser.parse_args()
     
-    from rl.utils import load_yaml_config
+    if args.workers is None:
+        args.workers = min(args.episodes, cpu_count())
     
-    config = load_yaml_config(args.config)
-    curriculum_cfg = config.get("curriculum", {})
-    phases = curriculum_cfg.get("phases", [])
+    # Load route files from manifest
+    manifest_path = repo_root / f"networks/variants/train_turn801010/{args.demand}/manifest.txt"
+    if not manifest_path.exists():
+        sys.exit(f"Manifest not found: {manifest_path}")
     
-    if not phases:
-        sys.exit("No curriculum phases found in config")
+    with open(manifest_path, 'r') as f:
+        route_files = [line.strip() for line in f if line.strip() and not line.startswith('#')]
     
-    train_episodes = [phase.get("episodes", 100) for phase in phases]
-    total_train = sum(train_episodes)
-    norm_episodes = [max(1, int(args.total_episodes * ep / total_train)) for ep in train_episodes]
+    print(f"Parallel Norm Collection: demand={args.demand}")
+    print(f"  Episodes: {args.episodes}, Workers: {args.workers}")
+    print(f"  Route files available: {len(route_files)}")
     
-    diff = args.total_episodes - sum(norm_episodes)
-    if diff != 0:
-        max_idx = norm_episodes.index(max(norm_episodes))
-        norm_episodes[max_idx] += diff
-    
-    print(f"Parallel norm: {len(phases)} phases, {args.total_episodes} total episodes")
-    print(f"Distribution: {norm_episodes}")
-    print(f"Max workers: {args.max_workers}")
-    print(f"Base port: {args.base_port}")
-    print("-" * 50)
-    
+    # Build task list
     tasks = []
-    for i, phase in enumerate(phases):
-        manifest = phase.get("route_pool_manifest", "")
-        phase_seed = args.seed + i * 1000
-        task_port = args.base_port + i
-        
-        tasks.append((
-            i,
-            config.copy(),
-            manifest,
-            norm_episodes[i],
-            args.fixed_action_id,
-            task_port,
-            phase_seed
-        ))
-
-    mp.set_start_method("spawn", force=True)
-    all_raw_states: List[List[float]] = []
+    for ep in range(args.episodes):
+        route_file = route_files[ep % len(route_files)]
+        route_path = str(repo_root / f"networks/variants/train_turn801010/{args.demand}" / route_file)
+        tasks.append((ep, args.demand, args.config, args.fixed_action_id, route_path))
     
-    with mp.Pool(processes=args.max_workers) as pool:
-        results = pool.starmap(collect_phase_stats, tasks)
-        
-        for phase_idx, phase_states in results:
-            if phase_states:
-                all_raw_states.extend(phase_states)
-                print(f"Merged {len(phase_states)} samples from Phase {phase_idx}")
-            else:
-                print(f"Warning: No samples from Phase {phase_idx}")
-
-    if not all_raw_states:
-        sys.exit("No state samples collected!")
+    # Run parallel
+    all_states = []
+    with Pool(processes=args.workers) as pool:
+        results = pool.map(run_single_episode, tasks)
     
-    print("\nComputing statistics...")
-    import numpy as np
-    arr = np.array(all_raw_states, dtype=np.float32)
+    for states in results:
+        all_states.extend(states)
+    
+    if not all_states:
+        sys.exit("No state samples collected")
+    
+    # Compute stats
+    arr = np.array(all_states, dtype=np.float32)
     mean = np.mean(arr, axis=0).tolist()
     std = np.std(arr, axis=0).tolist()
     std = [max(s, 1e-6) for s in std]
@@ -186,9 +123,9 @@ def main() -> None:
         "mean": mean,
         "std": std,
         "state_dim": len(mean),
-        "num_samples": len(all_raw_states),
-        "num_phases": len(phases),
-        "episodes_per_phase": norm_episodes,
+        "num_samples": len(all_states),
+        "demand": args.demand,
+        "episodes": args.episodes,
     }
     
     out_path = Path(args.out)
@@ -197,7 +134,7 @@ def main() -> None:
     
     print(f"\n[Done] Saved to {out_path}")
     print(f"  State dim: {stats['state_dim']}")
-    print(f"  Samples: {stats['num_samples']}")
+    print(f"  Total samples: {stats['num_samples']}")
 
 
 if __name__ == "__main__":

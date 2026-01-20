@@ -19,7 +19,7 @@ import json
 import os
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -118,59 +118,56 @@ Examples:
 
 def aggregate_results(results: List[Dict[str, Any]]) -> Dict[str, Any]:
     """
-    Aggregate results by demand level, computing mean±std.
+    Aggregate results by (demand, controller) with bounded metrics.
     """
     from collections import defaultdict
     
-    by_demand: Dict[int, List[Dict]] = defaultdict(list)
-    
+    by_key: Dict[Tuple[int, str], List[Dict]] = defaultdict(list)
     for r in results:
         if r.get("status") == "ERROR":
             continue
-        demand = int(r.get("demand", 0))
-        by_demand[demand].append(r)
+        key = (int(r.get("demand", 0)), str(r.get("controller", "")))
+        by_key[key].append(r)
     
-    summary = {}
-    
-    for demand, runs in sorted(by_demand.items()):
+    summary: Dict[str, Any] = {}
+    for (demand, ctrl), runs in sorted(by_key.items()):
         n = len(runs)
         if n == 0:
             continue
-        
-        # Extract key metrics
         metrics = {
-            "completion_rate": [r.get("completion_rate", 0) for r in runs],
-            "teleport_rate": [r.get("teleport_rate", 0) for r in runs],
-            "throughput_end_ratio": [r.get("throughput_end_ratio", 0) for r in runs],
-            "avg_wait_time": [r.get("avg_wait_time", 0) for r in runs],
-            "n_present_end": [r.get("n_present_end", 0) for r in runs],
+            "completion_rate_correct": [r.get("completion_rate_correct", 0) for r in runs],
+            "teleport_rate_correct": [r.get("teleport_rate_correct", 0) for r in runs],
+            "no_arrival_sec_max": [r.get("no_arrival_sec_max", 0) for r in runs],
+            "present_slope_last300s": [r.get("present_slope_last300s", 0) for r in runs],
+            "collapse_flag": [r.get("collapse_flag", 0) for r in runs],
         }
-        
-        summary[demand] = {
+        key_name = f"{demand}_{ctrl}"
+        summary[key_name] = {
+            "demand": demand,
+            "controller": ctrl,
             "n_runs": n,
             "seeds": [r.get("seed") for r in runs],
-            "controllers": list(set(r.get("controller") for r in runs)),
         }
-        
         for metric, values in metrics.items():
             arr = np.array(values, dtype=np.float64)
-            summary[demand][f"{metric}_mean"] = float(np.mean(arr))
-            summary[demand][f"{metric}_std"] = float(np.std(arr))
+            summary[key_name][f"{metric}_mean"] = float(np.mean(arr))
+            summary[key_name][f"{metric}_std"] = float(np.std(arr))
         
-        # Pass/fail counts
-        statuses = [r.get("status", "UNKNOWN") for r in runs]
-        summary[demand]["strict_pass_count"] = statuses.count("STRICT_PASS")
-        summary[demand]["relaxed_pass_count"] = statuses.count("RELAXED_PASS")
-        summary[demand]["fail_count"] = statuses.count("FAIL")
-        
-        # Recommend: demand passes if all runs are STRICT_PASS or RELAXED_PASS
-        all_pass = all(s in ("STRICT_PASS", "RELAXED_PASS") for s in statuses)
-        strict_pass = all(s == "STRICT_PASS" for s in statuses)
-        summary[demand]["recommendation"] = (
-            "TRAIN_SAFE" if strict_pass else
-            "TRAIN_MARGINAL" if all_pass else
-            "EVAL_ONLY"
-        )
+        passes = []
+        for r in runs:
+            ok = (
+                r.get("completion_rate_correct", 0) >= 0.95 and
+                r.get("teleport_rate_correct", 1) <= 0.05 and
+                r.get("collapse_flag", 0) == 0 and
+                r.get("no_arrival_sec_max", 0) <= 300
+            )
+            passes.append(ok)
+        if all(passes):
+            summary[key_name]["recommendation"] = "TRAIN_SAFE"
+        elif any(passes):
+            summary[key_name]["recommendation"] = "TRAIN_MARGINAL"
+        else:
+            summary[key_name]["recommendation"] = "EVAL_ONLY"
     
     return summary
 
@@ -256,24 +253,23 @@ def main(argv: Optional[List[str]] = None) -> int:
     print("\n" + "=" * 70)
     print("GATING SUMMARY")
     print("=" * 70)
-    print(f"{'Demand':<8} {'Runs':<5} {'Completion':<18} {'Teleport':<15} {'Recommend':<12}")
-    print("-" * 70)
-    
-    for demand in sorted(summary.keys()):
-        s = summary[demand]
-        comp = f"{s['completion_rate_mean']:.2%} ± {s['completion_rate_std']:.2%}"
-        tele = f"{s['teleport_rate_mean']:.2%} ± {s['teleport_rate_std']:.2%}"
+    print(f"{'Demand':<8} {'Ctrl':<12} {'Runs':<5} {'Completion':<18} {'Teleport':<15} {'Recommend':<12}")
+    print("-" * 80)
+
+    for key, s in sorted(summary.items(), key=lambda kv: (kv[1]['demand'], kv[1]['controller'])):
+        comp = f"{s['completion_rate_correct_mean']:.2%} +/- {s['completion_rate_correct_std']:.2%}"
+        tele = f"{s['teleport_rate_correct_mean']:.2%} +/- {s['teleport_rate_correct_std']:.2%}"
         rec = s['recommendation']
-        print(f"{demand:<8} {s['n_runs']:<5} {comp:<18} {tele:<15} {rec:<12}")
-    
-    print("=" * 70)
-    
+        print(f"{s['demand']:<8} {s['controller']:<12} {s['n_runs']:<5} {comp:<18} {tele:<15} {rec:<12}")
+
+    print("=" * 80)
+
     # Find recommended training demand
-    train_candidates = [d for d, s in summary.items() if s['recommendation'] == 'TRAIN_SAFE']
+    train_candidates = [s['demand'] for s in summary.values() if s['recommendation'] == 'TRAIN_SAFE']
     if train_candidates:
         print(f"\n✅ Recommended train demand: {max(train_candidates)}")
     else:
-        marginal = [d for d, s in summary.items() if s['recommendation'] == 'TRAIN_MARGINAL']
+        marginal = [s['demand'] for s in summary.values() if s['recommendation'] == 'TRAIN_MARGINAL']
         if marginal:
             print(f"\n⚠️ Marginal train demand (use with caution): {min(marginal)}")
         else:

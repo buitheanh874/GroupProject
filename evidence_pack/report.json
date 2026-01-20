@@ -1,0 +1,55 @@
+{
+  "gates": {
+    "gate1": {
+      "pass": false,
+      "reason": "Only 2 seeds (need ≥3) though metrics bounded/pass for 500/750",
+      "metrics_source": "evidence_pack/gating_runs.csv"
+    },
+    "gate2": {
+      "pass": true,
+      "reason": "All 4 baselines evaluated OK at demand=750",
+      "file": "evidence_pack/baseline_sanity.csv"
+    },
+    "gate2b": {
+      "pass": true,
+      "reason": "All baselines INTERNAL per audit",
+      "file": "evidence_pack/baseline_audit.txt"
+    },
+    "gate3": {
+      "pass": true,
+      "reason": "Smoke eval log 10 entries at demand=750",
+      "file": "evidence_pack/smoke_eval_timeseries.csv"
+    },
+    "gate4": {
+      "pass": false,
+      "reason": "Curriculum histograms exist but only single phase (-1) and no episode->phase mapping",
+      "file": "evidence_pack/curriculum_histograms.csv"
+    },
+    "gate5": {
+      "pass": false,
+      "reason": "Manifest exists; episode->route log lines still missing"
+    }
+  },
+  "files": [
+    "evidence_pack/gating_summary.csv",
+    "evidence_pack/gating_summary.md",
+    "evidence_pack/baseline_sanity.csv",
+    "evidence_pack/baseline_sanity.md",
+    "evidence_pack/baseline_audit.txt",
+    "evidence_pack/smoke_eval_proof.txt",
+    "evidence_pack/smoke_eval_timeseries.csv",
+    "evidence_pack/curriculum_histograms.md",
+    "evidence_pack/curriculum_histograms.csv",
+    "evidence_pack/manifest.json",
+    "evidence_pack/report.md",
+    "evidence_pack/eval_results.csv"
+  ],
+  "final_decision": "NO-GO",
+  "reasons": [
+    "Gate1 only 2 seeds (need ≥3)",
+    "Curriculum evidence single phase, no episode->phase mapping",
+    "Episode->route log lines missing"
+  ],
+  "timestamp": "2026-01-19 02:05:00",
+  "commit": "a659ac8ea1b9f0758fa7143d1942a61591fcec96"
+}

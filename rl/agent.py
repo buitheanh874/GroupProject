@@ -131,7 +131,16 @@ class DQNAgent:
 
         return action_id
 
-    def store_transition(self, state: np.ndarray, action: int, reward: float, next_state: np.ndarray, done: bool, gamma: Optional[float] = None) -> None:
+    def store_transition(
+        self,
+        state: np.ndarray,
+        action: int,
+        reward: float,
+        next_state: np.ndarray,
+        done: bool,
+        gamma: Optional[float] = None,
+        episode_uid: int = -1,
+    ) -> None:
         gamma_value = float(gamma) if gamma is not None else float(self.gamma)
         self.replay_buffer.push(
             state=state,
@@ -140,6 +149,7 @@ class DQNAgent:
             next_state=next_state,
             done=bool(done),
             gamma=float(gamma_value),
+            episode_uid=int(episode_uid),
         )
 
     def update(self) -> Optional[Dict[str, float]]:

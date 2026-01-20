@@ -93,7 +93,6 @@ class FixedTimeController:
 
         return best_index, best_split, best_cycle
 
-    def act(self, state: Any = None) -> int:
-        """Return the selected fixed action id (state ignored)."""
-
+    def act(self, state: Any = None, *args: Any, **kwargs: Any) -> int:
+        """Return the selected fixed action id. Ignores state/extra args for compatibility."""
         return int(self._action_id)

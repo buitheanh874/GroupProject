@@ -17,10 +17,12 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import copy
 import csv
 import json
 import os
 import sys
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -62,6 +64,274 @@ RELAXED_THRESHOLDS = {
     'wrong_lane_share': 0.30,           # ≤ 30%
     'throughput_end_ratio': 0.50,       # ≥ 0.50
 }
+
+
+def _select_route_for_demand(demand: int, seed: int) -> str:
+    """Select a deterministic route from the manifest for a demand/seed combo."""
+    manifest_path = project_root / f"networks/variants/train_turn801010/{demand}/manifest_t1000.txt"
+    if not manifest_path.exists():
+        return ""
+    try:
+        with open(manifest_path, "r") as f:
+            routes = [line.strip() for line in f if line.strip() and not line.startswith("#")]
+    except Exception:
+        return ""
+    if not routes:
+        return ""
+    route_file = routes[(int(seed) - 42) % len(routes)]
+    full_path = project_root / f"networks/variants/train_turn801010/{demand}" / route_file
+    return str(full_path) if full_path.exists() else ""
+
+
+def _run_gating_task(args_tuple):
+    """Helper for multiprocessing pool."""
+    cfg, demand, seed, ctrl, horizon, warm = args_tuple
+    print(f"[Gating] d={demand} s={seed} c={ctrl} h={horizon}")
+    return run_single_episode_quick(
+        base_config_path=cfg,
+        demand=int(demand),
+        seed=int(seed),
+        controller=str(ctrl),
+        horizon_sec=int(horizon),
+        warmup_sec=int(warm),
+    )
+
+
+def run_single_episode_quick(
+    base_config_path: str,
+    demand: int,
+    seed: int,
+    controller: str,
+    horizon_sec: int = 1500,
+    warmup_sec: int = 300,
+) -> Dict[str, Any]:
+    """
+    Run a short gating episode with bounded metrics and collapse evidence.
+    """
+    from rl.utils import load_yaml_config, set_global_seed
+    from scripts.common import build_env
+
+    config = load_yaml_config(base_config_path)
+    config = copy.deepcopy(config)
+    config.setdefault("env", {}).setdefault("sumo", {})
+    config.setdefault("run", {})
+
+    config["run"]["seed"] = int(seed)
+    config["env"]["sumo"]["max_sim_seconds"] = int(horizon_sec)
+    if warmup_sec is not None:
+        config["env"]["sumo"]["warmup_sec"] = int(warmup_sec)
+
+    route_file = _select_route_for_demand(demand, seed)
+    if route_file:
+        config["env"]["sumo"]["route_file"] = route_file
+
+    set_global_seed(seed)
+
+    env = None
+    result: Dict[str, Any] = {}
+    try:
+        env = build_env(config)
+        action_defs = getattr(env, "_action_defs", [])
+        fixed_controller = None
+        if controller == "fixed":
+            try:
+                cycle_target = int(config["env"]["sumo"].get("green_cycle_sec", 90))
+                fixed_cfg = FixedTimeControllerConfig(target_split=(0.5, 0.5), target_cycle_sec=cycle_target)
+                fixed_controller = FixedTimeController(action_space=action_defs, config=fixed_cfg)
+            except Exception:
+                fixed_controller = None
+
+        state = env.reset()
+        total_reward = 0.0
+        step_count = 0
+        n_present_series: List[int] = []
+        max_no_arrival_steps = 0
+        last_info: Dict[str, Any] = {}
+
+        while True:
+            if isinstance(state, dict):
+                allowed = getattr(env, "_current_allowed_actions", None)
+                actions: Dict[str, int] = {}
+                for tls_id, tls_state in state.items():
+                    if controller == "fixed" and fixed_controller is not None:
+                        action_id = fixed_controller.act()
+                    elif controller == "max_pressure":
+                        allowed_ids = None
+                        if isinstance(allowed, dict):
+                            allowed_ids = allowed.get(tls_id)
+                        action_id = select_action_from_defs(
+                            state_raw=tls_state,
+                            action_defs=action_defs,
+                            allowed_action_ids=allowed_ids,
+                            default_action_id=7,
+                        )
+                    else:
+                        action_id = select_action_from_defs(
+                            state_raw=tls_state,
+                            action_defs=action_defs,
+                            default_action_id=7,
+                        )
+                    actions[tls_id] = action_id
+            else:
+                if controller == "fixed" and fixed_controller is not None:
+                    actions = fixed_controller.act()
+                elif controller == "max_pressure":
+                    actions = select_action_from_defs(state_raw=state, action_defs=action_defs, default_action_id=7)
+                else:
+                    actions = select_action_from_defs(state_raw=state, action_defs=action_defs, default_action_id=7)
+
+            next_state, rewards, done, info = env.step(actions)
+            reward_values = list(rewards.values()) if isinstance(rewards, dict) else [float(rewards)]
+            total_reward += float(np.mean(reward_values))
+            step_count += 1
+            state = next_state
+            last_info = info if isinstance(info, dict) else {}
+
+            max_no_arrival_steps = max(max_no_arrival_steps, int(getattr(env, "_no_arrival_steps", 0)))
+
+            n_present_val: Optional[int] = None
+            if isinstance(info, dict):
+                n_present_val = info.get("n_present")
+            if n_present_val is None and hasattr(env, "_traci") and env._traci is not None:
+                try:
+                    n_present_val = int(env._traci.vehicle.getIDCount())
+                except Exception:
+                    n_present_val = None
+            n_present_series.append(int(n_present_val) if n_present_val is not None else 0)
+
+            if bool(done) or step_count >= int(horizon_sec * 2):
+                break
+
+        kpi = {}
+        if hasattr(env, "episode_kpi"):
+            kpi = env.episode_kpi()
+        if not kpi and isinstance(last_info, dict):
+            kpi = last_info.get("episode_kpi", {})
+
+        step_len = float(config["env"]["sumo"].get("step_length_sec", 1.0))
+        no_arrival_sec_max = float(max_no_arrival_steps) * step_len
+
+        slope_window_steps = int(300 / step_len) if step_len > 0 else len(n_present_series)
+        slope_series = n_present_series[-slope_window_steps:] if slope_window_steps > 0 else n_present_series
+        present_slope = 0.0
+        if len(slope_series) >= 2:
+            present_slope = (float(slope_series[-1]) - float(slope_series[0])) / max(
+                1.0, float(len(slope_series) - 1) * step_len
+            )
+
+        completion_rate_raw = float(kpi.get("completion_rate", 0.0))
+        teleport_rate_raw = float(kpi.get("teleport_rate", 0.0))
+        collapse_flag = int(kpi.get("deadlock_triggered", 0))
+        collapse_reason = str(kpi.get("deadlock_reason", ""))
+
+        # Estimate departed count from completion_rate if available
+        arrived = int(kpi.get("arrived_vehicles", 0))
+        departed_est = int(round(arrived / completion_rate_raw)) if completion_rate_raw > 0 else arrived
+        departed_est = max(departed_est, arrived)
+
+        completion_rate_correct = float(np.clip(completion_rate_raw, 0.0, 1.0))
+        teleport_rate_correct = float(np.clip(teleport_rate_raw, 0.0, 1.0))
+        if completion_rate_raw > 1.0 + 1e-6:
+            raise ValueError(f"completion_rate>1 detected (arrived={arrived}, completion_raw={completion_rate_raw})")
+        if teleport_rate_raw > 1.0 + 1e-6:
+            raise ValueError(f"teleport_rate>1 detected (departed_est={departed_est}, teleport_raw={teleport_rate_raw})")
+
+        result = {
+            "controller": controller,
+            "demand": int(demand),
+            "horizon_sec": int(horizon_sec),
+            "warmup_sec": int(warmup_sec),
+            "seed": int(seed),
+            "route_file": os.path.basename(route_file) if route_file else "",
+            "departed_0_injectionEnd": int(departed_est),
+            "arrived_0_simEnd": int(arrived),
+            "completion_rate": completion_rate_correct,  # legacy alias
+            "teleport_rate": teleport_rate_correct,      # legacy alias
+            "completion_rate_correct": completion_rate_correct,
+            "teleport_rate_correct": teleport_rate_correct,
+            "no_arrival_sec_max": float(no_arrival_sec_max),
+            "present_slope_last300s": float(present_slope),
+            "collapse_flag": int(collapse_flag),
+            "collapse_reason": collapse_reason,
+            "collapse_flag_rate": float(collapse_flag),
+            "n_present_end": int(n_present_series[-1] if n_present_series else 0),
+            "avg_wait_time": float(kpi.get("avg_wait_time_corr", kpi.get("avg_wait_time", 0.0))),
+            "avg_queue": float(kpi.get("avg_queue", 0.0)),
+            "total_reward": float(total_reward),
+            "episode_steps": int(step_count),
+            "teleport_unique": int(kpi.get("teleport_unique", 0)),
+            "arrived_vehicles": int(kpi.get("arrived_vehicles", 0)),
+            "deadlock_no_arrival_sec": float(kpi.get("deadlock_no_arrival_sec", 0.0)),
+            "status": "OK",
+            "status_reason": "",
+        }
+    except Exception as exc:
+        result = {
+            "controller": controller,
+            "demand": int(demand),
+            "horizon_sec": int(horizon_sec),
+            "warmup_sec": int(warmup_sec),
+            "seed": int(seed),
+            "route_file": "",
+            "completion_rate": 0.0,
+            "teleport_rate": 0.0,
+            "completion_rate_correct": 0.0,
+            "teleport_rate_correct": 0.0,
+            "no_arrival_sec_max": 0.0,
+            "present_slope_last300s": 0.0,
+            "collapse_flag": 1,
+            "collapse_reason": f"error:{exc}",
+            "collapse_flag_rate": 1.0,
+            "n_present_end": 0,
+            "avg_wait_time": 0.0,
+            "avg_queue": 0.0,
+            "total_reward": 0.0,
+            "episode_steps": 0,
+            "teleport_unique": 0,
+            "arrived_vehicles": 0,
+            "deadlock_no_arrival_sec": 0.0,
+            "status": "ERROR",
+            "status_reason": str(exc),
+        }
+    finally:
+        try:
+            if env is not None:
+                env.close()
+        except Exception:
+            pass
+
+    return result
+
+
+def run_demand_sweep(
+    base_config_path: str,
+    demands: List[int],
+    horizons: List[int],
+    seeds: List[int],
+    controllers: List[str],
+    output_dir: Path,
+    warmup_sec: int = 300,
+    num_workers: int = 1,
+) -> List[Dict[str, Any]]:
+    """Sequential quick gating sweep (short horizon)."""
+    tasks = []
+    for demand in demands:
+        for horizon in horizons:
+            for seed in seeds:
+                for controller in controllers:
+                    tasks.append((base_config_path, demand, seed, controller, horizon, warmup_sec))
+    results: List[Dict[str, Any]] = []
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    if num_workers and num_workers > 1:
+        import multiprocessing as mp
+        with mp.Pool(processes=int(num_workers)) as pool:
+            for res in pool.imap_unordered(_run_gating_task, tasks):
+                results.append(res)
+    else:
+        for t in tasks:
+            results.append(_run_gating_task(t))
+    return results
 
 
 @dataclass
@@ -185,7 +455,7 @@ def run_single_episode_with_snapshots(
     config['env']['sumo']['max_sim_seconds'] = horizon_end
     
     # Load route file from manifest
-    manifest_path = project_root / f"networks/variants/train_turn801010/{demand}/manifest.txt"
+    manifest_path = project_root / f"networks/variants/train_turn801010/{demand}/manifest_t1000.txt"
     if manifest_path.exists():
         with open(manifest_path, 'r') as f:
             route_files = [line.strip() for line in f if line.strip() and not line.startswith('#')]
