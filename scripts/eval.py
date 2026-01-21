@@ -34,7 +34,7 @@ import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -161,6 +161,12 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         default=None,
         help="Override path to RL-Plain model checkpoint"
     )
+    parser.add_argument(
+        "--route-manifest",
+        type=str,
+        default=None,
+        help="Override route manifest path (applies to all demands/seeds)"
+    )
     
     return parser.parse_args(argv)
 
@@ -214,6 +220,12 @@ def load_config_with_overrides(args: argparse.Namespace) -> Dict[str, Any]:
     models_cfg = config.get("models", {})
     rl_full_model = args.rl_full_model or models_cfg.get("rl_full", "models/1/best_model.pt")
     rl_plain_model = args.rl_plain_model or models_cfg.get("rl_plain", "models/1_plain/best_model.pt")
+
+    # Optional route manifest override
+    route_manifest_cfg = None
+    if "route_manifest" in eval_cfg:
+        route_manifest_cfg = eval_cfg.get("route_manifest")
+    route_manifest = args.route_manifest or route_manifest_cfg
     
     return {
         "base_config": config,
@@ -227,8 +239,33 @@ def load_config_with_overrides(args: argparse.Namespace) -> Dict[str, Any]:
         "models": {
             "rl_full": rl_full_model,
             "rl_plain": rl_plain_model,
-        }
+        },
+        "route_manifest": route_manifest,
     }
+
+
+def _select_route_from_manifest(manifest_path: Path, demand: int, seed: int) -> Tuple[str, Path]:
+    """Load manifest, filter by demand suffix if available, and pick deterministic route."""
+    manifest_path = manifest_path.resolve()
+    if not manifest_path.exists():
+        raise FileNotFoundError(f"Manifest not found: {manifest_path}")
+
+    with open(manifest_path, 'r') as f:
+        routes = [l.strip() for l in f if l.strip() and not l.startswith('#')]
+
+    if not routes:
+        raise ValueError(f"Manifest is empty: {manifest_path}")
+
+    demand_routes = [r for r in routes if f"_d{demand}" in r]
+    if demand_routes:
+        routes = demand_routes
+
+    route_file = routes[seed % len(routes)]
+    full_route_path = (manifest_path.parent / route_file).resolve()
+    if not full_route_path.exists():
+        raise FileNotFoundError(f"Route file from manifest missing: {full_route_path}")
+
+    return route_file, full_route_path
 
 
 def run_single_eval(
@@ -240,6 +277,7 @@ def run_single_eval(
     base_config: Dict[str, Any],
     model_path: Optional[str] = None,
     unseen: bool = False,
+    route_manifest: Optional[str] = None,
 ) -> EvalResult:
     """
     Run a single evaluation episode.
@@ -250,6 +288,7 @@ def run_single_eval(
         FixedTimeController, FixedTimeControllerConfig,
         ActuatedController, ActuatedControllerConfig,
         WebsterController, WebsterControllerConfig,
+        FlexibleMaxPressureController,
         select_action_from_defs,
     )
     
@@ -263,35 +302,25 @@ def run_single_eval(
         
         # Set route based on demand and seed
         route_file = ""
-        if unseen:
+        if route_manifest:
+            manifest_path = Path(route_manifest)
+            if not manifest_path.is_absolute():
+                manifest_path = project_root / manifest_path
+            route_file, full_route_path = _select_route_from_manifest(manifest_path, demand, seed)
+            config['env']['sumo']['route_file'] = str(full_route_path)
+            print(f"    [MANIFEST] Using route: {Path(route_file).name}")
+        elif unseen:
             unseen_manifest = project_root / "networks/variants/train_turn801010/manifest_eval_unseen.txt"
-            if not unseen_manifest.exists():
-                raise FileNotFoundError(f"Unseen manifest not found: {unseen_manifest}")
-            
-            manifest_dir = unseen_manifest.parent
-            with open(unseen_manifest, 'r') as f:
-                all_unseen_routes = [l.strip() for l in f if l.strip() and not l.startswith('#')]
-            
-            # Filter by demand
-            demand_unseen = [r for r in all_unseen_routes if f"_d{demand}.rou.xml" in r]
-            if not demand_unseen:
-                raise ValueError(f"No unseen routes found for demand {demand}")
-            
+            route_file, full_route_path = _select_route_from_manifest(unseen_manifest, demand, seed)
             # Validate no overlap with training manifests
             train_manifest = project_root / f"networks/variants/train_turn801010/{demand}/manifest.txt"
             if train_manifest.exists():
                 with open(train_manifest, 'r') as f:
                     train_routes = set(l.strip() for l in f if l.strip() and not l.startswith('#'))
-                unseen_basenames = set(Path(r).name for r in demand_unseen)
-                overlap = train_routes & unseen_basenames
+                overlap = train_routes & {Path(route_file).name}
                 if overlap:
                     raise ValueError(f"Route overlap detected between train and unseen: {overlap}")
             
-            # Select route by seed
-            route_file = demand_unseen[seed % len(demand_unseen)]
-            full_route_path = (manifest_dir / route_file).resolve()
-            if not full_route_path.exists():
-                raise FileNotFoundError(f"Unseen route file not found: {full_route_path}")
             config['env']['sumo']['route_file'] = str(full_route_path)
             print(f"    [UNSEEN] Using route: {Path(route_file).name}")
         else:
@@ -300,12 +329,8 @@ def run_single_eval(
             manifest_path = project_root / manifest_dir / "manifest.txt"
             
             if manifest_path.exists():
-                with open(manifest_path, 'r') as f:
-                    routes = [l.strip() for l in f if l.strip() and not l.startswith('#')]
-                if routes:
-                    route_file = routes[seed % len(routes)]
-                    full_route_path = project_root / manifest_dir / route_file
-                    config['env']['sumo']['route_file'] = str(full_route_path)
+                route_file, full_route_path = _select_route_from_manifest(manifest_path, demand, seed)
+                config['env']['sumo']['route_file'] = str(full_route_path)
         
         # Build env
         set_global_seed(seed)
@@ -320,7 +345,11 @@ def run_single_eval(
             fc = FixedTimeControllerConfig(target_split=(0.5, 0.5), target_cycle_sec=90)
             controller = FixedTimeController(action_defs, fc)
         elif policy == "max_pressure":
-            pass  # Use select_action_from_defs inline
+            controller = FlexibleMaxPressureController(
+                action_defs=action_defs,
+                min_green_sec=10.0,
+                max_green_sec=60.0,
+            )
         elif policy == "actuated":
             controller = ActuatedController(action_defs)
         elif policy == "webster":
@@ -400,7 +429,7 @@ def run_single_eval(
                         q = policy_net(s)
                         action = int(q.argmax(dim=1).item())
                 elif controller is not None:
-                    if hasattr(controller, 'act') and policy in ("actuated", "webster"):
+                    if hasattr(controller, 'act') and policy in ("actuated", "webster", "max_pressure"):
                         action = controller.act(state)
                     else:
                         action = controller.act()
@@ -487,6 +516,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     output = eval_params["output"]
     models = eval_params["models"]
     base_config = eval_params["base_config"]
+    route_manifest = eval_params["route_manifest"]
     
     print("=" * 70)
     print("UNIFIED EVALUATION")
@@ -530,6 +560,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                     base_config=base_config,
                     model_path=model_path,
                     unseen=unseen,
+                    route_manifest=route_manifest,
                 )
                 
                 results.append(result)

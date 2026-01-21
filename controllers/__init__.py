@@ -11,6 +11,7 @@ from controllers.fixed_time import FixedTimeController, FixedTimeControllerConfi
 from controllers.max_pressure import (
     MaxPressureSplitController,
     OriginalMaxPressureController,
+    FlexibleMaxPressureController,
     select_action_from_defs,
 )
 from controllers.actuated import ActuatedController, ActuatedControllerConfig
@@ -23,6 +24,7 @@ __all__ = [
     # MaxPressure
     "MaxPressureSplitController",
     "OriginalMaxPressureController",
+    "FlexibleMaxPressureController",
     "select_action_from_defs",
     # Actuated
     "ActuatedController",

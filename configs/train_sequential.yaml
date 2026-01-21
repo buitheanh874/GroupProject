@@ -1,5 +1,14 @@
+# Sequential training configuration - 500 episodes
+# Chạy tuần tự (1 worker) để đảm bảo ổn định và dễ debug
+# 
+# LÝ DO CHỌN SEQUENTIAL:
+# 1. Gradient updates ổn định hơn (samples từ 1 policy)
+# 2. Curriculum progression rõ ràng hơn
+# 3. Dễ debug và monitor
+# 4. Phù hợp khi parallel training không hiệu quả
+
 run:
-  run_name: train_independent_9agents
+  run_name: train_sequential_500ep
   seed: 42
   device: cpu
 
@@ -10,12 +19,10 @@ env:
     teleport_time_cap_sec: null
     sumo_binary: sumo
     net_file: networks/BIGNET.net.xml
-    route_file: networks/variants/train/bignet_train_seed00042.rou.xml
+    route_file: networks/variants/train_turn801010/1000/bignet_turn801010_seed00042_d1000.rou.xml
     additional_files: []
-    
     tls_ids: ["J0", "J1", "J2", "J3", "J4", "J6", "J7", "J14", "J17"]
     center_tls_id: "J0"
-    
     downstream_links:
       N: "E3"
       E: "E0"
@@ -30,11 +37,10 @@ env:
     yellow_sec: 3
     all_red_sec: 2
     max_cycles: 60
-    max_sim_seconds: 1800
+    max_sim_seconds: 1800  # Giảm từ 3600 → 1800 (như model thành công)
     terminate_on_empty: true
     rho_min: 0.1
     g_min_sec: 10
-  
     cycle_options_sec: [60, 90, 120]
     action_splits:
       - [0.30, 0.70]
@@ -42,7 +48,6 @@ env:
       - [0.50, 0.50]
       - [0.60, 0.40]
       - [0.70, 0.30]
-    
     action_table: []
     include_transition_in_waiting: false
     reward_time_normalize: true
@@ -57,7 +62,7 @@ env:
     enable_kpi_tracker: true
     normalize_state: true
     return_raw_state: false
-    state_dim: 14  # SMDP v5: 12 local + 2 global broadcast
+    state_dim: 14
     enable_downstream_occupancy: true
     enable_spillback_penalty: true
     alpha_spillback: 3.0
@@ -170,68 +175,84 @@ env:
 normalization:
   file: configs/norm_turn801010.json
 
+#==============================================================================
+# AGENT HYPERPARAMETERS (giống model thành công train_1_short.yaml)
+#==============================================================================
 agent:
-  hidden_dims: [192, 192]
+  hidden_dims: [192, 192]  # Giống model thành công (không phải [256,256])
   gamma: 0.99
   use_time_aware_gamma: true
   t_ref: 60.0
-  learning_rate: 0.0003
+  learning_rate: 0.0003    # Giống model thành công
   batch_size: 256
   replay_buffer_size: 200000
-  target_update_freq: 3000
+  target_update_freq: 3000  # Giống model thành công
   clip_grad_norm: 10.0
-  learning_starts: 600
+  learning_starts: 600      # Giống model thành công (không phải 2000)
   train_freq: 4
   use_huber_loss: true
 
+#==============================================================================
+# EXPLORATION (standard - full exploration từ đầu)
+#==============================================================================
 exploration:
-  eps_start: 1.0
+  eps_start: 1.0    # Full exploration (không phải 0.60!)
   eps_end: 0.05
-  eps_decay_steps: 45000
+  eps_decay_steps: 30000  # Decay chậm, phù hợp 500 eps × ~25 steps = 12,500 steps
 
+#==============================================================================
+# TRAINING
+#==============================================================================
 train:
-  episodes: 300
-  save_every_episodes: 30
-  print_every_episodes: 5
+  episodes: 500
+  save_every_episodes: 50
+  print_every_episodes: 10
+  smoke_eval_every: 25
+  smoke_eval_demand: 750
+  smoke_eval_horizon_sec: 750
+  curriculum_hist_every: 50
 
 baseline:
   fixed_action_id: 12
 
+#==============================================================================
+# CURRICULUM - ĐƠN GIẢN HÓA (3 phases thay vì 9)
+# 
+# Giống model thành công train_1_short.yaml:
+#   Phase 1 (30%): Easy mix - warm-up
+#   Phase 2 (40%): Moderate mix - main learning
+#   Phase 3 (30%): Hard mix - challenging cases
+#==============================================================================
 curriculum:
   enabled: true
   phases:
     - name: "phase1_easy"
-      episodes: 30
-      demand_scale: 0.50
+      episodes: 150  # 30% of 500
       max_sim_seconds: 1800
-      route_pool_manifest: networks/variants/train/manifest_d400.txt
-      description: "400 veh/hr/lane - easy warmup (10%)"
+      route_pool_manifest: networks/variants/train_turn801010/manifest_mixed_phase1.txt
+      description: "Phase 1: Easy (~70% d500, 20% d750, 10% d1000)"
 
     - name: "phase2_moderate"
-      episodes: 45
-      demand_scale: 0.75
+      episodes: 200  # 40% of 500
       max_sim_seconds: 1800
-      route_pool_manifest: networks/variants/train/manifest_d600.txt
-      description: "600 veh/hr/lane - moderate (15%)"
+      route_pool_manifest: networks/variants/train_turn801010/manifest_mixed_phase2.txt
+      description: "Phase 2: Moderate (~20% d500, 40% d750, 40% d1000)"
 
-    - name: "phase3"
-      episodes: 150
-      demand_scale: 1.0
+    - name: "phase3_hard"
+      episodes: 150  # 30% of 500
       max_sim_seconds: 1800
-      route_pool_manifest: networks/variants/train/manifest_d800.txt
-      description: "800 veh/hr/lane - hard(50%)"
-
-    - name: "phase4a_challenge_short"
-      episodes: 75
-      demand_scale: 1.25
-      max_sim_seconds: 1800
-      route_pool_manifest: networks/variants/train/manifest_d1000.txt
-      description: "1000 veh/hr/lane - challenge(25%)"
+      route_pool_manifest: networks/variants/train_turn801010/manifest_mixed_phase3.txt
+      description: "Phase 3: Hard (~10% d500, 25% d750, 65% d1000)"
 
 logging:
-  log_dir: logs/independent
-  model_dir: models/independent
-  results_dir: results/independent
+  log_dir: logs/train_sequential
+  model_dir: models/train_sequential
+  results_dir: results/train_sequential
 
+#==============================================================================
+# PARALLEL - DISABLED (sequential training)
+#==============================================================================
 parallel:
-  enabled: false
+  enabled: false  # ← SEQUENTIAL: 1 worker only
+  # num_actors: 1  # Không cần vì disabled
+  # base_port: 9900

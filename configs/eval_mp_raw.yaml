@@ -1,13 +1,12 @@
-# Unified Evaluation Configuration
-# =================================
-# Usage: python scripts/eval_unified.py --config configs/eval.yaml
-#        python scripts/eval_unified.py --config configs/eval.yaml --policies rl_full
-#        python scripts/eval_unified.py --config configs/eval.yaml --demands 1000,1500
+# Evaluation Configuration for Max Pressure with RAW State
+# =========================================================
+# Usage: python scripts/eval.py --config configs/eval_mp_raw.yaml
 #
-# All parameters can be overridden via command line arguments
+# This config evaluates the FlexibleMaxPressureController with raw (not normalized) state
+# to properly test the true Max Pressure algorithm.
 
 run:
-  run_name: eval
+  run_name: eval_mp_raw
   seed: 42
   device: cpu
 
@@ -56,8 +55,11 @@ env:
       - "--time-to-teleport"
       - "300"
     enable_kpi_tracker: true
-    normalize_state: true
-    return_raw_state: false
+    
+    # CRITICAL: Use raw state for Max Pressure (not normalized)
+    normalize_state: false
+    return_raw_state: true
+    
     state_dim: 14
     enable_downstream_occupancy: true
     enable_spillback_penalty: true
@@ -192,44 +194,32 @@ env:
       ns_green: 3
       ns_yellow: 4
 
+# Normalization is DISABLED for raw MP testing
 normalization:
-  file: configs/norm_turn801010.json
+  file: null  # No normalization
 
-# Evaluation parameters
-# All can be overridden via CLI: --policies, --demands, --seeds, --horizon, --warmup, --unseen, --output
+# Evaluation parameters for MP testing
 eval_matrix:
-  # Policies to evaluate (override: --policies fixed,rl_full,...)
   policies:
-    - fixed
     - max_pressure
-    - actuated
-    - webster
   
-  # Demand levels (override: --demands 500,750,1000)
   demands:
     - 500
     - 750
     - 1000
   
-  # Number of seeds starting from 42 (override: --seeds N)
-  seeds: 10
-  
-  # Simulation parameters (override: --horizon N, --warmup N)
+  seeds: 3
   horizon: 1500
   warmup: 300
-  
-  # Use unseen routes for generalization test (override: --unseen flag)
-  unseen: true
-  
-  # Output CSV path (override: --output path)
-  output: results/eval_results.csv
+  unseen: false
+  output: results/eval_mp_raw.csv
 
-# Model paths for RL policies (override: --rl-full-model, --rl-plain-model)
+# Model paths (not used for MP)
 models:
   rl_full: models/1/best_model.pt
   rl_plain: models/1_plain/best_model.pt
 
-# Agent architecture - MUST match trained model
+# Agent architecture (not used for MP)
 agent:
   hidden_dims: [192, 192]
   gamma: 0.99
@@ -238,4 +228,4 @@ baseline:
   fixed_action_id: 2
 
 logging:
-  results_dir: results/eval
+  results_dir: results/eval_mp_raw

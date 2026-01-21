@@ -1,5 +1,9 @@
+# Long training configuration - 500 episodes
+# Train from scratch with full curriculum (không fine-tune)
+# Mục đích: So sánh với fine-tuned model để xem phương pháp nào tốt hơn
+
 run:
-  run_name: train_independent_9agents
+  run_name: train_bignet_500ep
   seed: 42
   device: cpu
 
@@ -10,12 +14,10 @@ env:
     teleport_time_cap_sec: null
     sumo_binary: sumo
     net_file: networks/BIGNET.net.xml
-    route_file: networks/variants/train/bignet_train_seed00042.rou.xml
+    route_file: networks/variants/train_turn801010/1000/bignet_turn801010_seed00042_d1000.rou.xml
     additional_files: []
-    
     tls_ids: ["J0", "J1", "J2", "J3", "J4", "J6", "J7", "J14", "J17"]
     center_tls_id: "J0"
-    
     downstream_links:
       N: "E3"
       E: "E0"
@@ -34,7 +36,6 @@ env:
     terminate_on_empty: true
     rho_min: 0.1
     g_min_sec: 10
-  
     cycle_options_sec: [60, 90, 120]
     action_splits:
       - [0.30, 0.70]
@@ -42,7 +43,6 @@ env:
       - [0.50, 0.50]
       - [0.60, 0.40]
       - [0.70, 0.30]
-    
     action_table: []
     include_transition_in_waiting: false
     reward_time_normalize: true
@@ -57,7 +57,7 @@ env:
     enable_kpi_tracker: true
     normalize_state: true
     return_raw_state: false
-    state_dim: 14  # SMDP v5: 12 local + 2 global broadcast
+    state_dim: 14
     enable_downstream_occupancy: true
     enable_spillback_penalty: true
     alpha_spillback: 3.0
@@ -170,12 +170,15 @@ env:
 normalization:
   file: configs/norm_turn801010.json
 
+#==============================================================================
+# AGENT HYPERPARAMETERS (standard training - không phải fine-tune)
+#==============================================================================
 agent:
   hidden_dims: [192, 192]
   gamma: 0.99
   use_time_aware_gamma: true
   t_ref: 60.0
-  learning_rate: 0.0003
+  learning_rate: 0.0003  # Standard LR cho training mới
   batch_size: 256
   replay_buffer_size: 200000
   target_update_freq: 3000
@@ -184,54 +187,77 @@ agent:
   train_freq: 4
   use_huber_loss: true
 
+#==============================================================================
+# EXPLORATION (standard - exploratory)
+#==============================================================================
 exploration:
-  eps_start: 1.0
+  eps_start: 1.0   # Bắt đầu với full exploration
   eps_end: 0.05
-  eps_decay_steps: 45000
+  eps_decay_steps: 50000  # Decay chậm hơn vì 500 episodes
 
+#==============================================================================
+# TRAINING (500 episodes - lâu hơn fine-tune)
+#==============================================================================
 train:
-  episodes: 300
-  save_every_episodes: 30
-  print_every_episodes: 5
+  episodes: 500
+  save_every_episodes: 50
+  print_every_episodes: 10
+  smoke_eval_every: 25  # Evaluate mỗi 25 episodes
+  smoke_eval_demand: 750
+  smoke_eval_horizon_sec: 750
+  curriculum_hist_every: 50
 
 baseline:
   fixed_action_id: 12
 
+#==============================================================================
+# CURRICULUM - Full 3 phases với 500 episodes
+#
+# Distribution:
+#   150 eps (30%): Easy (phase1) - warm-up
+#   200 eps (40%): Moderate (phase2) - main learning
+#   150 eps (30%): Hard (phase3) - challenging cases
+#==============================================================================
 curriculum:
   enabled: true
   phases:
     - name: "phase1_easy"
-      episodes: 30
-      demand_scale: 0.50
+      episodes: 150
       max_sim_seconds: 1800
-      route_pool_manifest: networks/variants/train/manifest_d400.txt
-      description: "400 veh/hr/lane - easy warmup (10%)"
+      route_pool_manifest: networks/variants/train_turn801010/manifest_mixed_phase1.txt
+      description: "Easy: ~70% d500, 20% d750, 10% d1000 (30%)"
 
     - name: "phase2_moderate"
-      episodes: 45
-      demand_scale: 0.75
+      episodes: 200
       max_sim_seconds: 1800
-      route_pool_manifest: networks/variants/train/manifest_d600.txt
-      description: "600 veh/hr/lane - moderate (15%)"
+      route_pool_manifest: networks/variants/train_turn801010/manifest_mixed_phase2.txt
+      description: "Moderate: ~20% d500, 40% d750, 40% d1000 (40%)"
 
-    - name: "phase3"
+    - name: "phase3_hard"
       episodes: 150
-      demand_scale: 1.0
       max_sim_seconds: 1800
-      route_pool_manifest: networks/variants/train/manifest_d800.txt
-      description: "800 veh/hr/lane - hard(50%)"
-
-    - name: "phase4a_challenge_short"
-      episodes: 75
-      demand_scale: 1.25
-      max_sim_seconds: 1800
-      route_pool_manifest: networks/variants/train/manifest_d1000.txt
-      description: "1000 veh/hr/lane - challenge(25%)"
+      route_pool_manifest: networks/variants/train_turn801010/manifest_mixed_phase3.txt
+      description: "Hard: ~10% d500, 25% d750, 65% d1000 (30%)"
 
 logging:
-  log_dir: logs/independent
-  model_dir: models/independent
-  results_dir: results/independent
+  log_dir: logs/train_500ep
+  model_dir: models/train_500ep
+  results_dir: results/train_500ep
 
+#==============================================================================
+# PARALLEL TRAINING - Cấu hình cho train dài
+# LƯU Ý: Dùng port khác để chạy song song với fine-tuning!
+#==============================================================================
 parallel:
-  enabled: false
+  enabled: true  
+  num_actors: 2  
+  base_port: 9800  # PORT KHÁC với finetune (9700) để chạy song song!
+  base_seed: 42
+  chunk_size: 256
+  queue_max_chunks: 200
+  sync_every_updates: 100
+  epsilon_worker_multipliers: [0.90, 1.10]
+  reset_max_retries: 3
+  reset_backoff_base_sec: 1.0
+  reset_backoff_cap_sec: 8.0
+  max_update_time_ms: 50.0

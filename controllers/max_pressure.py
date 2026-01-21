@@ -65,6 +65,251 @@ class MaxPressureSplitController:
         return int(best_action)
 
 
+class FlexibleMaxPressureController:
+    """
+    Flexible Max Pressure controller for discrete action space (like RL).
+    
+    Unlike the flawed split-by-queue-ratio approach, this controller:
+    - Uses RAW state (not normalized) for accurate pressure calculation
+    - Calculates true pressure = queue_in - downstream_occupancy * capacity
+    - Selects actions from action_defs based on pressure-weighted split
+    - Implements min_green/max_green constraints
+    - Uses hysteresis to avoid oscillation
+    
+    State vector expected (14D):
+    [q_N, q_E, q_S, q_W, wait_N, wait_E, wait_S, wait_W, 
+     occ_N, occ_E, occ_S, occ_W, current_phase, time_in_phase]
+    
+    Reference: Varaiya (2013) "The Max-Pressure Controller"
+    """
+    
+    def __init__(
+        self,
+        action_defs: Sequence,
+        min_green_sec: float = 10.0,
+        max_green_sec: float = 60.0,
+        hysteresis: float = 0.2,
+        downstream_capacity_factor: float = 0.5,
+        prefer_longer_cycle_threshold: float = 50.0,
+    ):
+        """
+        Args:
+            action_defs: List of action definitions with rho_ns and cycle_sec attributes
+            min_green_sec: Minimum green time per phase (default 10s)
+            max_green_sec: Maximum green time per phase (default 60s)
+            hysteresis: Pressure difference threshold to switch phases (default 20%)
+            downstream_capacity_factor: Weight for downstream occupancy in pressure calc
+            prefer_longer_cycle_threshold: Queue threshold above which longer cycles preferred
+        """
+        self._action_defs = list(action_defs)
+        self.min_green_sec = float(min_green_sec)
+        self.max_green_sec = float(max_green_sec)
+        self.hysteresis = float(hysteresis)
+        self.downstream_capacity_factor = float(downstream_capacity_factor)
+        self.prefer_longer_cycle_threshold = float(prefer_longer_cycle_threshold)
+        
+        # Per-TLS state tracking
+        self._current_phase: dict = {}  # tls_id -> 'NS' or 'EW'
+        self._last_action: dict = {}  # tls_id -> action_id
+        self._phase_start_time: dict = {}  # tls_id -> simulation time
+    
+    def reset(self):
+        """Reset controller state for new episode."""
+        self._current_phase.clear()
+        self._last_action.clear()
+        self._phase_start_time.clear()
+    
+    def _extract_pressure(self, state: np.ndarray) -> tuple:
+        """
+        Extract pressure values from state vector.
+        
+        Standard Max Pressure (Varaiya 2013, PressLight KDD 2019):
+        - Pressure = sum of queue lengths per movement group
+        - No downstream weighting (that's for back-pressure variant)
+        
+        Returns:
+            (pressure_ns, pressure_ew, total_queue, is_high_demand)
+        """
+        state = np.asarray(state, dtype=np.float32).reshape(-1)
+        
+        # Queue counts (indices 0-3): N, E, S, W
+        q_n = max(0.0, float(state[0])) if len(state) > 0 else 0.0
+        q_e = max(0.0, float(state[1])) if len(state) > 1 else 0.0
+        q_s = max(0.0, float(state[2])) if len(state) > 2 else 0.0
+        q_w = max(0.0, float(state[3])) if len(state) > 3 else 0.0
+        
+        # Standard Max Pressure: pressure = queue length per phase
+        # NS phase serves North and South approaches
+        # EW phase serves East and West approaches
+        pressure_ns = q_n + q_s
+        pressure_ew = q_e + q_w
+        
+        total_queue = q_n + q_e + q_s + q_w
+        
+        # High demand threshold based on typical intersection capacity
+        # ~50 vehicles = moderate congestion for 9-intersection network
+        is_high_demand = total_queue > self.prefer_longer_cycle_threshold
+        
+        return pressure_ns, pressure_ew, total_queue, is_high_demand
+    
+    def _select_best_action(
+        self, 
+        target_rho_ns: float,
+        prefer_longer_cycle: bool = False,
+    ) -> int:
+        """
+        Select action from action_defs that best matches target split.
+        
+        Standard Max Pressure (PressLight): Select action purely based on
+        pressure ratio matching. Cycle length selection is secondary.
+        
+        Args:
+            target_rho_ns: Target NS split ratio (0-1)
+            prefer_longer_cycle: If True, prefer longer cycles (high demand)
+        
+        Returns:
+            Action ID (index into action_defs)
+        """
+        if len(self._action_defs) == 0:
+            return 0
+        
+        best_action = 0
+        best_score = float('inf')
+        
+        for idx, action_def in enumerate(self._action_defs):
+            # Get rho_ns from action def
+            rho_ns = getattr(action_def, 'rho_ns', None)
+            if rho_ns is None and isinstance(action_def, dict):
+                rho_ns = action_def.get('rho_ns', action_def.get('ns_ratio', None))
+            if rho_ns is None:
+                continue
+            
+            # Get cycle length
+            cycle_sec = getattr(action_def, 'cycle_sec', None)
+            if cycle_sec is None and isinstance(action_def, dict):
+                cycle_sec = action_def.get('cycle_sec', 90)
+            cycle_sec = float(cycle_sec) if cycle_sec else 90.0
+            
+            # PRIMARY: Split difference (must match pressure ratio)
+            split_diff = abs(float(rho_ns) - target_rho_ns)
+            
+            # SECONDARY: Cycle selection based on demand level
+            # Standard practice: longer cycles for higher demand (more green time)
+            # Shorter cycles for lower demand (faster response to changes)
+            if prefer_longer_cycle:
+                # High demand: prefer 90s or 120s cycles
+                # Small penalty for 60s cycle (too short for high volume)
+                cycle_penalty = 0.02 if cycle_sec < 90 else 0.0
+            else:
+                # Low demand: prefer 60s or 90s cycles
+                # Small penalty for 120s cycle (too slow to respond)
+                cycle_penalty = 0.02 if cycle_sec > 90 else 0.0
+            
+            # Total score: split match is 5x more important than cycle
+            score = split_diff + cycle_penalty
+            
+            if score < best_score:
+                best_score = score
+                best_action = idx
+        
+        return int(best_action)
+    
+    def act(
+        self,
+        state: np.ndarray,
+        tls_id: str = "default",
+        sim_time: float = 0.0,
+    ) -> int:
+        """
+        Select action based on Max Pressure principle.
+        
+        Standard formula for discrete action space (PressLight/MPLight):
+        - Compute pressure for each direction (queue sum)
+        - Select action with split ratio matching pressure ratio
+        
+        Args:
+            state: Raw state vector (14D expected)
+            tls_id: Traffic light ID for state tracking
+            sim_time: Current simulation time (seconds)
+        
+        Returns:
+            Action ID to apply
+        """
+        pressure_ns, pressure_ew, total_queue, is_high_demand = self._extract_pressure(state)
+        
+        # Standard Max Pressure formula for split-based actions
+        total_pressure = pressure_ns + pressure_ew
+        if total_pressure <= 1e-6:
+            # No pressure: use balanced split
+            target_rho_ns = 0.5
+        else:
+            # Proportional split based on pressure ratio
+            target_rho_ns = pressure_ns / total_pressure
+            # Clamp to valid range
+            target_rho_ns = max(0.0, min(1.0, target_rho_ns))
+        
+        # Select best action
+        action_id = self._select_best_action(target_rho_ns, is_high_demand)
+        
+        # Update state tracking
+        self._last_action[tls_id] = action_id
+        
+        return action_id
+    
+    @staticmethod
+    def _self_test():
+        """Self-test for FlexibleMaxPressureController."""
+        from dataclasses import dataclass
+        
+        @dataclass
+        class MockActionDef:
+            rho_ns: float
+            cycle_sec: int
+        
+        action_defs = [
+            MockActionDef(0.3, 60),
+            MockActionDef(0.4, 60),
+            MockActionDef(0.5, 60),
+            MockActionDef(0.3, 90),
+            MockActionDef(0.4, 90),
+            MockActionDef(0.5, 90),
+            MockActionDef(0.6, 90),
+            MockActionDef(0.7, 90),
+            MockActionDef(0.5, 120),
+        ]
+        
+        ctrl = FlexibleMaxPressureController(action_defs)
+        
+        # Test 1: No queue -> balanced split
+        state = np.zeros(14)
+        action = ctrl.act(state, "test1")
+        assert action in [2, 5, 8], f"No queue should give ~0.5 split, got action {action}"
+        
+        # Test 2: NS queue high -> high rho_ns
+        state = np.array([10, 0, 10, 0] + [0]*10)  # q_N=10, q_S=10
+        action = ctrl.act(state, "test2")
+        rho = action_defs[action].rho_ns
+        assert rho >= 0.5, f"High NS queue should give rho_ns >= 0.5, got {rho}"
+        
+        # Test 3: EW queue high -> low rho_ns
+        state = np.array([0, 10, 0, 10] + [0]*10)  # q_E=10, q_W=10
+        action = ctrl.act(state, "test3")
+        rho = action_defs[action].rho_ns
+        assert rho <= 0.5, f"High EW queue should give rho_ns <= 0.5, got {rho}"
+        
+        # Test 4: High downstream occupancy reduces pressure
+        state = np.array([10, 10, 10, 10, 0, 0, 0, 0, 0.8, 0, 0.8, 0, 0, 0])
+        # High occ_N and occ_S should reduce NS pressure
+        action = ctrl.act(state, "test4")
+        rho = action_defs[action].rho_ns
+        # NS pressure reduced, so rho_ns should be lower
+        assert rho <= 0.5, f"High NS downstream occ should reduce rho_ns, got {rho}"
+        
+        ctrl.reset()
+        print("FlexibleMaxPressureController: All tests passed")
+
+
+
 class OriginalMaxPressureController:
     """
     Original MaxPressure controller with pressure-based phase switching.

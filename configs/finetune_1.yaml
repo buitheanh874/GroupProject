@@ -1,5 +1,9 @@
+# Fine-tuning configuration for train_bignet_300ep_20260118_092429_best.pt
+# Base model was trained with train_1_short.yaml for 200 episodes
+# Fine-tuning strategy: Lower LR, lower epsilon, focus on harder scenarios
+
 run:
-  run_name: train_independent_9agents
+  run_name: finetune_bignet
   seed: 42
   device: cpu
 
@@ -10,12 +14,10 @@ env:
     teleport_time_cap_sec: null
     sumo_binary: sumo
     net_file: networks/BIGNET.net.xml
-    route_file: networks/variants/train/bignet_train_seed00042.rou.xml
+    route_file: networks/variants/train_turn801010/1000/bignet_turn801010_seed00042_d1000.rou.xml
     additional_files: []
-    
     tls_ids: ["J0", "J1", "J2", "J3", "J4", "J6", "J7", "J14", "J17"]
     center_tls_id: "J0"
-    
     downstream_links:
       N: "E3"
       E: "E0"
@@ -34,7 +36,6 @@ env:
     terminate_on_empty: true
     rho_min: 0.1
     g_min_sec: 10
-  
     cycle_options_sec: [60, 90, 120]
     action_splits:
       - [0.30, 0.70]
@@ -42,7 +43,6 @@ env:
       - [0.50, 0.50]
       - [0.60, 0.40]
       - [0.70, 0.30]
-    
     action_table: []
     include_transition_in_waiting: false
     reward_time_normalize: true
@@ -170,68 +170,107 @@ env:
 normalization:
   file: configs/norm_turn801010.json
 
+#==============================================================================
+# FINE-TUNING HYPERPARAMETERS (adjusted from original training)
+#==============================================================================
 agent:
-  hidden_dims: [192, 192]
+  hidden_dims: [192, 192]  # Keep same architecture
   gamma: 0.99
   use_time_aware_gamma: true
   t_ref: 60.0
-  learning_rate: 0.0003
+  
+  # FINE-TUNING: Lower learning rate for stable refinement
+  # Original: 0.0003 → Fine-tune: 0.0001 (3x lower)
+  learning_rate: 0.0001
+  
   batch_size: 256
   replay_buffer_size: 200000
-  target_update_freq: 3000
+  
+  # FINE-TUNING: More frequent target updates for faster adaptation
+  # Original: 3000 → Fine-tune: 2000
+  target_update_freq: 2000
+  
   clip_grad_norm: 10.0
-  learning_starts: 600
+  
+  # FINE-TUNING: Start learning immediately (buffer already has good experiences)
+  # Original: 600 → Fine-tune: 100
+  learning_starts: 100
+  
   train_freq: 4
   use_huber_loss: true
 
+#==============================================================================
+# EXPLORATION SETTINGS (reduced for fine-tuning)
+#==============================================================================
 exploration:
-  eps_start: 1.0
-  eps_end: 0.05
-  eps_decay_steps: 45000
+  # FINE-TUNING: Start with moderate exploration (model already knows policy)
+  # Original: 1.0 → Fine-tune: 0.15
+  eps_start: 0.15
+  
+  # FINE-TUNING: Decay to lower epsilon
+  eps_end: 0.02
+  
+  # FINE-TUNING: Faster decay since we're just refining
+  # Original: 20000 → Fine-tune: 5000
+  eps_decay_steps: 5000
 
+#==============================================================================
+# TRAINING EPISODES (fine-tuning typically needs fewer episodes)
+#==============================================================================
 train:
-  episodes: 300
-  save_every_episodes: 30
+  episodes: 100  # Fine-tuning: 50-100 episodes is usually sufficient
+  save_every_episodes: 20
   print_every_episodes: 5
+  smoke_eval_every: 10  # More frequent evaluation during fine-tuning
+  smoke_eval_demand: 750
+  smoke_eval_horizon_sec: 750
+  curriculum_hist_every: 20
 
 baseline:
   fixed_action_id: 12
 
+#==============================================================================
+# CURRICULUM FOR FINE-TUNING (focus on harder scenarios)
+# 
+# Manifests đã có sẵn và KHÁC NHAU:
+#   phase1: ~70% d500, ~20% d750, ~10% d1000 (easy)
+#   phase2: ~20% d500, ~40% d750, ~40% d1000 (moderate)  
+#   phase3: ~10% d500, ~25% d750, ~65% d1000 (hard) ← Focus chính!
+#
+# Strategy: Model đã train với phase1,2,3 → Fine-tune tập trung phase3
+#==============================================================================
 curriculum:
   enabled: true
   phases:
-    - name: "phase1_easy"
-      episodes: 30
-      demand_scale: 0.50
+    # Phase 1: Warm-up ngắn với moderate để ổn định (không train từ zero)
+    - name: "finetune_warmup"
+      episodes: 20
       max_sim_seconds: 1800
-      route_pool_manifest: networks/variants/train/manifest_d400.txt
-      description: "400 veh/hr/lane - easy warmup (10%)"
+      route_pool_manifest: networks/variants/train_turn801010/manifest_mixed_phase2.txt
+      description: "Warm-up: Moderate difficulty (~20% d500, 40% d750, 40% d1000)"
 
-    - name: "phase2_moderate"
-      episodes: 45
-      demand_scale: 0.75
+    # Phase 2: Tập trung hoàn toàn vào HARD scenarios (mục tiêu chính!)
+    - name: "finetune_hard_focus"
+      episodes: 80
       max_sim_seconds: 1800
-      route_pool_manifest: networks/variants/train/manifest_d600.txt
-      description: "600 veh/hr/lane - moderate (15%)"
-
-    - name: "phase3"
-      episodes: 150
-      demand_scale: 1.0
-      max_sim_seconds: 1800
-      route_pool_manifest: networks/variants/train/manifest_d800.txt
-      description: "800 veh/hr/lane - hard(50%)"
-
-    - name: "phase4a_challenge_short"
-      episodes: 75
-      demand_scale: 1.25
-      max_sim_seconds: 1800
-      route_pool_manifest: networks/variants/train/manifest_d1000.txt
-      description: "1000 veh/hr/lane - challenge(25%)"
+      route_pool_manifest: networks/variants/train_turn801010/manifest_mixed_phase3.txt
+      description: "FOCUS: Hard scenarios (~10% d500, 25% d750, 65% d1000)"
 
 logging:
-  log_dir: logs/independent
-  model_dir: models/independent
-  results_dir: results/independent
+  log_dir: logs/finetune_bignet
+  model_dir: models/finetune_bignet
+  results_dir: results/finetune_bignet
 
 parallel:
-  enabled: false
+  enabled: true  
+  num_actors: 2  
+  base_port: 9700  # Different port from training
+  base_seed: 142  # Different seed for variety
+  chunk_size: 256
+  queue_max_chunks: 200
+  sync_every_updates: 100
+  epsilon_worker_multipliers: [0.95, 1.05]  # Less variation in fine-tuning
+  reset_max_retries: 3
+  reset_backoff_base_sec: 1.0
+  reset_backoff_cap_sec: 8.0
+  max_update_time_ms: 50.0
