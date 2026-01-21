@@ -14,9 +14,11 @@
 6. [Normalization](#normalization)
 7. [Parallel Training](#parallel-training)
 8. [Setup and Run](#setup-and-run)
-9. [Troubleshooting](#troubleshooting)
-10. [Appendix: Sources Inventory](#appendix-sources-inventory)
-11. [Completeness Checklist](#completeness-checklist)
+9. [Training Workflow (Step-by-Step)](#training-workflow-step-by-step)
+10. [Evaluation Workflow (Step-by-Step)](#evaluation-workflow-step-by-step)
+11. [Troubleshooting](#troubleshooting)
+12. [Appendix: Sources Inventory](#appendix-sources-inventory)
+13. [Completeness Checklist](#completeness-checklist)
 
 ---
 
@@ -540,7 +542,7 @@ python scripts/train.py --config configs/train_1.yaml
 ### Run Evaluation
 
 ```bash
-python scripts/eval.py --config configs/eval_1.yaml --model models/1/best_model.pt
+python scripts/eval.py --config configs/eval.yaml
 ```
 
 ### Run Parallel Training
@@ -577,6 +579,72 @@ python -c "import traci, sumolib; print('TraCI OK')"
 # Run tests
 $env:PYTHONPATH="$PWD"; pytest -q
 ```
+
+---
+
+## Training Workflow (Step-by-Step)
+
+1) **Pre-flight**  
+   - Thiết lập biến môi trường: `SUMO_HOME`, thêm `SUMO_HOME/bin` vào `PATH`, đặt `PYTHONPATH=$(pwd)`.  
+   - Kiểm tra nhanh: `python --version`, `sumo --version`, `python -c "import traci"`.  
+   - Tùy chọn: chạy `python scripts/doctor.py` để bắt lỗi cấu hình phổ biến.
+
+2) **Chọn config + chuẩn hóa**  
+   - Mainline: `configs/train_1.yaml` (logging mặc định: `logs/1`, `models/1`, `results/1`).  
+   - Đảm bảo file normalize tồn tại (ví dụ `configs/norm_curriculum_v5.json`). Nếu cần tạo mới:  
+     ```bash
+     python scripts/collect_norm_curriculum.py --config configs/train_1.yaml --total-episodes 100 --out configs/norm_curriculum_v5.json
+     ```
+
+3) **Chạy train**  
+   - Lệnh mẫu (đặt tên run để dễ truy vết):  
+     ```bash
+     python scripts/train.py --config configs/train_1.yaml --run-name mainline --log-dir logs/1 --model-dir models/1 --results-dir results/1
+     ```
+   - Script sẽ lưu:  
+     - `logs/*run_id*_train_metrics.csv`, `*_smoke_eval.csv`, `*_curriculum_stats.jsonl`  
+     - Checkpoint mỗi pha/episode tại `models/1/*run_id*_episode_XXXX.pt` và `*_best.pt`  
+     - Bản sao config tại `logs/*run_id*_config.yaml`
+
+4) **Theo dõi và checkpoint**  
+   - Giám sát loss/epsilon/throughput từ CSV log (có thể dùng `scripts/plot_kpis.py` hoặc mở CSV trực tiếp).  
+   - Nếu crash, script lưu `*_crash_ep*.pt`; có thể resume.
+
+5) **Resume / tiếp tục**  
+   - Dùng checkpoint mới nhất:  
+     ```bash
+     python scripts/train.py --config configs/train_1.yaml --resume models/1/<ckpt>.pt --start-episode <N> --run-name resume_mainline
+     ```
+   - Có thể override `--model-dir`/`--log-dir` khi resume để không ghi đè.
+
+---
+
+## Evaluation Workflow (Step-by-Step)
+
+1) **Chọn checkpoint và policies**  
+   - RL-Full mặc định: `models/1/best_model.pt`; RL-Plain: `models/1_plain/best_model.pt` (override bằng CLI).  
+   - Baseline có sẵn: `fixed`, `max_pressure`, `actuated`, `webster`.
+
+2) **Config eval**  
+   - Dùng `configs/eval.yaml` (eval matrix: demands 500/750/1000, seeds=10, unseen=true).  
+   - Preset: `--mode quick` (3 seeds) hoặc `--mode final` (5 seeds).
+
+3) **Chạy eval**  
+   ```bash
+   # Toàn bộ policies + demands mặc định
+   python scripts/eval.py --config configs/eval.yaml
+
+   # Chỉ RL-Full và Fixed, demand 750/1000, 5 seeds
+   python scripts/eval.py --config configs/eval.yaml --policies rl_full,fixed --demands 750,1000 --seeds 5
+
+   # Unseen routes (generalization)
+   python scripts/eval.py --config configs/eval.yaml --mode final --unseen
+   ```
+   - Output mặc định: `results/eval_results.csv` (override bằng `--output`).
+
+4) **Hậu kiểm**  
+   - Dùng `scripts/plot_eval.py` hoặc `scripts/aggregate_kpis.py` để so sánh controllers.  
+   - Horizon/warmup có thể override với `--horizon`/`--warmup` nếu cần đồng bộ với gating.
 
 ---
 

@@ -34,13 +34,19 @@
 - gate status: PASS
 
 **Gate 4 Curriculum evidence**
-- input: logs/gate4_curriculum/gate4_curriculum_hist_curriculum_stats.jsonl → evidence_pack/curriculum_histograms.{md,csv}
-- snapshots: ep50/100/150 buffer_hist={"-1":N}, sampled_hist={"-1":256}; single-phase curriculum only, no phase_name mapping (phase idx -1)
-- gate status: PARTIAL (histograms present but missing explicit phase mapping/overlap)
+- input: logs/2/train_v2_optimized_curriculum_stats.jsonl → evidence_pack/curriculum_histograms.{md,csv}
+- snapshots: ep200/250/300 with phase names (easy_foundation, medium_scaleup); sampled batches include both phases (no extreme skew)
+- gate status: PASS
 
 **Gate 5 Reproducibility**
 - manifest: evidence_pack/manifest.json (seeds 42,43; demands 500/750/1000; route manifests incl. t1000; unseen manifest path)
-- missing: episode→route log lines; gate status: PARTIAL
+- episode→route evidence: first 5 lines of `evidence_pack/smoke_eval_timeseries.csv`  
+  1,smoke_medium,750,1042,...,bignet_turn801010_seed00124_d750.rou.xml,...  
+  2,smoke_medium,750,1043,...,bignet_turn801010_seed00125_d750.rou.xml,...  
+  3,smoke_medium,750,1044,...,bignet_turn801010_seed00126_d750.rou.xml,...  
+  4,smoke_medium,750,1045,...,bignet_turn801010_seed00127_d750.rou.xml,...  
+  5,smoke_medium,750,1046,...,bignet_turn801010_seed00128_d750.rou.xml,...
+- gate status: PASS
 
 **Final Decision**
-- NO-GO (Gate1 lacks ≥3 seeds; Gate4/5 partial; otherwise Gate2/2b/3 pass)
+- NO-GO (Gate1 lacks ≥3 seeds; otherwise Gate2/2b/3/4/5 pass)

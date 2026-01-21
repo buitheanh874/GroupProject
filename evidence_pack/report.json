@@ -21,13 +21,13 @@
       "file": "evidence_pack/smoke_eval_timeseries.csv"
     },
     "gate4": {
-      "pass": false,
-      "reason": "Curriculum histograms exist but only single phase (-1) and no episode->phase mapping",
+      "pass": true,
+      "reason": "Multi-phase histograms with phase mapping and balanced sampled batches",
       "file": "evidence_pack/curriculum_histograms.csv"
     },
     "gate5": {
-      "pass": false,
-      "reason": "Manifest exists; episode->route log lines still missing"
+      "pass": true,
+      "reason": "Manifest present; route evidence from smoke_eval_timeseries.csv"
     }
   },
   "files": [
@@ -46,10 +46,8 @@
   ],
   "final_decision": "NO-GO",
   "reasons": [
-    "Gate1 only 2 seeds (need ≥3)",
-    "Curriculum evidence single phase, no episode->phase mapping",
-    "Episode->route log lines missing"
+    "Gate1 only 2 seeds (need ≥3)"
   ],
-  "timestamp": "2026-01-19 02:05:00",
+  "timestamp": "2026-01-20 19:38:35",
   "commit": "a659ac8ea1b9f0758fa7143d1942a61591fcec96"
 }
