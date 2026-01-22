@@ -178,12 +178,12 @@ agent:
   gamma: 0.99
   use_time_aware_gamma: true
   t_ref: 60.0
-  learning_rate: 0.0003  # Standard LR cho training mới
+  learning_rate: 0.0005       # Tăng nhẹ vì train từ đầu, cần học nhanh hơn
   batch_size: 256
   replay_buffer_size: 200000
-  target_update_freq: 3000
+  target_update_freq: 2000    # Sync target network thường xuyên hơn
   clip_grad_norm: 10.0
-  learning_starts: 600
+  learning_starts: 400        # Bắt đầu học sớm hơn
   train_freq: 4
   use_huber_loss: true
 
@@ -191,9 +191,9 @@ agent:
 # EXPLORATION (standard - exploratory)
 #==============================================================================
 exploration:
-  eps_start: 1.0   # Bắt đầu với full exploration
-  eps_end: 0.05
-  eps_decay_steps: 50000  # Decay chậm hơn vì 500 episodes
+  eps_start: 1.0           # Full exploration ban đầu
+  eps_end: 0.08            # Giữ 8% random để tránh local optima
+  eps_decay_steps: 50000
 
 #==============================================================================
 # TRAINING (500 episodes - lâu hơn fine-tune)
