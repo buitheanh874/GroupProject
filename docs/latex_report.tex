@@ -1,0 +1,229 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% RL Traffic Signal Control - Technical Report Sections
+% Generated from repository evidence audit
+% All claims backed by [evidence: file:lines] tags
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Problem Formulation}
+\label{sec:problem_formulation}
+
+\subsection{Semi-Markov Decision Process (SMDP)}
+
+We formulate the traffic signal control problem as a Semi-Markov Decision Process (SMDP), where each decision step corresponds to executing a complete signal cycle. Unlike standard MDPs with fixed time steps, SMDP accommodates variable decision durations since different cycle lengths (60s, 90s, 120s) result in different inter-decision intervals.
+[evidence: env/mdp\_metrics.py:143-152]
+
+Formally, the SMDP tuple is $(\mathcal{S}, \mathcal{A}, P, R, \gamma)$ where:
+\begin{itemize}
+    \item $\mathcal{S}$: 14-dimensional continuous state space
+    \item $\mathcal{A}$: 15 discrete actions (cycle-split combinations)
+    \item $P$: Transition dynamics governed by SUMO simulator
+    \item $R$: Reward function normalized for demand invariance
+    \item $\gamma$: Time-aware discount factor $\gamma = \gamma_0^{\Delta t / t_{\text{ref}}}$
+\end{itemize}
+[evidence: configs/train\_1.yaml:299-301, rl/agent.py:88-100]
+
+\subsection{Multi-Agent Framework}
+
+The system controls 9 signalized intersections (TLS IDs: J0, J1, J2, J3, J4, J6, J7, J14, J17) arranged in a 3$\times$3 grid topology with J0 as the center. We adopt a \textbf{decentralized execution with parameter sharing} paradigm: each intersection acts as an independent agent selecting its own cycle length and split ratio, but all agents share a single neural network (Dueling DQN) for Q-value estimation.
+[evidence: configs/train\_1.yaml:15-16, env/sumo\_env.py:216-230]
+
+This approach balances coordination (shared representation) with scalability (no exponential joint action space). Each agent observes local queue and waiting time information plus two global broadcast signals (network vehicle count and aggregated spillback).
+[evidence: env/sumo\_env.py:1082-1116]
+
+
+\section{Method}
+\label{sec:method}
+
+\subsection{State Representation}
+
+Each agent receives a 14-dimensional state vector:
+\begin{equation}
+s = [q_N, q_E, q_S, q_W, w_N, w_E, w_S, w_W, o_N, o_E, o_S, o_W, \hat{N}, \hat{S}]
+\end{equation}
+where:
+\begin{itemize}
+    \item $q_d \in \mathbb{R}^+$: Number of distinct vehicles queued (speed $< 0.1$ m/s) on direction $d$ during the cycle
+    \item $w_d \in \mathbb{R}^+$: Accumulated waiting time (vehicle-seconds) per direction
+    \item $o_d \in [0,1]$: Downstream lane occupancy fraction per direction
+    \item $\hat{N}$: Normalized global vehicle count (broadcast to all agents)
+    \item $\hat{S}$: Normalized global spillback penalty (broadcast to all agents)
+\end{itemize}
+[evidence: env/sumo\_env.py:1092-1115]
+
+States are normalized using z-score standardization with pre-computed statistics from 7560 training samples across demand levels 500, 750, and 1000 veh/hr.
+[evidence: configs/norm\_turn801010.json:1-41]
+
+\subsection{Action Space}
+
+The action space consists of 15 discrete actions formed by the Cartesian product of:
+\begin{itemize}
+    \item \textbf{Cycle lengths}: $C \in \{60, 90, 120\}$ seconds
+    \item \textbf{Split ratios}: $\rho_{NS} \in \{0.30, 0.40, 0.50, 0.60, 0.70\}$
+\end{itemize}
+Each action $a_i = (C_i, \rho_i^{NS}, \rho_i^{EW})$ where $\rho_i^{EW} = 1 - \rho_i^{NS}$.
+[evidence: configs/train\_1.yaml:35-41]
+
+Signal phases include mandatory safety transitions:
+\begin{itemize}
+    \item Yellow phase: 3 seconds
+    \item All-red clearance: 2 seconds
+    \item Minimum green: $g_{\min} = 10$ seconds
+\end{itemize}
+[evidence: configs/train\_1.yaml:28-29,34]
+
+\subsection{Reward Function}
+
+We design a demand-invariant SMDP reward:
+\begin{equation}
+R = -\frac{W}{N \cdot t_{\text{ref}}} - \frac{\alpha \sum_d o_d^2}{M} \cdot \frac{\Delta t}{t_{\text{ref}}}
+\end{equation}
+where:
+\begin{itemize}
+    \item $W$: Total waiting time accumulated during the cycle (vehicle-seconds)
+    \item $N$: Number of vehicles currently in the network
+    \item $t_{\text{ref}} = 60$ s: Reference time for scaling
+    \item $\alpha = 3.0$: Spillback penalty coefficient (training)
+    \item $o_d$: Downstream occupancy for direction $d$
+    \item $M = 4$: Number of downstream links
+    \item $\Delta t$: Decision duration (cycle + transitions)
+\end{itemize}
+[evidence: env/mdp\_metrics.py:135-186, configs/train\_1.yaml:60,301]
+
+The first term penalizes per-vehicle waiting, normalized to O(1) scale. The second term applies time-proportional spillback penalty, preventing longer cycles from accumulating fewer penalty events.
+[evidence: env/mdp\_metrics.py:172-184]
+
+\subsection{Network Architecture}
+
+We employ a \textbf{Dueling DQN} architecture with the following structure:
+\begin{itemize}
+    \item \textbf{Feature network}: Linear(14$\to$256) $\to$ ReLU $\to$ Linear(256$\to$256) $\to$ ReLU
+    \item \textbf{Value stream}: Linear(256$\to$1) producing $V(s)$
+    \item \textbf{Advantage stream}: Linear(256$\to$15) producing $A(s,a)$
+    \item \textbf{Q-value combination}: $Q(s,a) = V(s) + A(s,a) - \frac{1}{|\mathcal{A}|}\sum_{a'} A(s,a')$
+\end{itemize}
+[evidence: rl/dueling\_dqn.py:9-35]
+
+Training uses \textbf{Double DQN} update to reduce overestimation:
+\begin{equation}
+y = r + \gamma \cdot Q_{\text{target}}(s', \arg\max_{a'} Q_{\text{online}}(s', a'))
+\end{equation}
+[evidence: rl/agent.py:161-165]
+
+
+\section{Experimental Setup}
+\label{sec:experimental_setup}
+
+\subsection{Simulation Environment}
+
+We use the SUMO (Simulation of Urban MObility) microscopic traffic simulator with TraCI Python interface. The network ``BIGNET'' consists of 9 signalized intersections in a grid topology.
+[evidence: env/sumo\_env.py:203-363, configs/train\_1.yaml:12]
+
+\subsection{Demand Scenarios}
+
+Training employs curriculum learning with three demand levels:
+\begin{itemize}
+    \item \textbf{Easy}: 500 vehicles/hour
+    \item \textbf{Medium}: 750 vehicles/hour  
+    \item \textbf{Hard}: 1000 vehicles/hour
+\end{itemize}
+The curriculum consists of 9 phases with interleaved revisits to prevent catastrophic forgetting: easy$\to$medium$\to$hard$\to$easy(refresh)$\to$medium(reinforce)$\to$hard(expand)$\to$easy(polish)$\to$medium(polish)$\to$hard(final).
+[evidence: configs/train\_1.yaml:341-417]
+
+\subsection{Training Hyperparameters}
+
+\begin{table}[h]
+\centering
+\caption{Training Hyperparameters}
+\begin{tabular}{ll}
+\toprule
+\textbf{Parameter} & \textbf{Value} \\
+\midrule
+Discount factor $\gamma_0$ & 0.99 \\
+Time-aware gamma & Yes ($t_{\text{ref}}=60$s) \\
+Learning rate & $10^{-4}$ \\
+Batch size & 256 \\
+Replay buffer size & 200,000 \\
+Target update frequency & 5,000 steps \\
+Hidden dimensions & [256, 256] \\
+Optimizer & Adam \\
+Loss function & Huber (SmoothL1) \\
+Gradient clip norm & 10.0 \\
+Epsilon (start$\to$end) & 0.60 $\to$ 0.05 \\
+Warmup steps & 750 \\
+Decay steps & 1,000 \\
+\bottomrule
+\end{tabular}
+\end{table}
+[evidence: configs/train\_1.yaml:298-326]
+
+\subsection{Baseline Controllers}
+
+We compare against four classical baselines:
+
+\begin{enumerate}
+    \item \textbf{Fixed-time}: Pre-determined cycle and split (action\_id=12: 120s cycle, 50-50 split)
+    [evidence: controllers/fixed\_time.py, configs/train\_1.yaml:339]
+    
+    \item \textbf{Max Pressure}: Selects phase proportional to queue pressure differential
+    [evidence: controllers/max\_pressure.py:MaxPressureSplitController]
+    
+    \item \textbf{Actuated}: Gap-out based vehicle-actuated control with minimum/maximum green
+    [evidence: controllers/actuated.py:ActuatedController]
+    
+    \item \textbf{Webster}: Optimal cycle length via Webster formula with measured saturation flows
+    [evidence: controllers/webster.py:WebsterController]
+\end{enumerate}
+
+\subsection{Reproducibility}
+
+\begin{itemize}
+    \item Global seed: 42 (propagated to environment, agent, and numpy)
+    \item Evaluation: 10 seeds per demand level (42-51)
+    \item Parallel workers use port offsets (base\_port=9500) for SUMO isolation
+\end{itemize}
+[evidence: configs/train\_1.yaml:3, configs/eval.yaml:215, configs/train\_1.yaml:427]
+
+
+\section{Evaluation}
+\label{sec:evaluation}
+
+\subsection{Evaluation Protocol}
+
+Each policy is evaluated over:
+\begin{itemize}
+    \item \textbf{Seen demands}: 500, 750, 1000 veh/hr (training distribution)
+    \item \textbf{Unseen demands}: 1250 veh/hr (generalization test)
+    \item \textbf{Seeds}: 10 independent runs per (demand, policy) pair
+    \item \textbf{Horizon}: 1500 seconds simulation time
+    \item \textbf{Warmup}: 300 seconds excluded from metrics
+\end{itemize}
+[evidence: configs/eval.yaml:209-222, eval\_turn801010\_baselines\_s10.csv:1]
+
+\subsection{Metrics with Teleport Correction}
+
+To ensure fair comparison when gridlock causes SUMO's teleportation mechanism, we report \textbf{corrected KPIs}:
+
+\begin{itemize}
+    \item \textbf{avg\_wait\_time\_corr}: Average waiting time where teleported vehicles' wait is capped at $t_{\text{cap}}$
+    \item \textbf{avg\_travel\_time\_corr}: Average travel time with same cap
+    \item \textbf{throughput\_corr}: Arrived vehicles (excluding teleported) per simulation step
+    \item \textbf{completion\_rate}: Fraction of departed vehicles that successfully arrived
+    \item \textbf{teleport\_rate}: Fraction of departed vehicles that teleported
+\end{itemize}
+[evidence: env/kpi.py:35-62, env/kpi.py:240-292]
+
+The correction formula for vehicles $v$ in set $\mathcal{V}$:
+\begin{equation}
+\bar{w}_{\text{corr}} = \frac{1}{|\mathcal{V}|} \sum_{v \in \mathcal{V}} \min(w_v, t_{\text{cap}})
+\end{equation}
+where $w_v$ is the raw waiting time and $t_{\text{cap}}$ defaults to the simulation horizon if not set.
+[evidence: env/kpi.py:253-258, 266-268]
+
+\subsection{Result Summary}
+
+Evaluation results are logged to CSV with columns: policy, demand, seed, horizon\_sec, warmup\_sec, avg\_wait\_time\_corr, avg\_travel\_time\_corr, throughput\_corr, completion\_rate, teleport\_rate, arrived\_vehicles, n\_present\_end, avg\_queue, total\_reward, episode\_steps, status, error\_msg, route\_file.
+[evidence: eval\_turn801010\_baselines\_s10.csv:1]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% END OF REPORT SECTIONS
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
