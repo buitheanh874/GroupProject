@@ -1,0 +1,434 @@
+run:
+  run_name: train_v2_optimized
+  seed: 42
+  device: cpu
+
+env:
+  type: sumo
+  sumo:
+    teleport_penalty_lambda: 5.0
+    teleport_time_cap_sec: null
+    sumo_binary: sumo
+    net_file: networks/BIGNET.net.xml
+    route_file: networks/variants/train/800/bignet_train_seed00042_d800.rou.xml 
+    additional_files: []
+    tls_ids: ["J0", "J1", "J2", "J3", "J4", "J6", "J7", "J14", "J17"]
+    center_tls_id: "J0"
+    downstream_links:
+      N: "E3"
+      E: "E0"
+      S: "E2"
+      W: "E1"
+    vehicle_weights:
+      motorcycle: 0.25
+      passenger: 1.0
+      bus: 3.0
+    step_length_sec: 1.0
+    green_cycle_sec: 90
+    yellow_sec: 3
+    all_red_sec: 2
+    max_cycles: 60
+    max_sim_seconds: 3600
+    terminate_on_empty: false
+    rho_min: 0.1
+    g_min_sec: 10
+    cycle_options_sec: [60, 90, 120]
+    action_splits:
+      - [0.30, 0.70]
+      - [0.40, 0.60]
+      - [0.50, 0.50]
+      - [0.60, 0.40]
+      - [0.70, 0.30]
+    action_table: []
+    include_transition_in_waiting: false
+    reward_time_normalize: true
+
+    sumo_extra_args:
+      - "--ignore-junction-blocker"
+      - "1"
+      - "--time-to-teleport"
+      - "300"
+      - "--no-warnings"
+      - "true"
+
+    enable_kpi_tracker: true
+    normalize_state: true
+    return_raw_state: false
+    state_dim: 14  # SMDP v5: 12 local + 2 global broadcast (n_present_norm, spill_scalar_norm)
+    enable_downstream_occupancy: true
+    enable_spillback_penalty: true
+    alpha_spillback: 3.0
+
+    deadlock_early_no_arrival_sec: 0
+    deadlock_no_arrival_sec: 0
+    deadlock_queue_threshold: 0
+    deadlock_downstream_occ_threshold: 0
+    deadlock_active_min: 0
+    deadlock_early_penalty_max: 0
+    deadlock_penalty: 0
+    terminate_on_deadlock: false
+    teleport_failure_when_congested: false
+
+    lane_groups_by_tls:
+      J0:
+        lanes_ns_ctrl:
+          - "-E2_0"
+          - "-E2_1"
+          - "-E2_2"
+          - "-E3_0"
+          - "-E3_1"
+          - "-E3_2"
+        lanes_ew_ctrl:
+          - "-E0_0"
+          - "-E0_1"
+          - "-E0_2"
+          - "-E1_0"
+          - "-E1_1"
+          - "-E1_2"
+        lanes_right_turn_slip_ns: []
+        lanes_right_turn_slip_ew: []
+        approach_lanes:
+          N: ["-E2_0", "-E2_1", "-E2_2"]
+          E: ["-E0_0", "-E0_1", "-E0_2"]
+          S: ["-E3_0", "-E3_1", "-E3_2"]
+          W: ["-E1_0", "-E1_1", "-E1_2"]
+      J3:
+        lanes_ns_ctrl:
+          - "-E25_0"
+          - "-E25_1"
+          - "-E25_2"
+          - "E2_0"
+          - "E2_1"
+          - "E2_2"
+        lanes_ew_ctrl:
+          - "-E26_0"
+          - "-E26_1"
+          - "-E26_2"
+          - "E24_0"
+          - "E24_1"
+          - "E24_2"
+        lanes_right_turn_slip_ns: []
+        lanes_right_turn_slip_ew: []
+        approach_lanes:
+          N: ["-E25_0", "-E25_1", "-E25_2"]
+          E: ["-E26_0", "-E26_1", "-E26_2"]
+          S: ["E2_0", "E2_1", "E2_2"]
+          W: ["E24_0", "E24_1", "E24_2"]
+      J1:
+        lanes_ns_ctrl:
+          - "-E6_0"
+          - "-E6_1"
+          - "-E6_2"
+          - "-E5_0"
+          - "-E5_1"
+          - "-E5_2"
+        lanes_ew_ctrl:
+          - "-E4_0"
+          - "-E4_1"
+          - "-E4_2"
+          - "E0_0"
+          - "E0_1"
+          - "E0_2"
+        lanes_right_turn_slip_ns: []
+        lanes_right_turn_slip_ew: []
+        approach_lanes:
+          N: ["-E6_0", "-E6_1", "-E6_2"]
+          E: ["-E4_0", "-E4_1", "-E4_2"]
+          S: ["-E5_0", "-E5_1", "-E5_2"]
+          W: ["E0_0", "E0_1", "E0_2"]
+      J4:
+        lanes_ns_ctrl:
+          - "E3_0"
+          - "E3_1"
+          - "E3_2"
+          - "-E16_0"
+          - "-E16_1"
+          - "-E16_2"
+        lanes_ew_ctrl:
+          - "E14_0"
+          - "E14_1"
+          - "E14_2"
+          - "-E15_0"
+          - "-E15_1"
+          - "-E15_2"
+        lanes_right_turn_slip_ns: []
+        lanes_right_turn_slip_ew: []
+        approach_lanes:
+          N: ["E3_0", "E3_1", "E3_2"]
+          E: ["E14_0", "E14_1", "E14_2"]
+          S: ["-E16_0", "-E16_1", "-E16_2"]
+          W: ["-E15_0", "-E15_1", "-E15_2"]
+      J2:
+        lanes_ns_ctrl:
+          - "-E19_0"
+          - "-E19_1"
+          - "-E19_2"
+          - "-E18_0"
+          - "-E18_1"
+          - "-E18_2"
+        lanes_ew_ctrl:
+          - "E1_0"
+          - "E1_1"
+          - "E1_2"
+          - "-E17_0"
+          - "-E17_1"
+          - "-E17_2"
+        lanes_right_turn_slip_ns: []
+        lanes_right_turn_slip_ew: []
+        approach_lanes:
+          N: ["-E19_0", "-E19_1", "-E19_2"]
+          E: ["E1_0", "E1_1", "E1_2"]
+          S: ["-E18_0", "-E18_1", "-E18_2"]
+          W: ["-E17_0", "-E17_1", "-E17_2"]
+      J7:
+        lanes_ns_ctrl:
+          - "-E27_0"
+          - "-E27_1"
+          - "-E27_2"
+          - "E6_0"
+          - "E6_1"
+          - "E6_2"
+        lanes_ew_ctrl:
+          - "-E28_0"
+          - "-E28_1"
+          - "-E28_2"
+          - "E26_0"
+          - "E26_1"
+          - "E26_2"
+        lanes_right_turn_slip_ns: []
+        lanes_right_turn_slip_ew: []
+        approach_lanes:
+          N: ["-E27_0", "-E27_1", "-E27_2"]
+          E: ["-E28_0", "-E28_1", "-E28_2"]
+          S: ["E6_0", "E6_1", "E6_2"]
+          W: ["E26_0", "E26_1", "E26_2"]
+      J6:
+        lanes_ns_ctrl:
+          - "E5_0"
+          - "E5_1"
+          - "E5_2"
+          - "-E13_0"
+          - "-E13_1"
+          - "-E13_2"
+        lanes_ew_ctrl:
+          - "-E12_0"
+          - "-E12_1"
+          - "-E12_2"
+          - "-E14_0"
+          - "-E14_1"
+          - "-E14_2"
+        lanes_right_turn_slip_ns: []
+        lanes_right_turn_slip_ew: []
+        approach_lanes:
+          N: ["E5_0", "E5_1", "E5_2"]
+          E: ["-E12_0", "-E12_1", "-E12_2"]
+          S: ["-E13_0", "-E13_1", "-E13_2"]
+          W: ["-E14_0", "-E14_1", "-E14_2"]
+      J14:
+        lanes_ns_ctrl:
+          - "E18_0"
+          - "E18_1"
+          - "E18_2"
+          - "-E21_0"
+          - "-E21_1"
+          - "-E21_2"
+        lanes_ew_ctrl:
+          - "E15_0"
+          - "E15_1"
+          - "E15_2"
+          - "-E20_0"
+          - "-E20_1"
+          - "-E20_2"
+        lanes_right_turn_slip_ns: []
+        lanes_right_turn_slip_ew: []
+        approach_lanes:
+          N: ["E18_0", "E18_1", "E18_2"]
+          E: ["E15_0", "E15_1", "E15_2"]
+          S: ["-E21_0", "-E21_1", "-E21_2"]
+          W: ["-E20_0", "-E20_1", "-E20_2"]
+      J17:
+        lanes_ns_ctrl:
+          - "-E22_0"
+          - "-E22_1"
+          - "-E22_2"
+          - "E19_0"
+          - "E19_1"
+          - "E19_2"
+        lanes_ew_ctrl:
+          - "-E24_0"
+          - "-E24_1"
+          - "-E24_2"
+          - "-E23_0"
+          - "-E23_1"
+          - "-E23_2"
+        lanes_right_turn_slip_ns: []
+        lanes_right_turn_slip_ew: []
+        approach_lanes:
+          N: ["-E22_0", "-E22_1", "-E22_2"]
+          E: ["-E24_0", "-E24_1", "-E24_2"]
+          S: ["E19_0", "E19_1", "E19_2"]
+          W: ["-E23_0", "-E23_1", "-E23_2"]
+    phase_program:
+      ew_green: 0
+      ew_yellow: 1
+      all_red: 2
+      ns_green: 3
+      ns_yellow: 4
+    tls_phase_overrides:
+      J17:
+        ns_green: 0
+        ew_green: 3
+      J2:
+        ns_green: 0
+        ew_green: 3
+      J3:
+        ns_green: 0
+        ew_green: 3
+      J14:
+        ns_green: 0
+        ew_green: 3
+      J7:
+        ns_green: 0
+        ew_green: 3
+
+normalization:
+  file: configs/norm_turn801010.json
+
+agent:
+  hidden_dims: [256, 256]
+  gamma: 0.99
+  use_time_aware_gamma: true
+  t_ref: 60.0
+  learning_rate: 0.0003       # OPTIMIZED: 3x increase for faster learning
+  batch_size: 256
+  replay_buffer_size: 200000
+  target_update_freq: 1000    # OPTIMIZED: 5x more frequent for stability
+  clip_grad_norm: 10.0
+  learning_starts: 3000       # OPTIMIZED: longer warmup for parallel
+  train_freq: 4            
+  use_huber_loss: true       
+
+exploration:
+  # === OPTIMIZED EPSILON SCHEDULE FOR 10 WORKERS ===
+  # Total training: 10 workers × 100 eps × ~20 steps = ~20,000 global steps
+  # 
+  # Timeline:
+  #   Step 0-2000:     Warmup, ε=0.80 constant (10% of training)
+  #   Step 2000-8000:  Decay, ε=0.80→0.05 linear (30% of training)
+  #   Step 8000+:      Exploitation, ε=0.05
+  #
+  # With multipliers [0.80-1.25], effective range: ε=0.64-1.0 → ε=0.04-0.0625
+  eps_start: 0.80             # OPTIMIZED: more exploration at start
+  eps_end: 0.05
+  warmup_global_steps: 2000   # OPTIMIZED: 2.5x longer warmup (10% of training)
+  eps_decay_steps: 6000       # OPTIMIZED: 6x slower decay (ends at step 8000, 40% of training)
+
+train:
+  episodes: 1000  # TOTAL: 10 workers x 100 episodes = 1000 episodes
+  save_every_episodes: 100
+  print_every_episodes: 20
+  # === GATE 3 & 4 EVIDENCE ===
+  smoke_eval_every: 100    # Smoke eval mỗi 100 eps → 10 entries (Gate 3)
+  smoke_eval_demand: 750
+  smoke_eval_horizon_sec: 750
+  curriculum_hist_every: 50   # Curriculum hist mỗi 50 eps → 20 snapshots (Gate 4 sớm tại ~150 eps)
+
+baseline:
+  fixed_action_id: 12
+
+curriculum:
+  # === MIX PHASE DESIGN (300/400/300 = 1000 episodes) ===
+  # Mục tiêu: Không quên phase dễ khi train phase khó
+  # Strategy: Interleaved curriculum với revisit phases
+  # 
+  # PHASE DISTRIBUTION:
+  #   Phase 1 (Easy-500):     150 eps - Foundation learning
+  #   Phase 2 (Medium-750):   200 eps - Scale up difficulty  
+  #   Phase 3 (Hard-1000):    150 eps - Initial hard exposure
+  #   --- REVISIT BLOCK (prevent forgetting) ---
+  #   Phase 4 (Easy-500):      50 eps - Refresh easy patterns
+  #   Phase 5 (Medium-750):   100 eps - Reinforce medium
+  #   Phase 6 (Hard-1000):    100 eps - More hard exposure
+  #   --- FINAL POLISH ---
+  #   Phase 7 (Easy-500):     100 eps - Final easy polish
+  #   Phase 8 (Medium-750):   100 eps - Final medium polish
+  #   Phase 9 (Hard-1000):     50 eps - Final hard test
+  #
+  # TOTALS: Easy=300, Medium=400, Hard=300 ✓
+  enabled: true
+  phases:
+    # === INITIAL LEARNING BLOCK (500 episodes) ===
+    - name: "easy_foundation"
+      episodes: 150
+      max_sim_seconds: 1800
+      route_pool_manifest: networks/variants/train_turn801010/500/manifest.txt
+      description: "Phase 1: Easy (500 veh/hr) - Foundation learning"
+
+    - name: "medium_scaleup"
+      episodes: 200
+      max_sim_seconds: 1800
+      route_pool_manifest: networks/variants/train_turn801010/750/manifest.txt
+      description: "Phase 2: Medium (750 veh/hr) - Scale up difficulty"
+
+    - name: "hard_initial"
+      episodes: 150
+      max_sim_seconds: 1800
+      route_pool_manifest: networks/variants/train_turn801010/1000/manifest.txt
+      description: "Phase 3: Hard (1000 veh/hr) - Initial hard exposure"
+
+    # === REVISIT BLOCK (250 episodes) - Prevent forgetting ===
+    - name: "easy_refresh"
+      episodes: 50
+      max_sim_seconds: 1800
+      route_pool_manifest: networks/variants/train_turn801010/500/manifest.txt
+      description: "Phase 4: Easy refresh - Prevent forgetting easy patterns"
+
+    - name: "medium_reinforce"
+      episodes: 100
+      max_sim_seconds: 1800
+      route_pool_manifest: networks/variants/train_turn801010/750/manifest.txt
+      description: "Phase 5: Medium reinforcement"
+
+    - name: "hard_expand"
+      episodes: 100
+      max_sim_seconds: 1800
+      route_pool_manifest: networks/variants/train_turn801010/1000/manifest.txt
+      description: "Phase 6: Hard expansion - More hard exposure"
+
+    # === FINAL POLISH BLOCK (250 episodes) ===
+    - name: "easy_polish"
+      episodes: 100
+      max_sim_seconds: 1800
+      route_pool_manifest: networks/variants/train_turn801010/500/manifest.txt
+      description: "Phase 7: Final easy polish"
+
+    - name: "medium_polish"
+      episodes: 100
+      max_sim_seconds: 1800
+      route_pool_manifest: networks/variants/train_turn801010/750/manifest.txt
+      description: "Phase 8: Final medium polish"
+
+    - name: "hard_final"
+      episodes: 50
+      max_sim_seconds: 1800
+      route_pool_manifest: networks/variants/train_turn801010/1000/manifest.txt
+      description: "Phase 9: Final hard test - Low epsilon exploitation"
+
+logging:
+  log_dir: logs/2
+  model_dir: models/2
+  results_dir: results/2
+
+parallel:
+  enabled: true  
+  num_actors: 10  
+  base_port: 9500
+  base_seed: 42
+  chunk_size: 256
+  queue_max_chunks: 200
+  sync_every_updates: 100
+  epsilon_worker_multipliers: [0.80, 0.85, 0.90, 0.95, 1.00, 1.05, 1.10, 1.15, 1.20, 1.25]
+  reset_max_retries: 3
+  reset_backoff_base_sec: 1.0
+  reset_backoff_cap_sec: 8.0
+  max_update_time_ms: 50.0

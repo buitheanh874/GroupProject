@@ -1,0 +1,146 @@
+# Short test config for verifying episode stop logic
+# 30 total episodes, 10 workers = 3 episodes per worker
+
+run:
+  run_name: test_stop_logic
+  seed: 42
+  device: cpu
+
+env:
+  type: sumo
+  sumo:
+    sumo_binary: sumo
+    net_file: networks/BIGNET.net.xml
+    route_file: networks/variants/train_turn801010/750/bignet_turn801010_seed00042_d750.rou.xml
+    additional_files: []
+    tls_ids: ["J0", "J1", "J2", "J3", "J4", "J6", "J7", "J14", "J17"]
+    center_tls_id: "J0"
+    downstream_links:
+      N: "E3"
+      E: "E0"
+      S: "E2"
+      W: "E1"
+    vehicle_weights:
+      motorcycle: 0.25
+      passenger: 1.0
+      bus: 3.0
+    step_length_sec: 1.0
+    green_cycle_sec: 90
+    yellow_sec: 3
+    all_red_sec: 2
+    max_cycles: 8  # Very short episodes for fast test
+    max_sim_seconds: 750
+    terminate_on_empty: false
+    rho_min: 0.1
+    g_min_sec: 10
+    cycle_options_sec: [60, 90, 120]
+    action_splits:
+      - [0.30, 0.70]
+      - [0.40, 0.60]
+      - [0.50, 0.50]
+      - [0.60, 0.40]
+      - [0.70, 0.30]
+    action_table: []
+    include_transition_in_waiting: false
+    reward_time_normalize: true
+    sumo_extra_args:
+      - "--ignore-junction-blocker"
+      - "1"
+      - "--time-to-teleport"
+      - "300"
+      - "--no-warnings"
+      - "true"
+    enable_kpi_tracker: true
+    normalize_state: true
+    return_raw_state: false
+    state_dim: 14
+    enable_downstream_occupancy: true
+    enable_spillback_penalty: true
+    alpha_spillback: 3.0
+    deadlock_early_no_arrival_sec: 0
+    deadlock_no_arrival_sec: 0
+    deadlock_queue_threshold: 0
+    deadlock_downstream_occ_threshold: 0
+    deadlock_active_min: 0
+    deadlock_early_penalty_max: 0
+    deadlock_penalty: 0
+    terminate_on_deadlock: false
+    teleport_failure_when_congested: false
+    teleport_penalty_lambda: 5.0
+    teleport_time_cap_sec: null
+    lane_groups_by_tls:
+      J0:
+        lanes_ns_ctrl: ["-E2_0", "-E2_1", "-E2_2", "-E3_0", "-E3_1", "-E3_2"]
+        lanes_ew_ctrl: ["-E0_0", "-E0_1", "-E0_2", "-E1_0", "-E1_1", "-E1_2"]
+        lanes_right_turn_slip_ns: []
+        lanes_right_turn_slip_ew: []
+        approach_lanes:
+          N: ["-E2_0", "-E2_1", "-E2_2"]
+          E: ["-E0_0", "-E0_1", "-E0_2"]
+          S: ["-E3_0", "-E3_1", "-E3_2"]
+          W: ["-E1_0", "-E1_1", "-E1_2"]
+    phase_program:
+      ew_green: 0
+      ew_yellow: 1
+      all_red: 2
+      ns_green: 3
+      ns_yellow: 4
+
+normalization:
+  file: configs/norm_turn801010.json
+
+agent:
+  hidden_dims: [256, 256]
+  gamma: 0.99
+  use_time_aware_gamma: false
+  learning_rate: 0.0001
+  batch_size: 64
+  replay_buffer_size: 10000
+  target_update_freq: 100
+  clip_grad_norm: 10.0
+  learning_starts: 50
+  train_freq: 4
+  use_huber_loss: true
+
+exploration:
+  eps_start: 0.30
+  eps_end: 0.05
+  warmup_global_steps: 10
+  eps_decay_steps: 100
+
+train:
+  episodes: 30  # 30 total, 10 workers = 3 per worker
+  save_every_episodes: 30
+  print_every_episodes: 1
+  smoke_eval_every: 0
+  curriculum_hist_every: 0
+
+baseline:
+  fixed_action_id: 12
+
+curriculum:
+  enabled: true
+  phases:
+    - name: "test_phase"
+      episodes: 30
+      max_sim_seconds: 750
+      route_pool_manifest: networks/variants/train_turn801010/750/manifest.txt
+      description: "Test phase"
+
+logging:
+  log_dir: logs/test_stop
+  model_dir: models/test_stop
+
+parallel:
+  enabled: true
+  num_actors: 10
+  base_port: 9600
+  base_seed: 42
+  chunk_size: 32
+  queue_max_chunks: 100
+  sync_every_updates: 10
+  epsilon_worker_multipliers: [0.80, 0.85, 0.90, 0.95, 1.00, 1.05, 1.10, 1.15, 1.20, 1.25]
+  reset_max_retries: 3
+  reset_backoff_base_sec: 1.0
+  reset_backoff_cap_sec: 8.0
+  max_update_time_ms: 100.0
