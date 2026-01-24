@@ -1,0 +1,35 @@
+# v2_decay_nomult.yaml - Decay without worker diversity
+# Epsilon decays from 0.60 to 0.05, all workers same epsilon
+
+# Inherit from base train_1.yaml but override exploration and parallel
+_inherit: ../../configs/train_1.yaml
+
+run:
+  run_name: ablation_v2_decay_nomult
+
+exploration:
+  # Decay schedule (same as v3)
+  eps_start: 0.60
+  eps_end: 0.05
+  warmup_global_steps: 8000
+  eps_decay_steps: 60000
+
+parallel:
+  enabled: true
+  num_actors: 4
+  base_port: 9500
+  base_seed: 42  # Override via command line for different seeds
+  chunk_size: 256
+  queue_max_chunks: 200
+  sync_every_updates: 100
+  # All workers same epsilon (no diversity)
+  epsilon_worker_multipliers: [1.0, 1.0, 1.0, 1.0]
+  reset_max_retries: 3
+  reset_backoff_base_sec: 1.0
+  reset_backoff_cap_sec: 8.0
+  max_update_time_ms: 50.0
+
+logging:
+  log_dir: experiments/ablation_epsilon_v1/runs/v2_decay_nomult/curriculum_seed42
+  model_dir: experiments/ablation_epsilon_v1/runs/v2_decay_nomult/curriculum_seed42/checkpoints
+  results_dir: experiments/ablation_epsilon_v1/runs/v2_decay_nomult/curriculum_seed42/eval
