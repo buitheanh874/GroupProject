@@ -6,6 +6,7 @@ Provides baseline controllers for comparison with RL:
 - MaxPressureSplitController: MaxPressure with discrete splits
 - ActuatedController: Gap-out based actuated control
 - WebsterController: Webster formula-based timing
+- RandomController: Random action selection (weakest baseline)
 """
 from controllers.fixed_time import FixedTimeController, FixedTimeControllerConfig
 from controllers.max_pressure import (
@@ -16,6 +17,7 @@ from controllers.max_pressure import (
 )
 from controllers.actuated import ActuatedController, ActuatedControllerConfig
 from controllers.webster import WebsterController, WebsterControllerConfig
+from controllers.random_controller import RandomController
 
 __all__ = [
     # Fixed-time
@@ -32,4 +34,7 @@ __all__ = [
     # Webster
     "WebsterController",
     "WebsterControllerConfig",
+    # Random
+    "RandomController",
 ]
+

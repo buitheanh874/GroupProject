@@ -7,7 +7,7 @@ Usage:
     python scripts/eval_unified.py --config configs/eval.yaml
     
     # Override config parameters via CLI
-    python scripts/eval_unified.py --config configs/eval.yaml --policies rl_full --demands 1000
+    python scripts/eval_unified.py --config configs/eval.yaml --policies rl --demands 1000
     
     # Quick preset modes
     python scripts/eval_unified.py --config configs/eval.yaml --mode quick   # 3 demands × 3 seeds
@@ -19,7 +19,7 @@ Policies available:
     - actuated: Actuated controller (gap-out based)
     - webster: Webster formula controller
     - rl_plain: RL without advanced components
-    - rl_full: Full RL with all components
+    - rl: Trained RL model
 
 Output:
     results/eval_results.csv - All evaluation results
@@ -56,8 +56,8 @@ QUICK_SEEDS = [42, 43, 44]
 FINAL_DEMANDS = [600, 800, 1000]
 FINAL_SEEDS = [42, 43, 44, 45, 46]
 
-ALL_POLICIES = ["fixed", "max_pressure", "actuated", "webster", "rl_plain", "rl_full"]
-DEFAULT_POLICIES = ["fixed", "max_pressure", "actuated", "rl_full"]
+ALL_POLICIES = ["fixed", "max_pressure", "actuated", "webster", "random", "rl"]
+DEFAULT_POLICIES = ["fixed", "max_pressure", "actuated", "rl"]
 
 
 @dataclass
@@ -150,16 +150,10 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         help="Use hold-out route manifest for generalization test"
     )
     parser.add_argument(
-        "--rl-full-model",
+        "--rl-model",
         type=str,
         default=None,
-        help="Override path to RL-Full model checkpoint"
-    )
-    parser.add_argument(
-        "--rl-plain-model",
-        type=str,
-        default=None,
-        help="Override path to RL-Plain model checkpoint"
+        help="Override path to RL model checkpoint"
     )
     parser.add_argument(
         "--route-manifest",
@@ -218,8 +212,7 @@ def load_config_with_overrides(args: argparse.Namespace) -> Dict[str, Any]:
     
     # Model paths
     models_cfg = config.get("models", {})
-    rl_full_model = args.rl_full_model or models_cfg.get("rl_full", "models/1/best_model.pt")
-    rl_plain_model = args.rl_plain_model or models_cfg.get("rl_plain", "models/1_plain/best_model.pt")
+    rl_model = args.rl_model or models_cfg.get("rl", "models/final_design/parallel_final.pt")
 
     # Optional route manifest override
     route_manifest_cfg = None
@@ -237,8 +230,7 @@ def load_config_with_overrides(args: argparse.Namespace) -> Dict[str, Any]:
         "unseen": unseen,
         "output": output,
         "models": {
-            "rl_full": rl_full_model,
-            "rl_plain": rl_plain_model,
+            "rl": rl_model,
         },
         "route_manifest": route_manifest,
     }
@@ -354,7 +346,10 @@ def run_single_eval(
             controller = ActuatedController(action_defs)
         elif policy == "webster":
             controller = WebsterController(action_defs)
-        elif policy in ("rl_full", "rl_plain"):
+        elif policy == "random":
+            from controllers.random_controller import RandomController
+            controller = RandomController(action_defs, seed=seed)
+        elif policy == "rl":
             if model_path and Path(model_path).exists():
                 agent = build_agent(config, env)
                 if isinstance(agent, tuple):
@@ -541,7 +536,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     
     for policy in policies:
         # Determine model path
-        if policy in ("rl_full", "rl_plain"):
+        if policy == "rl":
             model_path = models[policy]
         else:
             model_path = None

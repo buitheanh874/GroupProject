@@ -1,0 +1,226 @@
+# Evaluation Config 1: Seen Routes (Training Routes)
+# Evaluate on routes used during training from train_final/
+# Uses 3 actions for fair comparison with RL
+
+run:
+  run_name: eval_1_seen_routes
+  seed: 42
+  device: cpu
+
+env:
+  type: sumo
+  sumo:
+    teleport_penalty_lambda: 0.0
+    teleport_time_cap_sec: null
+    sumo_binary: sumo
+    net_file: networks/BIGNET.net.xml
+    route_file: null  # Set by eval script
+    additional_files: []
+    tls_ids: ["J0", "J1", "J2", "J3", "J4", "J6", "J7", "J14", "J17"]
+    center_tls_id: "J0"
+    downstream_links:
+      N: "E3"
+      E: "E0"
+      S: "E2"
+      W: "E1"
+    vehicle_weights: {}
+    step_length_sec: 1.0
+    green_cycle_sec: 60
+    yellow_sec: 3
+    all_red_sec: 2
+    max_cycles: 60
+    max_sim_seconds: 1500
+    terminate_on_empty: false
+    rho_min: 0.1
+    g_min_sec: 10
+    
+    # FIXED 60s cycle for fair comparison
+    cycle_options_sec: [60]
+    
+    # 3 actions ONLY - fair comparison with RL
+    action_splits:
+      - [0.30, 0.70]  # favor EW
+      - [0.50, 0.50]  # balanced
+      - [0.70, 0.30]  # favor NS
+    
+    action_table: []
+    include_transition_in_waiting: false
+    reward_mode: simple_clipped
+    reward_time_normalize: false
+    reward_scope: global
+    
+    sumo_extra_args:
+      - "--ignore-junction-blocker"
+      - "1"
+      - "--time-to-teleport"
+      - "300"
+      - "--no-warnings"
+      - "true"
+      
+    enable_kpi_tracker: true
+    normalize_state: true
+    return_raw_state: false
+    state_dim: 14
+    enable_downstream_occupancy: false
+    enable_spillback_penalty: false
+    alpha_spillback: 0.0
+
+    lane_groups_by_tls:
+      J0:
+        lanes_ns_ctrl:
+          - "-E3_0"
+          - "-E3_1"
+          - "-E2_0"
+          - "-E2_1"
+        lanes_ew_ctrl:
+          - "-E1_0"
+          - "-E1_1"
+          - "-E1_2"
+          - "-E0_0"
+          - "-E0_1"
+          - "-E0_2"
+        lanes_right_turn_slip_ns: []
+        lanes_right_turn_slip_ew: []
+      J3:
+        lanes_ns_ctrl:
+          - "-E25_0"
+          - "-E25_1"
+          - "E2_0"
+          - "E2_1"
+        lanes_ew_ctrl:
+          - "-E26_0"
+          - "E24_0"
+        lanes_right_turn_slip_ns: []
+        lanes_right_turn_slip_ew: []
+      J1:
+        lanes_ns_ctrl:
+          - "-E6_0"
+          - "-E6_1"
+          - "-E5_0"
+          - "-E5_1"
+        lanes_ew_ctrl:
+          - "E0_0"
+          - "E0_1"
+          - "E0_2"
+          - "-E4_0"
+          - "-E4_1"
+          - "-E4_2"
+        lanes_right_turn_slip_ns: []
+        lanes_right_turn_slip_ew: []
+      J4:
+        lanes_ns_ctrl:
+          - "E3_0"
+          - "E3_1"
+          - "-E16_0"
+          - "-E16_1"
+        lanes_ew_ctrl:
+          - "E14_0"
+          - "-E15_0"
+        lanes_right_turn_slip_ns: []
+        lanes_right_turn_slip_ew: []
+      J2:
+        lanes_ns_ctrl:
+          - "-E19_0"
+          - "-E19_1"
+          - "-E18_0"
+          - "-E18_1"
+        lanes_ew_ctrl:
+          - "E1_0"
+          - "E1_1"
+          - "E1_2"
+          - "-E17_0"
+          - "-E17_1"
+          - "-E17_2"
+        lanes_right_turn_slip_ns: []
+        lanes_right_turn_slip_ew: []
+      J7:
+        lanes_ns_ctrl:
+          - "-E27_0"
+          - "-E27_1"
+          - "E6_0"
+          - "E6_1"
+        lanes_ew_ctrl:
+          - "-E28_0"
+          - "E26_0"
+        lanes_right_turn_slip_ns: []
+        lanes_right_turn_slip_ew: []
+      J6:
+        lanes_ns_ctrl:
+          - "E5_0"
+          - "E5_1"
+          - "-E13_0"
+          - "-E13_1"
+        lanes_ew_ctrl:
+          - "-E12_0"
+          - "-E14_0"
+        lanes_right_turn_slip_ns: []
+        lanes_right_turn_slip_ew: []
+      J14:
+        lanes_ns_ctrl:
+          - "E18_0"
+          - "E18_1"
+          - "-E21_0"
+          - "-E21_1"
+        lanes_ew_ctrl:
+          - "E15_0"
+          - "-E20_0"
+        lanes_right_turn_slip_ns: []
+        lanes_right_turn_slip_ew: []
+      J17:
+        lanes_ns_ctrl:
+          - "-E22_0"
+          - "-E22_1"
+          - "E19_0"
+          - "E19_1"
+        lanes_ew_ctrl:
+          - "-E24_0"
+          - "-E23_0"
+        lanes_right_turn_slip_ns: []
+        lanes_right_turn_slip_ew: []
+    phase_program:
+      ew_green: 0
+      ew_yellow: 1
+      all_red: 2
+      ns_green: 3
+      ns_yellow: 4
+
+normalization:
+  file: configs/norm_final_design.json
+
+# Evaluation parameters
+eval_matrix:
+  policies:
+    - random
+    - fixed
+    - actuated
+    - webster
+  
+  # Demand levels matching train_final routes: easy=350, medium=500, hard=650
+  demands:
+    - 350
+    - 500
+    - 650
+  
+  # Sample from training routes (27 total: 9 per demand level, 3 per imbalance)
+  route_sources:
+    - name: seen_routes
+      manifest: networks/variants/eval_final/manifest_seen_routes.txt
+      sample_count: 27  # All sampled routes
+  
+  horizon: 1500
+  warmup: 0
+  output: results/eval_1_seen_routes.csv
+
+# Model path for RL policy
+models:
+  rl: models/final_design/parallel_final.pt
+
+agent:
+  hidden_dims: [128, 128]
+  gamma: 0.99
+
+baseline:
+  fixed_action_id: 1  # balanced 50:50
+
+logging:
+  results_dir: results/eval_1
